@@ -79,6 +79,7 @@ class LiveTradingLoop:
             self.futu_connector.close()
 
     def run_one_cycle(self) -> None:
+        self._check_heartbeat()
         self._sync_broker_state()
 
         quote = self.futu_connector.get_latest_quote(self.config.symbol)
@@ -131,6 +132,15 @@ class LiveTradingLoop:
             f"price={current_price:.4f} pred={prediction:.4f} action={action} "
             f"equity={self.account_value:.2f} position={self.position_qty}"
         )
+
+
+    def _check_heartbeat(self) -> None:
+        try:
+            ok = self.futu_connector.heartbeat()
+            if not ok:
+                self.logger.warning("Broker heartbeat unhealthy; proceeding with caution using last known state")
+        except Exception as exc:
+            self.logger.warning("Broker heartbeat check failed: %s", exc)
 
     def _sync_broker_state(self) -> None:
         """Sync account value and symbol position from Futu; keep last known state on failure."""
