@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import random
 import sys
 import time
 from dataclasses import dataclass
@@ -39,7 +40,7 @@ class FutuConfig:
 
 
 class FutuConnector:
-    """Futu OpenAPI adapter for quotes, account sync, account discovery and order placement."""
+    """Futu OpenAPI adapter with multi-provider quote fallback and cache discipline."""
 
     def __init__(self, config: Optional[FutuConfig] = None, config_json_path: str = "config.json") -> None:
         self.config = config or FutuConfig()
@@ -51,6 +52,15 @@ class FutuConnector:
         self.login_account: Optional[int] = None
         self.discovered_accounts: pd.DataFrame = pd.DataFrame()
         self._quote_cache: dict[str, dict[str, Any]] = {}
+        self._cached_hit_count: dict[str, int] = {}
+
+        self.yf_user_agents = [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+            "Mozilla/5.0 (X11; Linux x86_64)",
+        ]
+        self.yf_proxy_pool = [p.strip() for p in os.getenv("YF_PROXY_POOL", "").split(",") if p.strip()]
+        self.elite_symbols = {s.strip().upper() for s in os.getenv("ELITE_SYMBOLS", "TSLA,NVDA,TQQQ").split(",") if s.strip()}
 
         self._load_runtime_config(config_json_path)
 
@@ -61,56 +71,69 @@ class FutuConnector:
         cached = self._quote_cache.get(symbol)
         if not cached:
             return None
+        self._cached_hit_count[symbol] = self._cached_hit_count.get(symbol, 0) + 1
+        if symbol.upper() in self.elite_symbols and self._cached_hit_count[symbol] >= 3:
+            self.logger.warning("Cache invalidated for elite symbol %s after 3 consecutive cached hits", symbol)
+            self._quote_cache.pop(symbol, None)
+            self._cached_hit_count[symbol] = 0
+            return None
         return cached.get("quote")
 
+    def _normalize_quote(self, close: float, open_p: float, high_p: float, low_p: float, volume: float, source: str) -> dict:
+        return {
+            "Date": pd.Timestamp.now(),
+            "Open": float(open_p),
+            "High": float(high_p),
+            "Low": float(low_p),
+            "Close": float(close),
+            "Volume": float(volume),
+            "data_source": source,
+        }
+
     def _get_latest_quote_efinance(self, symbol: str) -> dict:
-        """Best-effort efinance fallback for quote retrieval."""
         import efinance as ef
 
         df = ef.stock.get_latest_quote([symbol])
         if df is None or df.empty:
             raise RuntimeError(f"efinance returned empty quote for {symbol}")
-
         row = df.iloc[0]
         close = float(row.get("最新价", row.get("昨收", 0.0)))
-        open_price = float(row.get("今开", close))
-        high_price = float(row.get("最高", close))
-        low_price = float(row.get("最低", close))
-        volume = float(row.get("成交量", 0.0))
-
-        return {
-            "Date": pd.Timestamp.now(),
-            "Open": open_price,
-            "High": high_price,
-            "Low": low_price,
-            "Close": close,
-            "Volume": volume,
-        }
+        return self._normalize_quote(
+            close=close,
+            open_p=float(row.get("今开", close)),
+            high_p=float(row.get("最高", close)),
+            low_p=float(row.get("最低", close)),
+            volume=float(row.get("成交量", 0.0)),
+            source="EF_LIVE",
+        )
 
     def _get_latest_quote_yfinance(self, symbol: str) -> dict:
-        """Best-effort Yahoo Finance fallback for quote retrieval.
-
-        Uses 1m bars when available to get the most recent close.
-        """
+        import requests
         import yfinance as yf
 
-        ticker = yf.Ticker(symbol)
+        session = requests.Session()
+        session.headers.update({"User-Agent": random.choice(self.yf_user_agents)})
+        if self.yf_proxy_pool:
+            proxy = random.choice(self.yf_proxy_pool)
+            session.proxies.update({"http": proxy, "https": proxy})
+
+        ticker = yf.Ticker(symbol, session=session)
         hist = ticker.history(period="1d", interval="1m")
         if hist.empty:
             raise RuntimeError(f"yfinance returned empty history for {symbol}")
 
         row = hist.iloc[-1]
-        return {
-            "Date": pd.Timestamp.now(),
-            "Open": float(row.get("Open", row.get("Close", 0.0))),
-            "High": float(row.get("High", row.get("Close", 0.0))),
-            "Low": float(row.get("Low", row.get("Close", 0.0))),
-            "Close": float(row.get("Close", 0.0)),
-            "Volume": float(row.get("Volume", 0.0)),
-        }
+        close = float(row.get("Close", 0.0))
+        return self._normalize_quote(
+            close=close,
+            open_p=float(row.get("Open", close)),
+            high_p=float(row.get("High", close)),
+            low_p=float(row.get("Low", close)),
+            volume=float(row.get("Volume", 0.0)),
+            source="YF_LIVE",
+        )
 
     def _load_runtime_config(self, config_json_path: str) -> None:
-        """Optional config.json override for target account selection."""
         try:
             p = Path(config_json_path)
             if not p.exists():
@@ -131,13 +154,7 @@ class FutuConnector:
             self.ft = ft
             self.quote_ctx = ft.OpenQuoteContext(host=self.config.host, port=self.config.port)
             self.trade_ctx = ft.OpenUSTradeContext(host=self.config.host, port=self.config.port)
-            self.logger.info(
-                "Connected to Futu OpenD at %s:%s (trd_env=%s, web_port_expected=%s)",
-                self.config.host,
-                self.config.port,
-                self.config.trd_env,
-                self.config.opend_web_port,
-            )
+            self.logger.info("Connected to Futu OpenD at %s:%s", self.config.host, self.config.port)
             self.discover_accounts()
         except Exception as exc:
             self._safe_close_contexts()
@@ -166,55 +183,17 @@ class FutuConnector:
         if self.trade_ctx is None or self.ft is None:
             raise RuntimeError("FutuConnector not connected")
         method = getattr(self.trade_ctx, method_name)
-        trd_env = self._resolved_trd_env()
-
-        try:
-            ret, data = method(trd_env=trd_env, **kwargs)
-            if ret != self.ft.RET_OK:
-                raise RuntimeError(f"{method_name} failed: {data}")
-            return data
-        except Exception as exc:
-            raise RuntimeError(f"Trade API call {method_name} failed: {exc}") from exc
+        ret, data = method(trd_env=self._resolved_trd_env(), **kwargs)
+        if ret != self.ft.RET_OK:
+            raise RuntimeError(f"{method_name} failed: {data}")
+        return data
 
     def discover_accounts(self) -> pd.DataFrame:
-        """Discover all trade accounts and log identity mapping details.
-
-        Returns DataFrame with account metadata, including acc_id, account type and status.
-        """
         try:
             data = self._safe_trade_call("get_acc_list")
-            if data is None:
-                self.discovered_accounts = pd.DataFrame()
-                return self.discovered_accounts
-
-            discovered = data.copy()
-            for col in ["acc_id", "sim_acc_type", "trd_env", "acc_type", "card_num", "is_trd_enabled"]:
-                if col not in discovered.columns:
-                    discovered[col] = None
-
-            self.discovered_accounts = discovered
-
-            if "login_id" in discovered.columns and not discovered.empty:
-                self.login_account = int(discovered.iloc[0].get("login_id")) if pd.notna(discovered.iloc[0].get("login_id")) else None
-
-            self.logger.info("Account discovery (login_account/Bull-ID=%s):", self.login_account)
-            for _, row in discovered.iterrows():
-                status = "ACTIVE" if bool(row.get("is_trd_enabled", True)) else "DISABLED"
-                self.logger.info(
-                    " - acc_id=%s, acc_type=%s, sim_acc_type=%s, trd_env=%s, status=%s",
-                    row.get("acc_id"),
-                    row.get("acc_type"),
-                    row.get("sim_acc_type"),
-                    row.get("trd_env"),
-                    status,
-                )
-
-            if self.config.target_acc_id is None and "acc_id" in discovered.columns and not discovered.empty:
-                self.config.target_acc_id = int(discovered.iloc[0]["acc_id"])
-                self.logger.info("Auto-selected target_acc_id=%s", self.config.target_acc_id)
-            elif self.config.target_acc_id is not None:
-                self.logger.info("Configured target_acc_id=%s", self.config.target_acc_id)
-
+            self.discovered_accounts = data.copy() if data is not None else pd.DataFrame()
+            if self.config.target_acc_id is None and not self.discovered_accounts.empty and "acc_id" in self.discovered_accounts.columns:
+                self.config.target_acc_id = int(self.discovered_accounts.iloc[0]["acc_id"])
             return self.discovered_accounts
         except Exception as exc:
             self.logger.warning("Account discovery failed: %s", exc)
@@ -227,10 +206,8 @@ class FutuConnector:
         return {"acc_id": int(self.config.target_acc_id)}
 
     def heartbeat(self) -> bool:
-        """Connection heartbeat: validates trade context authorization/activity."""
         try:
             _ = self._safe_trade_call("accinfo_query", **self._account_kwargs())
-            self.logger.info("Futu heartbeat OK (acc_id=%s)", self.config.target_acc_id)
             return True
         except Exception as exc:
             self.logger.warning("Futu heartbeat failed: %s", exc)
@@ -240,99 +217,67 @@ class FutuConnector:
         code = f"{self.config.market_prefix}.{symbol}"
         provider_errors: list[str] = []
 
-        try:
-            quote = self._get_latest_quote_yfinance(symbol)
-            self._cache_quote(symbol, quote)
-            self.logger.info("Using yfinance quote for %s", symbol)
-            return quote
-        except Exception as yf_exc:
-            provider_errors.append(f"yfinance={yf_exc}")
-            self.logger.warning("yfinance quote failed for %s (%s): %s", symbol, yf_exc.__class__.__name__, yf_exc)
-
-        try:
-            quote = self._get_latest_quote_efinance(symbol)
-            self._cache_quote(symbol, quote)
-            self.logger.info("Using efinance quote for %s", symbol)
-            return quote
-        except Exception as ef_exc:
-            provider_errors.append(f"efinance={ef_exc}")
-            self.logger.warning("efinance quote failed for %s (%s): %s", symbol, ef_exc.__class__.__name__, ef_exc)
-
-        if self.quote_ctx is not None and self.ft is not None:
+        for provider in ("yf", "ef", "futu"):
             try:
-                ret, df = self.quote_ctx.get_stock_quote([code])
-                if ret != self.ft.RET_OK or df.empty:
-                    raise RuntimeError(f"Failed to fetch quote for {code}: {df}")
+                if provider == "yf":
+                    quote = self._get_latest_quote_yfinance(symbol)
+                elif provider == "ef":
+                    quote = self._get_latest_quote_efinance(symbol)
+                else:
+                    if self.quote_ctx is None or self.ft is None:
+                        raise RuntimeError("not_connected")
+                    ret, df = self.quote_ctx.get_stock_quote([code])
+                    if ret != self.ft.RET_OK or df.empty:
+                        raise RuntimeError(f"failed: {df}")
+                    row = df.iloc[0]
+                    quote = self._normalize_quote(
+                        close=float(row.get("last_price", 0.0)),
+                        open_p=float(row.get("open_price", row.get("last_price", 0.0))),
+                        high_p=float(row.get("high_price", row.get("last_price", 0.0))),
+                        low_p=float(row.get("low_price", row.get("last_price", 0.0))),
+                        volume=float(row.get("volume", 0.0)),
+                        source="FUTU",
+                    )
 
-                row = df.iloc[0]
-                quote = {
-                    "Date": pd.Timestamp.now(),
-                    "Open": float(row.get("open_price", row.get("last_price", 0.0))),
-                    "High": float(row.get("high_price", row.get("last_price", 0.0))),
-                    "Low": float(row.get("low_price", row.get("last_price", 0.0))),
-                    "Close": float(row.get("last_price", 0.0)),
-                    "Volume": float(row.get("volume", 0.0)),
-                }
                 self._cache_quote(symbol, quote)
-                self.logger.info("Using futu quote for %s", symbol)
+                self._cached_hit_count[symbol] = 0
                 return quote
-            except Exception as futu_exc:
-                provider_errors.append(f"futu={futu_exc}")
-                self.logger.warning("Futu quote failed for %s (%s): %s", code, futu_exc.__class__.__name__, futu_exc)
-        else:
-            provider_errors.append("futu=not_connected")
-            self.logger.warning("Futu quote skipped for %s: connector not ready", code)
+            except Exception as exc:
+                provider_errors.append(f"{provider}={exc}")
 
         cached_quote = self._get_cached_quote(symbol)
         if cached_quote is not None:
-            self.logger.warning("Using last cached quote for %s after provider failures", symbol)
+            cached_quote = {**cached_quote, "data_source": "CACHED"}
             return cached_quote
 
-        errors = "; ".join(provider_errors)
-        raise RuntimeError(f"Quote query failed for {code}. Providers exhausted: {errors}")
+        raise RuntimeError(f"Quote query failed for {code}. Providers exhausted: {'; '.join(provider_errors)}")
 
     def get_sync_assets(self) -> dict:
         data = self._safe_trade_call("accinfo_query", **self._account_kwargs())
         if data is None or data.empty:
             raise RuntimeError("accinfo_query returned empty dataset")
-
         row = data.iloc[0]
-        return {
-            "total_assets": float(row.get("total_assets", 0.0)),
-            "cash": float(row.get("cash", 0.0)),
-            "power": float(row.get("power", 0.0)),
-        }
+        return {"total_assets": float(row.get("total_assets", 0.0)), "cash": float(row.get("cash", 0.0)), "power": float(row.get("power", 0.0))}
 
     def get_sync_positions(self) -> pd.DataFrame:
         data = self._safe_trade_call("position_list_query", **self._account_kwargs())
-        if data is None:
-            return pd.DataFrame()
-        return data.copy()
+        return pd.DataFrame() if data is None else data.copy()
 
     def place_order(self, symbol: str, qty: int, side: str, price: Optional[float] = None) -> object:
         if self.trade_ctx is None or self.ft is None:
             raise RuntimeError("FutuConnector not connected")
         if qty <= 0:
             raise ValueError("qty must be > 0")
-
         code = f"{self.config.market_prefix}.{symbol}"
-        trd_side = self.ft.TrdSide.BUY if side.upper() == "BUY" else self.ft.TrdSide.SELL
-        order_type = self.ft.OrderType.NORMAL
-        order_price = 0 if price is None else float(price)
-
-        try:
-            ret, data = self.trade_ctx.place_order(
-                price=order_price,
-                qty=qty,
-                code=code,
-                trd_side=trd_side,
-                order_type=order_type,
-                trd_env=self._resolved_trd_env(),
-                **self._account_kwargs(),
-            )
-            if ret != self.ft.RET_OK:
-                raise RuntimeError(f"Order placement failed: {data}")
-            self.logger.info("Order placed: %s %d %s (acc_id=%s)", side.upper(), qty, symbol, self.config.target_acc_id)
-            return data
-        except Exception as exc:
-            raise RuntimeError(f"Order placement exception for {code}: {exc}") from exc
+        ret, data = self.trade_ctx.place_order(
+            price=0 if price is None else float(price),
+            qty=qty,
+            code=code,
+            trd_side=self.ft.TrdSide.BUY if side.upper() == "BUY" else self.ft.TrdSide.SELL,
+            order_type=self.ft.OrderType.NORMAL,
+            trd_env=self._resolved_trd_env(),
+            **self._account_kwargs(),
+        )
+        if ret != self.ft.RET_OK:
+            raise RuntimeError(f"Order placement failed: {data}")
+        return data
