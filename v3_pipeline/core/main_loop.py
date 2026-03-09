@@ -14,7 +14,7 @@ from v3_pipeline.core.futu_connector import FutuConnector
 from v3_pipeline.core.history_priming import HistoryPrimer, PrimingConfig
 from v3_pipeline.core.strategy_factory import StrategyFactory
 from v3_pipeline.features.indicators import TechnicalIndicatorGenerator
-from v3_pipeline.models.manager import ModelManager
+from v3_pipeline.models.manager import DataPreparer, ModelManager
 from v3_pipeline.risk.manager import RiskController
 
 
@@ -44,6 +44,7 @@ class LiveConfig:
     history_retry_backoff_seconds: float = 1.5
     max_symbol_concurrency: int = 111
     crit_move_threshold: float = 0.035
+    quote_timeout_seconds: float = 10.0
 
 
 class LiveTradingLoop:
@@ -83,6 +84,13 @@ class LiveTradingLoop:
                 backoff_seconds=self.config.history_retry_backoff_seconds,
             ),
         )
+        self.data_preparers_by_symbol: dict[str, DataPreparer] = {
+            s: DataPreparer(
+                lookback=self.model_manager.data_preparer.lookback,
+                target_col=self.model_manager.data_preparer.target_col,
+            )
+            for s in self.symbols
+        }
 
     def start(self) -> None:
         self.futu_connector.connect()
@@ -119,7 +127,18 @@ class LiveTradingLoop:
         started = time.perf_counter()
         lookback = int(self.model_manager.data_preparer.lookback)
 
-        quote = await asyncio.to_thread(self.futu_connector.get_latest_quote, symbol)
+        try:
+            quote = await asyncio.wait_for(
+                asyncio.to_thread(self.futu_connector.get_latest_quote, symbol),
+                timeout=self.config.quote_timeout_seconds,
+            )
+        except TimeoutError:
+            self.logger.warning("TIMEOUT[%s]: quote fetch exceeded %.1fs, skipping cycle", symbol, self.config.quote_timeout_seconds)
+            return
+        except Exception as exc:
+            self.logger.warning("QuoteFetchFail[%s]: %s", symbol, exc)
+            return
+
         buffer_df = pd.concat([self.market_buffers[symbol], pd.DataFrame([quote])], ignore_index=True)
         buffer_df = self._normalize_market_buffer(buffer_df)
         self.market_buffers[symbol] = buffer_df
@@ -130,13 +149,24 @@ class LiveTradingLoop:
             self.logger.info("Warmup[%s]: waiting for more bars (%d/%d)", symbol, len(buffer_df), lookback)
             return
 
-        featured = self.feature_generator.generate(buffer_df).dropna().reset_index(drop=True)
+        featured = self.feature_generator.generate(buffer_df)
+        featured = featured.ffill().bfill().dropna().reset_index(drop=True)
         if len(featured) <= lookback:
             self.logger.info("Warmup[%s]: indicators not ready (%d/%d)", symbol, len(featured), lookback)
             return
 
+        symbol_preparer = self.data_preparers_by_symbol[symbol]
+        needs_refit = (not symbol_preparer.is_fitted) or (symbol_preparer.feature_columns is not None and any(c not in featured.columns for c in symbol_preparer.feature_columns))
+        if needs_refit:
+            try:
+                symbol_preparer.fit_transform(featured)
+                self.logger.info("[%s] Fitted with %d bars - OK", symbol, len(featured))
+            except Exception as exc:
+                self.logger.warning("[%s] Fitting failed: %s", symbol, exc)
+                return
+
         current_price = float(featured.iloc[-1]["Close"])
-        prediction = float(self.model_manager.predict(featured))
+        prediction = float(self.model_manager.predict(featured, data_preparer=symbol_preparer))
         confidence = min(1.0, abs(prediction - current_price) / max(current_price, 1e-9))
         vix_value = await asyncio.to_thread(self._get_vix)
         profile = self.strategy_factory.choose_profile(vix_value)

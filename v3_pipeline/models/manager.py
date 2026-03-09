@@ -60,6 +60,16 @@ class DataPreparer:
         self.target_min: Optional[float] = None
         self.target_max: Optional[float] = None
 
+    @property
+    def is_fitted(self) -> bool:
+        return (
+            self.feature_columns is not None
+            and self.feature_mins is not None
+            and self.feature_maxs is not None
+            and self.target_min is not None
+            and self.target_max is not None
+        )
+
     def fit_transform(self, frame: pd.DataFrame) -> Tuple[torch.Tensor, torch.Tensor]:
         clean = self._sanitize(frame)
         features = clean.drop(columns=["Date"]).copy()
@@ -82,12 +92,27 @@ class DataPreparer:
         return x, y
 
     def transform_for_inference(self, frame: pd.DataFrame) -> torch.Tensor:
-        if self.feature_columns is None or self.feature_mins is None or self.feature_maxs is None:
+        if not self.is_fitted:
             raise RuntimeError("DataPreparer is not fitted. Call fit_transform() first.")
 
-        clean = self._sanitize(frame)
-        features = clean.drop(columns=["Date"]).copy()
+        clean = frame.copy()
+        clean["Date"] = pd.to_datetime(clean["Date"], errors="coerce")
+        clean = (
+            clean.dropna(subset=["Date"])
+            .sort_values("Date")
+            .drop_duplicates(subset=["Date"])
+            .reset_index(drop=True)
+        )
 
+        numeric_cols = [c for c in clean.columns if c != "Date"]
+        for col in numeric_cols:
+            clean[col] = pd.to_numeric(clean[col], errors="coerce")
+
+        inference_frame = clean.copy()
+        inference_frame[numeric_cols] = inference_frame[numeric_cols].ffill().bfill()
+        inference_frame[numeric_cols] = inference_frame[numeric_cols].fillna(0.0)
+
+        features = inference_frame.drop(columns=["Date"]).copy()
         missing = [c for c in self.feature_columns if c not in features.columns]
         if missing:
             raise ValueError(f"Missing required features for inference: {missing}")
@@ -99,6 +124,9 @@ class DataPreparer:
             raise ValueError(f"Need at least lookback={self.lookback} rows, got {len(scaled)}")
 
         window = scaled.iloc[-self.lookback :].values.astype(np.float32)
+        window = np.nan_to_num(window, nan=0.0, posinf=1.0, neginf=0.0)
+        if np.isnan(window).any():
+            raise RuntimeError("Hard-Fill failed: inference tensor still contains NaN")
         return torch.tensor(window).unsqueeze(0)
 
     def inverse_scale_target(self, value: float) -> float:
@@ -207,13 +235,30 @@ class ModelManager:
 
         return losses
 
-    def predict(self, latest_data_window: pd.DataFrame) -> float:
+    def _ensure_model_input_dim(self, input_dim: int) -> None:
+        current_dim = int(self.model.lstm.input_size)
+        if current_dim == input_dim:
+            return
+
+        self.logger.warning("Input dim drift detected: model=%d new=%d. Rebuilding KiroLSTM channels.", current_dim, input_dim)
+        rebuilt = KiroLSTM(
+            input_dim=input_dim,
+            hidden_dim=int(self.model.lstm.hidden_size),
+            num_layers=int(self.model.lstm.num_layers),
+            dropout=float(self.model.dropout.p),
+            output_dim=int(self.model.fc.out_features),
+        ).to(self.device)
+        self.model = rebuilt
+
+    def predict(self, latest_data_window: pd.DataFrame, data_preparer: Optional[DataPreparer] = None) -> float:
+        active_preparer = data_preparer or self.data_preparer
         self.model.eval()
         with torch.no_grad():
-            x = self.data_preparer.transform_for_inference(latest_data_window).to(self.device)
+            x = active_preparer.transform_for_inference(latest_data_window).to(self.device)
+            self._ensure_model_input_dim(int(x.shape[-1]))
             scaled_pred = float(self.model(x).cpu().numpy().ravel()[0])
-            pred = self.data_preparer.inverse_scale_target(scaled_pred)
-            self.logger.info("Prediction (scaled=%.6f, inverse=%.6f)", scaled_pred, pred)
+            pred = active_preparer.inverse_scale_target(scaled_pred)
+            self.logger.info("Prediction (scaled=%.6f, inverse=%.6f, input_dim=%d)", scaled_pred, pred, int(x.shape[-1]))
             return pred
 
     def save(self, model_name: str) -> Path:
