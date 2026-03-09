@@ -79,6 +79,8 @@ class LiveTradingLoop:
             self.futu_connector.close()
 
     def run_one_cycle(self) -> None:
+        self._sync_broker_state()
+
         quote = self.futu_connector.get_latest_quote(self.config.symbol)
         self.market_buffer = pd.concat([self.market_buffer, pd.DataFrame([quote])], ignore_index=True)
         self.market_buffer["Date"] = pd.to_datetime(self.market_buffer["Date"], errors="coerce")
@@ -97,7 +99,7 @@ class LiveTradingLoop:
         current_price = float(featured.iloc[-1]["Close"])
         prediction = self.model_manager.predict(featured)
 
-        self.account_value = self._mark_to_market(current_price)
+        # Use broker-synced values as baseline for risk/signals.
         self.equity_peak = max(self.equity_peak, self.account_value)
 
         if self.risk_controller.circuit_breaker_triggered(self.equity_peak, self.account_value):
@@ -130,16 +132,49 @@ class LiveTradingLoop:
             f"equity={self.account_value:.2f} position={self.position_qty}"
         )
 
+    def _sync_broker_state(self) -> None:
+        """Sync account value and symbol position from Futu; keep last known state on failure."""
+        try:
+            assets = self.futu_connector.get_sync_assets()
+            synced_value = float(assets.get("total_assets", self.account_value))
+            if synced_value > 0:
+                self.account_value = synced_value
+                self.logger.info("Synced account value: %.2f", self.account_value)
+        except Exception as exc:
+            self.logger.warning("Asset sync failed, using last known account value %.2f: %s", self.account_value, exc)
+
+        try:
+            positions = self.futu_connector.get_sync_positions()
+            synced_qty = 0
+            if not positions.empty:
+                symbol_code = f"{self.futu_connector.config.market_prefix}.{self.config.symbol}"
+                if "code" in positions.columns:
+                    row = positions[positions["code"] == symbol_code]
+                elif "stock_name" in positions.columns:
+                    row = positions[positions["stock_name"] == self.config.symbol]
+                else:
+                    row = pd.DataFrame()
+
+                if not row.empty:
+                    qty_col = "qty" if "qty" in row.columns else "can_sell_qty" if "can_sell_qty" in row.columns else None
+                    if qty_col is not None:
+                        synced_qty = int(float(row.iloc[0][qty_col]))
+
+            self.position_qty = max(0, synced_qty)
+            if self.position_qty == 0:
+                self.highest_price_since_entry = 0.0
+            self.logger.info("Synced position qty for %s: %d", self.config.symbol, self.position_qty)
+        except Exception as exc:
+            self.logger.warning("Position sync failed, using last known position %d: %s", self.position_qty, exc)
+
     def _execute(self, side: str, qty: int, price: float, reason: str) -> None:
         self.logger.info("Execute %s qty=%d price=%.4f reason=%s", side, qty, price, reason)
 
         if side == "BUY":
             self.position_qty += qty
             self.highest_price_since_entry = price
-            self.account_value -= qty * price
         elif side == "SELL":
             self.position_qty = max(0, self.position_qty - qty)
-            self.account_value += qty * price
             if self.position_qty == 0:
                 self.highest_price_since_entry = 0.0
 
@@ -147,9 +182,6 @@ class LiveTradingLoop:
             self.futu_connector.place_order(self.config.symbol, qty, side, price)
         else:
             self.logger.info("Paper trading mode: simulated %s %d %s", side, qty, self.config.symbol)
-
-    def _mark_to_market(self, price: float) -> float:
-        return self.account_value + self.position_qty * price
 
     def _notify(self, message: str) -> None:
         self.logger.info(message)

@@ -32,7 +32,7 @@ class FutuConfig:
 
 
 class FutuConnector:
-    """Minimal Futu OpenAPI adapter for quote polling and order placement."""
+    """Minimal Futu OpenAPI adapter for quote polling, state sync, and order placement."""
 
     def __init__(self, config: Optional[FutuConfig] = None) -> None:
         self.config = config or FutuConfig()
@@ -47,7 +47,7 @@ class FutuConnector:
         self.ft = ft
         self.quote_ctx = ft.OpenQuoteContext(host=self.config.host, port=self.config.port)
         self.trade_ctx = ft.OpenUSTradeContext(host=self.config.host, port=self.config.port)
-        self.logger.info("Connected to Futu OpenD at %s:%s", self.config.host, self.config.port)
+        self.logger.info("Connected to Futu OpenD at %s:%s (trd_env=%s)", self.config.host, self.config.port, self.config.trd_env)
 
     def close(self) -> None:
         if self.quote_ctx is not None:
@@ -55,6 +55,11 @@ class FutuConnector:
         if self.trade_ctx is not None:
             self.trade_ctx.close()
         self.logger.info("Closed Futu contexts")
+
+    def _resolved_trd_env(self):
+        if self.ft is None:
+            raise RuntimeError("Futu SDK not loaded. Call connect() first.")
+        return getattr(self.ft.TrdEnv, self.config.trd_env, self.ft.TrdEnv.SIMULATE)
 
     def get_latest_quote(self, symbol: str) -> dict:
         if self.quote_ctx is None or self.ft is None:
@@ -75,6 +80,34 @@ class FutuConnector:
             "Volume": float(row.get("volume", 0.0)),
         }
 
+    def get_sync_assets(self) -> dict:
+        if self.trade_ctx is None or self.ft is None:
+            raise RuntimeError("FutuConnector not connected")
+
+        ret, data = self.trade_ctx.accinfo_query(trd_env=self._resolved_trd_env())
+        if ret != self.ft.RET_OK or data is None or data.empty:
+            raise RuntimeError(f"Failed to sync assets: {data}")
+
+        row = data.iloc[0]
+        assets = {
+            "total_assets": float(row.get("total_assets", 0.0)),
+            "cash": float(row.get("cash", 0.0)),
+            "power": float(row.get("power", 0.0)),
+        }
+        return assets
+
+    def get_sync_positions(self) -> pd.DataFrame:
+        if self.trade_ctx is None or self.ft is None:
+            raise RuntimeError("FutuConnector not connected")
+
+        ret, data = self.trade_ctx.position_list_query(trd_env=self._resolved_trd_env())
+        if ret != self.ft.RET_OK:
+            raise RuntimeError(f"Failed to sync positions: {data}")
+
+        if data is None:
+            return pd.DataFrame()
+        return data.copy()
+
     def place_order(self, symbol: str, qty: int, side: str, price: Optional[float] = None) -> object:
         if self.trade_ctx is None or self.ft is None:
             raise RuntimeError("FutuConnector not connected")
@@ -91,7 +124,7 @@ class FutuConnector:
             code=code,
             trd_side=trd_side,
             order_type=order_type,
-            trd_env=getattr(self.ft.TrdEnv, self.config.trd_env, self.ft.TrdEnv.SIMULATE),
+            trd_env=self._resolved_trd_env(),
         )
         if ret != self.ft.RET_OK:
             raise RuntimeError(f"Order placement failed: {data}")
