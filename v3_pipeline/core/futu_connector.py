@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
@@ -49,8 +50,40 @@ class FutuConnector:
 
         self.login_account: Optional[int] = None
         self.discovered_accounts: pd.DataFrame = pd.DataFrame()
+        self._quote_cache: dict[str, dict[str, Any]] = {}
 
         self._load_runtime_config(config_json_path)
+
+    def _cache_quote(self, symbol: str, quote: dict[str, Any]) -> None:
+        self._quote_cache[symbol] = {"quote": quote, "ts": time.time()}
+
+    def _get_cached_quote(self, symbol: str) -> Optional[dict[str, Any]]:
+        cached = self._quote_cache.get(symbol)
+        if not cached:
+            return None
+        return cached.get("quote")
+
+    def _get_latest_quote_yfinance(self, symbol: str) -> dict:
+        """Best-effort Yahoo Finance fallback for quote retrieval.
+
+        Uses 1m bars when available to get the most recent close.
+        """
+        import yfinance as yf
+
+        ticker = yf.Ticker(symbol)
+        hist = ticker.history(period="1d", interval="1m")
+        if hist.empty:
+            raise RuntimeError(f"yfinance returned empty history for {symbol}")
+
+        row = hist.iloc[-1]
+        return {
+            "Date": pd.Timestamp.now(),
+            "Open": float(row.get("Open", row.get("Close", 0.0))),
+            "High": float(row.get("High", row.get("Close", 0.0))),
+            "Low": float(row.get("Low", row.get("Close", 0.0))),
+            "Close": float(row.get("Close", 0.0)),
+            "Volume": float(row.get("Volume", 0.0)),
+        }
 
     def _load_runtime_config(self, config_json_path: str) -> None:
         """Optional config.json override for target account selection."""
@@ -190,7 +223,7 @@ class FutuConnector:
                 raise RuntimeError(f"Failed to fetch quote for {code}: {df}")
 
             row = df.iloc[0]
-            return {
+            quote = {
                 "Date": pd.Timestamp.now(),
                 "Open": float(row.get("open_price", row.get("last_price", 0.0))),
                 "High": float(row.get("high_price", row.get("last_price", 0.0))),
@@ -198,8 +231,26 @@ class FutuConnector:
                 "Close": float(row.get("last_price", 0.0)),
                 "Volume": float(row.get("volume", 0.0)),
             }
+            self._cache_quote(symbol, quote)
+            return quote
         except Exception as exc:
-            raise RuntimeError(f"Quote query failed for {code}: {exc}") from exc
+            self.logger.warning("Futu quote query failed for %s, trying yfinance fallback: %s", code, exc)
+
+            try:
+                quote = self._get_latest_quote_yfinance(symbol)
+                self._cache_quote(symbol, quote)
+                self.logger.info("Using yfinance fallback quote for %s", symbol)
+                return quote
+            except Exception as fallback_exc:
+                err_name = fallback_exc.__class__.__name__
+                self.logger.warning("yfinance fallback failed for %s (%s): %s", symbol, err_name, fallback_exc)
+
+                cached_quote = self._get_cached_quote(symbol)
+                if cached_quote is not None:
+                    self.logger.warning("Using last cached quote for %s after provider failures", symbol)
+                    return cached_quote
+
+                raise RuntimeError(f"Quote query failed for {code}: {exc}; yfinance fallback failed: {fallback_exc}") from fallback_exc
 
     def get_sync_assets(self) -> dict:
         data = self._safe_trade_call("accinfo_query", **self._account_kwargs())
