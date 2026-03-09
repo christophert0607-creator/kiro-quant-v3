@@ -1,8 +1,10 @@
+import asyncio
+import json
 import logging
 import sys
-import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 import pandas as pd
@@ -32,11 +34,18 @@ def _build_stderr_logger(name: str) -> logging.Logger:
 
 @dataclass
 class LiveConfig:
-    symbol: str = "TSLA"
+    symbols: list[str] = field(default_factory=lambda: ["TSLA"])
     polling_seconds: int = 60
     prediction_threshold: float = 0.01
     auto_trade: bool = False
     paper_trading: bool = True
+
+
+@dataclass
+class SymbolState:
+    market_buffer: pd.DataFrame = field(default_factory=lambda: pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume"]))
+    position_qty: int = 0
+    highest_price_since_entry: float = 0.0
 
 
 class LiveTradingLoop:
@@ -49,60 +58,83 @@ class LiveTradingLoop:
         futu_connector: Optional[FutuConnector] = None,
         feature_generator: Optional[TechnicalIndicatorGenerator] = None,
         config: Optional[LiveConfig] = None,
+        config_json_path: str = "v3_config.json",
     ) -> None:
         self.model_manager = model_manager
         self.risk_controller = risk_controller
         self.futu_connector = futu_connector or FutuConnector()
         self.feature_generator = feature_generator or TechnicalIndicatorGenerator()
-        self.config = config or LiveConfig()
+        self.config = config or self._load_runtime_config(config_json_path)
         self.logger = _build_stderr_logger(self.__class__.__name__)
 
-        self.market_buffer = pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume"])
+        self.symbol_states: dict[str, SymbolState] = {s: SymbolState() for s in self.config.symbols}
         self.equity_peak = 0.0
         self.account_value = 100000.0
-        self.position_qty = 0
-        self.highest_price_since_entry = 0.0
+
+    def _load_runtime_config(self, config_json_path: str) -> LiveConfig:
+        cfg = LiveConfig()
+        p = Path(config_json_path)
+        if not p.exists():
+            return cfg
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            section = data.get("v3", data) if isinstance(data, dict) else {}
+            symbols = section.get("symbols")
+            if isinstance(symbols, list) and symbols:
+                cfg.symbols = [str(s).upper() for s in symbols]
+            cfg.polling_seconds = int(section.get("polling_seconds", cfg.polling_seconds))
+            cfg.prediction_threshold = float(section.get("prediction_threshold", cfg.prediction_threshold))
+            cfg.auto_trade = bool(section.get("auto_trade", cfg.auto_trade))
+            cfg.paper_trading = bool(section.get("paper_trading", cfg.paper_trading))
+        except Exception as exc:
+            _build_stderr_logger(self.__class__.__name__).warning("Failed to parse %s: %s", config_json_path, exc)
+        return cfg
 
     def start(self) -> None:
         self.logger.info(
-            "Starting live loop symbol=%s auto_trade=%s paper_trading=%s",
-            self.config.symbol,
+            "Starting async live loop symbols=%s auto_trade=%s paper_trading=%s",
+            self.config.symbols,
             self.config.auto_trade,
             self.config.paper_trading,
         )
         self.futu_connector.connect()
         try:
-            while True:
-                self.run_one_cycle()
-                time.sleep(self.config.polling_seconds)
+            asyncio.run(self._run_forever())
         finally:
             self.futu_connector.close()
 
-    def run_one_cycle(self) -> None:
+    async def _run_forever(self) -> None:
+        while True:
+            await self.run_one_cycle()
+            await asyncio.sleep(self.config.polling_seconds)
+
+    async def run_one_cycle(self) -> None:
         self._check_heartbeat()
         self._sync_broker_state()
+        await asyncio.gather(*(self._run_symbol_cycle(symbol) for symbol in self.config.symbols))
 
-        quote = self.futu_connector.get_latest_quote(self.config.symbol)
-        self.market_buffer = pd.concat([self.market_buffer, pd.DataFrame([quote])], ignore_index=True)
-        self.market_buffer["Date"] = pd.to_datetime(self.market_buffer["Date"], errors="coerce")
-        self.market_buffer = (
-            self.market_buffer.dropna(subset=["Date"])
+    async def _run_symbol_cycle(self, symbol: str) -> None:
+        state = self.symbol_states.setdefault(symbol, SymbolState())
+
+        quote = await asyncio.to_thread(self.futu_connector.get_latest_quote, symbol)
+        state.market_buffer = pd.concat([state.market_buffer, pd.DataFrame([quote])], ignore_index=True)
+        state.market_buffer["Date"] = pd.to_datetime(state.market_buffer["Date"], errors="coerce")
+        state.market_buffer = (
+            state.market_buffer.dropna(subset=["Date"])
             .sort_values("Date")
             .drop_duplicates(subset=["Date"], keep="last")
             .reset_index(drop=True)
         )
 
-        featured = self.feature_generator.generate(self.market_buffer).dropna().reset_index(drop=True)
+        featured = self.feature_generator.generate(state.market_buffer).dropna().reset_index(drop=True)
         if len(featured) <= self.model_manager.data_preparer.lookback:
-            self.logger.info("Warmup: waiting for more bars (%d/%d)", len(featured), self.model_manager.data_preparer.lookback)
+            self.logger.info("Warmup[%s]: waiting for more bars (%d/%d)", symbol, len(featured), self.model_manager.data_preparer.lookback)
             return
 
         current_price = float(featured.iloc[-1]["Close"])
-        prediction = self.model_manager.predict(featured)
+        prediction = float(await asyncio.to_thread(self.model_manager.predict, featured))
 
-        # Use broker-synced values as baseline for risk/signals.
         self.equity_peak = max(self.equity_peak, self.account_value)
-
         if self.risk_controller.circuit_breaker_triggered(self.equity_peak, self.account_value):
             self._notify(f"🚨 Circuit breaker hit. Equity={self.account_value:.2f}")
             return
@@ -111,28 +143,27 @@ class LiveTradingLoop:
         threshold_up = current_price * (1 + self.config.prediction_threshold)
         threshold_down = current_price * (1 - self.config.prediction_threshold)
 
-        if self.position_qty > 0:
-            self.highest_price_since_entry = max(self.highest_price_since_entry, current_price)
-            if self.risk_controller.should_stop_out(current_price, self.highest_price_since_entry):
-                self._execute("SELL", self.position_qty, current_price, reason="trailing_stop")
+        if state.position_qty > 0:
+            state.highest_price_since_entry = max(state.highest_price_since_entry, current_price)
+            if self.risk_controller.should_stop_out(current_price, state.highest_price_since_entry):
+                self._execute(symbol, state, "SELL", state.position_qty, current_price, reason="trailing_stop")
                 action = "SELL"
 
         if action == "HOLD":
-            if prediction > threshold_up and self.position_qty == 0:
+            if prediction > threshold_up and state.position_qty == 0:
                 qty = self.risk_controller.calculate_position_size(self.account_value, current_price)
                 if qty > 0:
-                    self._execute("BUY", qty, current_price, reason="model_signal")
+                    self._execute(symbol, state, "BUY", qty, current_price, reason="model_signal")
                     action = "BUY"
-            elif prediction < threshold_down and self.position_qty > 0:
-                self._execute("SELL", self.position_qty, current_price, reason="model_signal")
+            elif prediction < threshold_down and state.position_qty > 0:
+                self._execute(symbol, state, "SELL", state.position_qty, current_price, reason="model_signal")
                 action = "SELL"
 
         self._notify(
-            f"💓 {datetime.utcnow().isoformat()} {self.config.symbol} "
+            f"💓 {datetime.utcnow().isoformat()} {symbol} "
             f"price={current_price:.4f} pred={prediction:.4f} action={action} "
-            f"equity={self.account_value:.2f} position={self.position_qty}"
+            f"equity={self.account_value:.2f} position={state.position_qty}"
         )
-
 
     def _check_heartbeat(self) -> None:
         try:
@@ -143,7 +174,7 @@ class LiveTradingLoop:
             self.logger.warning("Broker heartbeat check failed: %s", exc)
 
     def _sync_broker_state(self) -> None:
-        """Sync account value and symbol position from Futu; keep last known state on failure."""
+        """Sync account value and symbol positions from Futu; keep last known state on failure."""
         try:
             assets = self.futu_connector.get_sync_assets()
             synced_value = float(assets.get("total_assets", self.account_value))
@@ -155,43 +186,44 @@ class LiveTradingLoop:
 
         try:
             positions = self.futu_connector.get_sync_positions()
-            synced_qty = 0
-            if not positions.empty:
-                symbol_code = f"{self.futu_connector.config.market_prefix}.{self.config.symbol}"
-                if "code" in positions.columns:
-                    row = positions[positions["code"] == symbol_code]
-                elif "stock_name" in positions.columns:
-                    row = positions[positions["stock_name"] == self.config.symbol]
-                else:
-                    row = pd.DataFrame()
+            for symbol, state in self.symbol_states.items():
+                synced_qty = 0
+                if not positions.empty:
+                    symbol_code = f"{self.futu_connector.config.market_prefix}.{symbol}"
+                    if "code" in positions.columns:
+                        row = positions[positions["code"] == symbol_code]
+                    elif "stock_name" in positions.columns:
+                        row = positions[positions["stock_name"] == symbol]
+                    else:
+                        row = pd.DataFrame()
 
-                if not row.empty:
-                    qty_col = "qty" if "qty" in row.columns else "can_sell_qty" if "can_sell_qty" in row.columns else None
-                    if qty_col is not None:
-                        synced_qty = int(float(row.iloc[0][qty_col]))
+                    if not row.empty:
+                        qty_col = "qty" if "qty" in row.columns else "can_sell_qty" if "can_sell_qty" in row.columns else None
+                        if qty_col is not None:
+                            synced_qty = int(float(row.iloc[0][qty_col]))
 
-            self.position_qty = max(0, synced_qty)
-            if self.position_qty == 0:
-                self.highest_price_since_entry = 0.0
-            self.logger.info("Synced position qty for %s: %d", self.config.symbol, self.position_qty)
+                state.position_qty = max(0, synced_qty)
+                if state.position_qty == 0:
+                    state.highest_price_since_entry = 0.0
+                self.logger.info("Synced position qty for %s: %d", symbol, state.position_qty)
         except Exception as exc:
-            self.logger.warning("Position sync failed, using last known position %d: %s", self.position_qty, exc)
+            self.logger.warning("Position sync failed: %s", exc)
 
-    def _execute(self, side: str, qty: int, price: float, reason: str) -> None:
-        self.logger.info("Execute %s qty=%d price=%.4f reason=%s", side, qty, price, reason)
+    def _execute(self, symbol: str, state: SymbolState, side: str, qty: int, price: float, reason: str) -> None:
+        self.logger.info("Execute %s %s qty=%d price=%.4f reason=%s", symbol, side, qty, price, reason)
 
         if self.config.auto_trade and not self.config.paper_trading:
-            self.futu_connector.place_order(self.config.symbol, qty, side, price)
+            self.futu_connector.place_order(symbol, qty, side, price)
         else:
-            self.logger.info("Paper trading mode: simulated %s %d %s", side, qty, self.config.symbol)
+            self.logger.info("Paper trading mode: simulated %s %d %s", side, qty, symbol)
 
         if side == "BUY":
-            self.position_qty += qty
-            self.highest_price_since_entry = price
+            state.position_qty += qty
+            state.highest_price_since_entry = price
         elif side == "SELL":
-            self.position_qty = max(0, self.position_qty - qty)
-            if self.position_qty == 0:
-                self.highest_price_since_entry = 0.0
+            state.position_qty = max(0, state.position_qty - qty)
+            if state.position_qty == 0:
+                state.highest_price_since_entry = 0.0
 
     def _notify(self, message: str) -> None:
         self.logger.info(message)
