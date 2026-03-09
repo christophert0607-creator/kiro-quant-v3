@@ -51,19 +51,30 @@ class HistoryPrimer:
             self.logger.warning("HistoryPriming[%s]: exhausted retries: %s", symbol, last_exc)
         return symbol, pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume", "data_source"])
 
+    def _build_yf_session(self):
+        try:
+            from curl_cffi import requests as curl_requests
+
+            agents = [
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+                "Mozilla/5.0 (X11; Linux x86_64)",
+            ]
+            session = curl_requests.Session()
+            session.headers.update({"User-Agent": random.choice(agents)})
+            return session
+        except Exception as exc:
+            self.logger.warning("HistoryPriming: curl_cffi session unavailable, fallback to default yfinance session: %s", exc)
+            return None
+
     def _download_from_yfinance(self, symbol: str) -> pd.DataFrame:
-        import requests
         import yfinance as yf
 
-        agents = [
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-            "Mozilla/5.0 (X11; Linux x86_64)",
-        ]
-        session = requests.Session()
-        session.headers.update({"User-Agent": random.choice(agents)})
-
-        ticker = yf.Ticker(symbol, session=session)
+        session = self._build_yf_session()
+        if session is None:
+            ticker = yf.Ticker(symbol)
+        else:
+            ticker = yf.Ticker(symbol, session=session)
         hist = ticker.history(period=f"{self.config.days}d", interval=self.config.interval)
         if hist is None or hist.empty:
             return pd.DataFrame()

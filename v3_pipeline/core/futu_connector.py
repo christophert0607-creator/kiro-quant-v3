@@ -90,6 +90,25 @@ class FutuConnector:
             "data_source": source,
         }
 
+    def _build_yf_session(self):
+        """Build a yfinance-compatible session.
+
+        Newer yfinance expects curl_cffi session objects; if unavailable,
+        return None and let yfinance manage its own internal session.
+        """
+        try:
+            from curl_cffi import requests as curl_requests
+
+            session = curl_requests.Session()
+            session.headers.update({"User-Agent": random.choice(self.yf_user_agents)})
+            if self.yf_proxy_pool:
+                proxy = random.choice(self.yf_proxy_pool)
+                session.proxies.update({"http": proxy, "https": proxy})
+            return session
+        except Exception as exc:
+            self.logger.warning("curl_cffi session unavailable for yfinance, fallback to default session: %s", exc)
+            return None
+
     def _get_latest_quote_efinance(self, symbol: str) -> dict:
         import efinance as ef
 
@@ -108,16 +127,13 @@ class FutuConnector:
         )
 
     def _get_latest_quote_yfinance(self, symbol: str) -> dict:
-        import requests
         import yfinance as yf
 
-        session = requests.Session()
-        session.headers.update({"User-Agent": random.choice(self.yf_user_agents)})
-        if self.yf_proxy_pool:
-            proxy = random.choice(self.yf_proxy_pool)
-            session.proxies.update({"http": proxy, "https": proxy})
-
-        ticker = yf.Ticker(symbol, session=session)
+        session = self._build_yf_session()
+        if session is None:
+            ticker = yf.Ticker(symbol)
+        else:
+            ticker = yf.Ticker(symbol, session=session)
         hist = ticker.history(period="1d", interval="1m")
         if hist.empty:
             raise RuntimeError(f"yfinance returned empty history for {symbol}")
