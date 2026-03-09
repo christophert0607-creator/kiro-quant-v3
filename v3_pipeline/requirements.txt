@@ -13,3 +13,4 @@ massive-client
 python-dotenv
 apscheduler
 vaderSentiment
+efinance

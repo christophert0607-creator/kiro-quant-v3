@@ -63,6 +63,30 @@ class FutuConnector:
             return None
         return cached.get("quote")
 
+    def _get_latest_quote_efinance(self, symbol: str) -> dict:
+        """Best-effort efinance fallback for quote retrieval."""
+        import efinance as ef
+
+        df = ef.stock.get_latest_quote([symbol])
+        if df is None or df.empty:
+            raise RuntimeError(f"efinance returned empty quote for {symbol}")
+
+        row = df.iloc[0]
+        close = float(row.get("最新价", row.get("昨收", 0.0)))
+        open_price = float(row.get("今开", close))
+        high_price = float(row.get("最高", close))
+        low_price = float(row.get("最低", close))
+        volume = float(row.get("成交量", 0.0))
+
+        return {
+            "Date": pd.Timestamp.now(),
+            "Open": open_price,
+            "High": high_price,
+            "Low": low_price,
+            "Close": close,
+            "Volume": volume,
+        }
+
     def _get_latest_quote_yfinance(self, symbol: str) -> dict:
         """Best-effort Yahoo Finance fallback for quote retrieval.
 
@@ -234,23 +258,32 @@ class FutuConnector:
             self._cache_quote(symbol, quote)
             return quote
         except Exception as exc:
-            self.logger.warning("Futu quote query failed for %s, trying yfinance fallback: %s", code, exc)
+            self.logger.warning("Futu quote query failed for %s, trying efinance/yfinance fallbacks: %s", code, exc)
+
+            try:
+                quote = self._get_latest_quote_efinance(symbol)
+                self._cache_quote(symbol, quote)
+                self.logger.info("Using efinance fallback quote for %s", symbol)
+                return quote
+            except Exception as ef_exc:
+                self.logger.warning("efinance fallback failed for %s (%s): %s", symbol, ef_exc.__class__.__name__, ef_exc)
 
             try:
                 quote = self._get_latest_quote_yfinance(symbol)
                 self._cache_quote(symbol, quote)
                 self.logger.info("Using yfinance fallback quote for %s", symbol)
                 return quote
-            except Exception as fallback_exc:
-                err_name = fallback_exc.__class__.__name__
-                self.logger.warning("yfinance fallback failed for %s (%s): %s", symbol, err_name, fallback_exc)
+            except Exception as yf_exc:
+                self.logger.warning("yfinance fallback failed for %s (%s): %s", symbol, yf_exc.__class__.__name__, yf_exc)
 
                 cached_quote = self._get_cached_quote(symbol)
                 if cached_quote is not None:
                     self.logger.warning("Using last cached quote for %s after provider failures", symbol)
                     return cached_quote
 
-                raise RuntimeError(f"Quote query failed for {code}: {exc}; yfinance fallback failed: {fallback_exc}") from fallback_exc
+                raise RuntimeError(
+                    f"Quote query failed for {code}: {exc}; efinance fallback failed: {ef_exc}; yfinance fallback failed: {yf_exc}"
+                ) from yf_exc
 
     def get_sync_assets(self) -> dict:
         data = self._safe_trade_call("accinfo_query", **self._account_kwargs())
