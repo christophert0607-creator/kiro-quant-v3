@@ -13,6 +13,8 @@ from torch.utils.data import DataLoader, TensorDataset
 from v3_pipeline.data.downloader import HistoricalDataDownloader
 from v3_pipeline.features.indicators import TechnicalIndicatorGenerator
 from v3_pipeline.models.brain import KiroLSTM
+from v3_pipeline.models.strategy_base import StrategyBase
+from v3_pipeline.models.strategy_factory import StrategyFactory
 
 REQUIRED_COLUMNS = ["Date", "Open", "High", "Low", "Close", "Volume"]
 
@@ -162,11 +164,13 @@ class ModelManager:
         data_preparer: DataPreparer,
         device: Optional[str] = None,
         model_dir: str = "v3_pipeline/models/trained_models",
+        strategy: Optional[StrategyBase] = None,
     ) -> None:
         self.logger = _build_stderr_logger(self.__class__.__name__)
         self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
         self.model = model.to(self.device)
         self.data_preparer = data_preparer
+        self.strategy = strategy or StrategyFactory.create("kiro_lstm")
         self.model_dir = Path(model_dir)
         self.model_dir.mkdir(parents=True, exist_ok=True)
 
@@ -208,13 +212,7 @@ class ModelManager:
         return losses
 
     def predict(self, latest_data_window: pd.DataFrame) -> float:
-        self.model.eval()
-        with torch.no_grad():
-            x = self.data_preparer.transform_for_inference(latest_data_window).to(self.device)
-            scaled_pred = float(self.model(x).cpu().numpy().ravel()[0])
-            pred = self.data_preparer.inverse_scale_target(scaled_pred)
-            self.logger.info("Prediction (scaled=%.6f, inverse=%.6f)", scaled_pred, pred)
-            return pred
+        return float(self.strategy.predict(self, latest_data_window))
 
     def save(self, model_name: str) -> Path:
         target = self.model_dir / f"{model_name}.pth"
@@ -227,6 +225,7 @@ class ModelManager:
             "feature_maxs": self.data_preparer.feature_maxs.to_dict() if self.data_preparer.feature_maxs is not None else None,
             "target_min": self.data_preparer.target_min,
             "target_max": self.data_preparer.target_max,
+            "strategy_name": getattr(self.strategy, "name", "kiro_lstm"),
         }
         torch.save(payload, target)
         self.logger.info("Saved model checkpoint to %s", target)
@@ -253,6 +252,7 @@ class ModelManager:
 
         self.data_preparer.target_min = payload.get("target_min")
         self.data_preparer.target_max = payload.get("target_max")
+        self.strategy = StrategyFactory.create(str(payload.get("strategy_name", "kiro_lstm")))
 
         self.model.eval()
         self.logger.info("Loaded model checkpoint from %s", source)
