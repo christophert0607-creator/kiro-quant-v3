@@ -262,7 +262,41 @@ class FutuConnector:
             return pd.DataFrame()
         return data.copy()
 
-    def place_order(self, symbol: str, qty: int, side: str, price: Optional[float] = None) -> object:
+    def _resolve_simulate_limit_price(self, code: str, side: str, fallback_price: float) -> float:
+        if self.quote_ctx is None or self.ft is None:
+            return fallback_price
+
+        try:
+            ret, order_book = self.quote_ctx.get_order_book(code, num=1)
+            if ret == self.ft.RET_OK and isinstance(order_book, dict):
+                asks = order_book.get("Ask", [])
+                bids = order_book.get("Bid", [])
+                if side.upper() == "BUY" and asks:
+                    return float(asks[0][0])
+                if side.upper() == "SELL" and bids:
+                    return float(bids[0][0])
+        except Exception as exc:
+            self.logger.warning("Order book fallback failed for %s: %s", code, exc)
+
+        try:
+            ret, df = self.quote_ctx.get_stock_quote([code])
+            if ret == self.ft.RET_OK and not df.empty:
+                if side.upper() == "BUY":
+                    return float(df.iloc[0].get("ask_price", df.iloc[0].get("last_price", fallback_price)))
+                return float(df.iloc[0].get("bid_price", df.iloc[0].get("last_price", fallback_price)))
+        except Exception as exc:
+            self.logger.warning("Quote-side fallback failed for %s: %s", code, exc)
+
+        return fallback_price
+
+    def place_order(
+        self,
+        symbol: str,
+        qty: int,
+        side: str,
+        price: Optional[float] = None,
+        order_type: str = "MARKET",
+    ) -> object:
         if self.trade_ctx is None or self.ft is None:
             raise RuntimeError("FutuConnector not connected")
         if qty <= 0:
@@ -270,8 +304,26 @@ class FutuConnector:
 
         code = f"{self.config.market_prefix}.{symbol}"
         trd_side = self.ft.TrdSide.BUY if side.upper() == "BUY" else self.ft.TrdSide.SELL
-        order_type = self.ft.OrderType.NORMAL
-        order_price = 0 if price is None else float(price)
+        resolved_env = self._resolved_trd_env()
+
+        requested_market = order_type.strip().upper() == "MARKET"
+        if requested_market and resolved_env == self.ft.TrdEnv.SIMULATE:
+            fallback_price = float(price) if price is not None else 0.0
+            order_price = self._resolve_simulate_limit_price(code, side, fallback_price)
+            futu_order_type = self.ft.OrderType.NORMAL
+            self.logger.info(
+                "[SIMULATE] MARKET converted to LIMIT for %s %s qty=%d @ %.4f",
+                code,
+                side.upper(),
+                qty,
+                order_price,
+            )
+        elif requested_market:
+            order_price = 0.0
+            futu_order_type = getattr(self.ft.OrderType, "MARKET", self.ft.OrderType.NORMAL)
+        else:
+            order_price = float(price) if price is not None else 0.0
+            futu_order_type = self.ft.OrderType.NORMAL
 
         try:
             ret, data = self.trade_ctx.place_order(
@@ -279,13 +331,20 @@ class FutuConnector:
                 qty=qty,
                 code=code,
                 trd_side=trd_side,
-                order_type=order_type,
-                trd_env=self._resolved_trd_env(),
+                order_type=futu_order_type,
+                trd_env=resolved_env,
                 **self._account_kwargs(),
             )
             if ret != self.ft.RET_OK:
                 raise RuntimeError(f"Order placement failed: {data}")
-            self.logger.info("Order placed: %s %d %s (acc_id=%s)", side.upper(), qty, symbol, self.config.target_acc_id)
+            self.logger.info(
+                "Order placed: %s %d %s (acc_id=%s, order_type=%s)",
+                side.upper(),
+                qty,
+                symbol,
+                self.config.target_acc_id,
+                "MARKET" if futu_order_type == getattr(self.ft.OrderType, "MARKET", None) else "LIMIT",
+            )
             return data
         except Exception as exc:
             raise RuntimeError(f"Order placement exception for {code}: {exc}") from exc

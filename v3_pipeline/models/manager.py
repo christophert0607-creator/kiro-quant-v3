@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from v3_pipeline.data.downloader import HistoricalDataDownloader
 from v3_pipeline.features.indicators import TechnicalIndicatorGenerator
-from v3_pipeline.models.brain import KiroLSTM
+from v3_pipeline.models.strategy_factory import StrategyFactory
 
 REQUIRED_COLUMNS = ["Date", "Open", "High", "Low", "Close", "Volume"]
 
@@ -278,7 +278,8 @@ def train_symbol_pipeline(
     preparer = DataPreparer(lookback=cfg.lookback, target_col=cfg.target_col)
     sample_x, _ = preparer.fit_transform(featured)
 
-    model = KiroLSTM(
+    model = StrategyFactory.create(
+        "kiro_lstm",
         input_dim=sample_x.shape[-1],
         hidden_dim=cfg.hidden_dim,
         num_layers=cfg.num_layers,

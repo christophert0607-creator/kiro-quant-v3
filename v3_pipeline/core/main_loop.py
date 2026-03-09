@@ -34,7 +34,7 @@ def _build_stderr_logger(name: str) -> logging.Logger:
 
 @dataclass
 class LiveConfig:
-    symbols: list[str] = field(default_factory=lambda: ["TSLA"])
+    symbols_list: list[str] = field(default_factory=lambda: ["TSLA", "TSLL", "NVDA", "SOXL"])
     polling_seconds: int = 60
     prediction_threshold: float = 0.01
     auto_trade: bool = False
@@ -44,12 +44,13 @@ class LiveConfig:
 @dataclass
 class SymbolState:
     market_buffer: pd.DataFrame = field(default_factory=lambda: pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume"]))
+    warmup_count: int = 0
     position_qty: int = 0
     highest_price_since_entry: float = 0.0
 
 
 class LiveTradingLoop:
-    """24/7-style live loop bridging real-time data -> features -> model -> execution."""
+    """Multi-symbol async live loop with isolated buffers and state per symbol."""
 
     def __init__(
         self,
@@ -58,7 +59,7 @@ class LiveTradingLoop:
         futu_connector: Optional[FutuConnector] = None,
         feature_generator: Optional[TechnicalIndicatorGenerator] = None,
         config: Optional[LiveConfig] = None,
-        config_json_path: str = "v3_config.json",
+        config_json_path: str = "config.json",
     ) -> None:
         self.model_manager = model_manager
         self.risk_controller = risk_controller
@@ -67,7 +68,9 @@ class LiveTradingLoop:
         self.config = config or self._load_runtime_config(config_json_path)
         self.logger = _build_stderr_logger(self.__class__.__name__)
 
-        self.symbol_states: dict[str, SymbolState] = {s: SymbolState() for s in self.config.symbols}
+        self.symbol_states: dict[str, SymbolState] = {s: SymbolState() for s in self.config.symbols_list}
+        self.stock_frame = pd.DataFrame(columns=["symbol", "Date", "Open", "High", "Low", "Close", "Volume"]).set_index(["symbol", "Date"])
+
         self.equity_peak = 0.0
         self.account_value = 100000.0
 
@@ -78,14 +81,13 @@ class LiveTradingLoop:
             return cfg
         try:
             data = json.loads(p.read_text(encoding="utf-8"))
-            section = data.get("v3", data) if isinstance(data, dict) else {}
-            symbols = section.get("symbols")
+            symbols = data.get("symbols_list") or data.get("symbols")
             if isinstance(symbols, list) and symbols:
-                cfg.symbols = [str(s).upper() for s in symbols]
-            cfg.polling_seconds = int(section.get("polling_seconds", cfg.polling_seconds))
-            cfg.prediction_threshold = float(section.get("prediction_threshold", cfg.prediction_threshold))
-            cfg.auto_trade = bool(section.get("auto_trade", cfg.auto_trade))
-            cfg.paper_trading = bool(section.get("paper_trading", cfg.paper_trading))
+                cfg.symbols_list = [str(s).upper() for s in symbols]
+            cfg.polling_seconds = int(data.get("polling_seconds", cfg.polling_seconds))
+            cfg.prediction_threshold = float(data.get("prediction_threshold", cfg.prediction_threshold))
+            cfg.auto_trade = bool(data.get("auto_trade", cfg.auto_trade))
+            cfg.paper_trading = bool(data.get("paper_trading", cfg.paper_trading))
         except Exception as exc:
             _build_stderr_logger(self.__class__.__name__).warning("Failed to parse %s: %s", config_json_path, exc)
         return cfg
@@ -93,7 +95,7 @@ class LiveTradingLoop:
     def start(self) -> None:
         self.logger.info(
             "Starting async live loop symbols=%s auto_trade=%s paper_trading=%s",
-            self.config.symbols,
+            self.config.symbols_list,
             self.config.auto_trade,
             self.config.paper_trading,
         )
@@ -111,7 +113,7 @@ class LiveTradingLoop:
     async def run_one_cycle(self) -> None:
         self._check_heartbeat()
         self._sync_broker_state()
-        await asyncio.gather(*(self._run_symbol_cycle(symbol) for symbol in self.config.symbols))
+        await asyncio.gather(*(self._run_symbol_cycle(symbol) for symbol in self.config.symbols_list))
 
     async def _run_symbol_cycle(self, symbol: str) -> None:
         state = self.symbol_states.setdefault(symbol, SymbolState())
@@ -126,9 +128,17 @@ class LiveTradingLoop:
             .reset_index(drop=True)
         )
 
+        self._update_stock_frame(symbol, pd.DataFrame([quote]))
         featured = self.feature_generator.generate(state.market_buffer).dropna().reset_index(drop=True)
         if len(featured) <= self.model_manager.data_preparer.lookback:
-            self.logger.info("Warmup[%s]: waiting for more bars (%d/%d)", symbol, len(featured), self.model_manager.data_preparer.lookback)
+            state.warmup_count += 1
+            self.logger.info(
+                "Warmup[%s]: waiting for more bars (%d/%d), warmup_count=%d",
+                symbol,
+                len(featured),
+                self.model_manager.data_preparer.lookback,
+                state.warmup_count,
+            )
             return
 
         current_price = float(featured.iloc[-1]["Close"])
@@ -165,6 +175,14 @@ class LiveTradingLoop:
             f"equity={self.account_value:.2f} position={state.position_qty}"
         )
 
+    def _update_stock_frame(self, symbol: str, frame: pd.DataFrame) -> None:
+        idx_frame = frame.copy()
+        idx_frame["symbol"] = symbol
+        idx_frame["Date"] = pd.to_datetime(idx_frame["Date"], errors="coerce")
+        idx_frame = idx_frame.dropna(subset=["Date"]).set_index(["symbol", "Date"]) [["Open", "High", "Low", "Close", "Volume"]]
+        self.stock_frame = pd.concat([self.stock_frame, idx_frame])
+        self.stock_frame = self.stock_frame[~self.stock_frame.index.duplicated(keep="last")].sort_index()
+
     def _check_heartbeat(self) -> None:
         try:
             ok = self.futu_connector.heartbeat()
@@ -174,7 +192,6 @@ class LiveTradingLoop:
             self.logger.warning("Broker heartbeat check failed: %s", exc)
 
     def _sync_broker_state(self) -> None:
-        """Sync account value and symbol positions from Futu; keep last known state on failure."""
         try:
             assets = self.futu_connector.get_sync_assets()
             synced_value = float(assets.get("total_assets", self.account_value))
@@ -213,7 +230,7 @@ class LiveTradingLoop:
         self.logger.info("Execute %s %s qty=%d price=%.4f reason=%s", symbol, side, qty, price, reason)
 
         if self.config.auto_trade and not self.config.paper_trading:
-            self.futu_connector.place_order(symbol, qty, side, price)
+            self.futu_connector.place_order(symbol, qty, side, price=price, order_type="MARKET")
         else:
             self.logger.info("Paper trading mode: simulated %s %d %s", side, qty, symbol)
 
