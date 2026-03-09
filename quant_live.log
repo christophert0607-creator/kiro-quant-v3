@@ -1,0 +1,241 @@
+============================================================
+   HK Quant Trading System v1.0  |  9-Agent
+   啟動：2026-03-05 21:10:29
+   ⚠️  SIMULATE 模式 — 不會動用真實資金
+============================================================
+   model_type             = XGBoost
+   hybrid_mode            = False
+   stock_list             = ['HK.00700']
+   timeframe              = K_DAY
+   position_limit         = 0.05
+   stop_loss_pct          = 0.03
+   stop_profit_pct        = 0.08
+   max_drawdown           = 0.05
+   retrain_interval       = 86400
+   use_sentiment          = False
+
+2026-03-05 21:10:29,479 | Orchestrator           | 🚀 系統啟動...
+2026-03-05 21:10:29,482 | 518690 | 135356588417152 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435310772177191926(1) context=<futu.quote.open_quote_context.OpenQuoteContext object at 0x7b1aa3da2c00>
+2026-03-05 21:10:29,482 | DataFetcherAgent       | ✅ 已連線 OpenD
+2026-03-05 21:10:29,483 | 518690 | 135356588417152 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435310772187792054(2) context=<futu.trade.open_trade_context.OpenSecTradeContext object at 0x7b1aa4b4d760>
+2026-03-05 21:10:29,607 | ExecutionAgent         | ✅ 交易解鎖（SIMULATE）
+2026-03-05 21:10:29,608 | 518690 | 135356588417152 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435310772713063819(3) context=<futu.trade.open_trade_context.OpenSecTradeContext object at 0x7b1aa6b8d430>
+2026-03-05 21:10:29,727 | MonitorAgent           | ✅ MonitorAgent 就緒
+2026-03-05 21:10:29,727 | Orchestrator           | ✅ 9-Agent 全部就位！
+2026-03-05 21:10:29,727 | Orchestrator           | 
+==================================================
+HK.00700 訓練流水線
+==================================================
+2026-03-05 21:10:29,855 | DataFetcherAgent       | 📥 HK.00700 K線 247 條
+2026-03-05 21:10:29,861 | FeatureEngineerAgent   | ✅ 特徵 20 個，188 筆
+2026-03-05 21:10:29,861 | ModelEvaluatorAgent    | 建議模型：XGBoost
+📊 ModelEvaluatorAgent 報告
+模型              穩定  速度  準確  解釋    綜合
+XGBoost          9   9   8   9   8.8 👑
+LightGBM         8  10   8   8   8.5
+LSTM             7   5   9   6   6.8
+RandomForest     9   7   7   8   7.8
+Transformer      6   4   9   5   6.0
+Traceback (most recent call last):
+  File "/home/tsukii0607/.openclaw/workspace/skills/futu-api/quant_system.py", line 369, in <module>
+    bot.train_all()
+  File "/home/tsukii0607/.openclaw/workspace/skills/futu-api/quant_system.py", line 307, in train_all
+    self.trainer.train(df)
+  File "/home/tsukii0607/.openclaw/workspace/skills/futu-api/quant_system.py", line 134, in train
+    Xtr = self.scaler.fit_transform(Xtr); Xte = self.scaler.transform(Xte)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sklearn/utils/_set_output.py", line 316, in wrapped
+    data_to_wrap = f(self, X, *args, **kwargs)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sklearn/base.py", line 907, in fit_transform
+    return self.fit(X, **fit_params).transform(X)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sklearn/preprocessing/_data.py", line 924, in fit
+    return self.partial_fit(X, y, sample_weight)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sklearn/base.py", line 1336, in wrapper
+    return fit_method(estimator, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sklearn/preprocessing/_data.py", line 961, in partial_fit
+    X = validate_data(
+        ^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sklearn/utils/validation.py", line 2902, in validate_data
+    out = check_array(X, input_name="X", **check_params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sklearn/utils/validation.py", line 1022, in check_array
+    array = _asarray_with_order(array, order=order, dtype=dtype, xp=xp)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sklearn/utils/_array_api.py", line 878, in _asarray_with_order
+    array = numpy.asarray(array, order=order, dtype=dtype)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: could not convert string to float: '腾讯控股'
+============================================================
+   HK Quant Trading System v1.0  |  9-Agent
+   啟動：2026-03-05 21:11:32
+   ⚠️  SIMULATE 模式 — 不會動用真實資金
+============================================================
+   model_type             = XGBoost
+   hybrid_mode            = False
+   stock_list             = ['HK.00700']
+   timeframe              = K_DAY
+   position_limit         = 0.05
+   stop_loss_pct          = 0.03
+   stop_profit_pct        = 0.08
+   max_drawdown           = 0.05
+   retrain_interval       = 86400
+   use_sentiment          = False
+
+2026-03-05 21:11:32,068 | Orchestrator           | 🚀 系統啟動...
+2026-03-05 21:11:32,071 | 518904 | 135604808679552 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435311034691147189(1) context=<futu.quote.open_quote_context.OpenQuoteContext object at 0x7b546eefb170>
+2026-03-05 21:11:32,071 | DataFetcherAgent       | ✅ 已連線 OpenD
+2026-03-05 21:11:32,072 | 518904 | 135604808679552 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435311034706664738(2) context=<futu.trade.open_trade_context.OpenSecTradeContext object at 0x7b546ee9d160>
+2026-03-05 21:11:32,194 | ExecutionAgent         | ✅ 交易解鎖（SIMULATE）
+2026-03-05 21:11:32,195 | 518904 | 135604808679552 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435311035222101266(3) context=<futu.trade.open_trade_context.OpenSecTradeContext object at 0x7b5470b84b00>
+2026-03-05 21:11:32,316 | MonitorAgent           | ✅ MonitorAgent 就緒
+2026-03-05 21:11:32,316 | Orchestrator           | ✅ 9-Agent 全部就位！
+2026-03-05 21:11:32,316 | Orchestrator           | 
+==================================================
+HK.00700 訓練流水線
+==================================================
+2026-03-05 21:11:32,439 | DataFetcherAgent       | 📥 HK.00700 K線 247 條
+2026-03-05 21:11:32,446 | FeatureEngineerAgent   | ✅ 特徵 19 個，188 筆
+2026-03-05 21:11:32,446 | ModelEvaluatorAgent    | 建議模型：XGBoost
+📊 ModelEvaluatorAgent 報告
+模型              穩定  速度  準確  解釋    綜合
+XGBoost          9   9   8   9   8.8 👑
+LightGBM         8  10   8   8   8.5
+LSTM             7   5   9   6   6.8
+RandomForest     9   7   7   8   7.8
+Transformer      6   4   9   5   6.0
+2026-03-05 21:12:03,012 | ModelTrainerAgent      | ✅ 訓練完成 | 準確率 42.11%
+2026-03-05 21:12:03,012 | BacktesterAgent        | ▶ 回測中...
+2026-03-05 21:12:08,067 | BacktesterAgent        | ✅ 回測: 回報 1.99% | 最大回撤 0.66%
+2026-03-05 21:12:08,068 | Orchestrator           | 📈 HK.00700 回測結果: {'total_return': np.float64(0.01987), 'max_drawdown': np.float64(0.006613679309605907), 'final_equity': np.float64(101987.0)}
+2026-03-05 21:12:08,068 | Orchestrator           | 
+🟢 進入持續交易循環（SIMULATE 模式）...
+
+2026-03-05 21:12:08,068 | Orchestrator           | 
+🔄 === 第 1 輪 | 21:12:08 ===
+2026-03-05 21:12:08,200 | DataFetcherAgent       | 📥 HK.00700 K線 100 條
+2026-03-05 21:12:08,207 | FeatureEngineerAgent   | ✅ 特徵 19 個，41 筆
+2026-03-05 21:12:08,259 | SignalGeneratorAgent   | 📡 BUY | 信心 84.83% | 價格 549.00
+2026-03-05 21:12:08,260 | Orchestrator           | ⛔ 風控: InsufficientQty
+2026-03-05 21:12:08,271 | MonitorAgent           | 📊 2倍做多TSLA ETF-Direxion | 數量:13.0 | 盈虧:-217.68
+2026-03-05 21:12:08,271 | MonitorAgent           | 📊 福特汽车 | 數量:54.0 | 盈虧:7.3248
+2026-03-05 21:12:08,271 | Orchestrator           | 💤 等待 300 秒... (哥哥大人說「停止」就會結束)
+
+2026-03-05 21:17:16,488 | Orchestrator           | 
+🔄 === 第 2 輪 | 21:17:16 ===
+2026-03-05 21:17:16,613 | DataFetcherAgent       | 📥 HK.00700 K線 100 條
+2026-03-05 21:17:16,620 | FeatureEngineerAgent   | ✅ 特徵 19 個，41 筆
+2026-03-05 21:17:16,668 | SignalGeneratorAgent   | 📡 BUY | 信心 84.83% | 價格 549.00
+2026-03-05 21:17:16,668 | Orchestrator           | ⛔ 風控: InsufficientQty
+2026-03-05 21:17:16,822 | MonitorAgent           | 📊 2倍做多TSLA ETF-Direxion | 數量:13.0 | 盈虧:-217.615
+2026-03-05 21:17:16,822 | MonitorAgent           | 📊 福特汽车 | 數量:54.0 | 盈虧:6.7794
+2026-03-05 21:17:16,822 | Orchestrator           | 💤 等待 300 秒... (哥哥大人說「停止」就會結束)
+
+2026-03-05 21:22:25,959 | Orchestrator           | 
+🔄 === 第 3 輪 | 21:22:25 ===
+2026-03-05 21:22:26,084 | DataFetcherAgent       | 📥 HK.00700 K線 100 條
+2026-03-05 21:22:26,089 | FeatureEngineerAgent   | ✅ 特徵 19 個，41 筆
+2026-03-05 21:22:26,140 | SignalGeneratorAgent   | 📡 BUY | 信心 84.83% | 價格 549.00
+2026-03-05 21:22:26,140 | Orchestrator           | ⛔ 風控: InsufficientQty
+2026-03-05 21:22:26,308 | MonitorAgent           | 📊 2倍做多TSLA ETF-Direxion | 數量:13.0 | 盈虧:-217.8061
+2026-03-05 21:22:26,308 | MonitorAgent           | 📊 福特汽车 | 數量:54.0 | 盈虧:6.2394
+2026-03-05 21:22:26,308 | Orchestrator           | 💤 等待 300 秒... (哥哥大人說「停止」就會結束)
+
+============================================================
+   HK Quant Trading System v1.0  |  9-Agent
+   啟動：2026-03-05 21:59:12
+   ⚠️  SIMULATE 模式 — 不會動用真實資金
+============================================================
+   model_type             = XGBoost
+   hybrid_mode            = False
+   stock_list             = ['US.TSLA', 'US.F', 'US.NVDA']
+   timeframe              = K_DAY
+   position_limit         = 0.1
+   net_assets             = 2000000
+   stop_loss_pct          = 0.03
+   stop_profit_pct        = 0.08
+   max_drawdown           = 0.05
+   retrain_interval       = 86400
+   use_sentiment          = False
+
+2026-03-05 21:59:12,756 | Orchestrator           | 🚀 系統啟動...
+2026-03-05 21:59:12,758 | 526450 | 129088656146560 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435323033286605864(1) context=<futu.quote.open_quote_context.OpenQuoteContext object at 0x7567479e0650>
+2026-03-05 21:59:12,758 | DataFetcherAgent       | ✅ 已連線 OpenD
+2026-03-05 21:59:12,760 | 526450 | 129088656146560 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435323033297306561(2) context=<futu.trade.open_trade_context.OpenSecTradeContext object at 0x75674710d760>
+2026-03-05 21:59:12,884 | ExecutionAgent         | ✅ 交易解鎖（SIMULATE）
+2026-03-05 21:59:12,885 | 526450 | 129088656146560 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435323033825504812(3) context=<futu.trade.open_trade_context.OpenSecTradeContext object at 0x75674599b8f0>
+2026-03-05 21:59:13,008 | MonitorAgent           | ✅ MonitorAgent 就緒
+2026-03-05 21:59:13,008 | Orchestrator           | ✅ 9-Agent 全部就位！
+2026-03-05 21:59:13,008 | Orchestrator           | 
+==================================================
+US.TSLA 訓練流水線
+==================================================
+2026-03-05 21:59:13,010 | DataFetcherAgent       | ❌ K線失敗: 无权限获取US.TSLA的行情，请检查美国市场股票行情权限
+2026-03-05 21:59:13,010 | Orchestrator           | 
+==================================================
+US.F 訓練流水線
+==================================================
+2026-03-05 21:59:13,011 | DataFetcherAgent       | ❌ K線失敗: 无权限获取US.F的行情，请检查美国市场股票行情权限
+2026-03-05 21:59:13,012 | Orchestrator           | 
+==================================================
+US.NVDA 訓練流水線
+==================================================
+2026-03-05 21:59:13,013 | DataFetcherAgent       | ❌ K線失敗: 无权限获取US.NVDA的行情，请检查美国市场股票行情权限
+2026-03-05 21:59:13,013 | Orchestrator           | 
+🟢 進入持續交易循環（SIMULATE 模式）...
+
+2026-03-05 21:59:13,013 | Orchestrator           | 
+🔄 === 第 1 輪 | 21:59:13 ===
+2026-03-05 21:59:13,013 | DataFetcherAgent       | ❌ K線失敗: 无权限获取US.TSLA的行情，请检查美国市场股票行情权限
+2026-03-05 21:59:13,015 | DataFetcherAgent       | ❌ K線失敗: 无权限获取US.F的行情，请检查美国市场股票行情权限
+2026-03-05 21:59:13,016 | DataFetcherAgent       | ❌ K線失敗: 无权限获取US.NVDA的行情，请检查美国市场股票行情权限
+2026-03-05 21:59:13,020 | MonitorAgent           | 📊 2倍做多TSLA ETF-Direxion | 數量:13.0 | 盈虧:-218.85
+2026-03-05 21:59:13,020 | MonitorAgent           | 📊 福特汽车 | 數量:54.0 | 盈虧:5.4348
+2026-03-05 21:59:13,020 | Orchestrator           | 💤 等待 300 秒... (哥哥大人說「停止」就會結束)
+
+2026-03-05 22:04:22,640 | Orchestrator           | 
+🔄 === 第 2 輪 | 22:04:22 ===
+2026-03-05 22:04:22,642 | DataFetcherAgent       | ❌ K線失敗: 无权限获取US.TSLA的行情，请检查美国市场股票行情权限
+2026-03-05 22:04:22,643 | DataFetcherAgent       | ❌ K線失敗: 无权限获取US.F的行情，请检查美国市场股票行情权限
+2026-03-05 22:04:22,645 | DataFetcherAgent       | ❌ K線失敗: 无权限获取US.NVDA的行情，请检查美国市场股票行情权限
+2026-03-05 22:04:22,768 | MonitorAgent           | 📊 2倍做多TSLA ETF-Direxion | 數量:13.0 | 盈虧:-218.8591
+2026-03-05 22:04:22,768 | MonitorAgent           | 📊 福特汽车 | 數量:54.0 | 盈虧:4.5816
+2026-03-05 22:04:22,768 | Orchestrator           | 💤 等待 300 秒... (哥哥大人說「停止」就會結束)
+
+2026-03-05 22:09:32,722 | Orchestrator           | 
+🔄 === 第 3 輪 | 22:09:32 ===
+2026-03-05 22:09:32,724 | DataFetcherAgent       | ❌ K線失敗: 无权限获取US.TSLA的行情，请检查美国市场股票行情权限
+2026-03-05 22:09:32,725 | DataFetcherAgent       | ❌ K線失敗: 无权限获取US.F的行情，请检查美国市场股票行情权限
+2026-03-05 22:09:32,727 | DataFetcherAgent       | ❌ K線失敗: 无权限获取US.NVDA的行情，请检查美国市场股票行情权限
+2026-03-05 22:09:32,846 | MonitorAgent           | 📊 2倍做多TSLA ETF-Direxion | 數量:13.0 | 盈虧:-219.11
+2026-03-05 22:09:32,846 | MonitorAgent           | 📊 福特汽车 | 數量:54.0 | 盈虧:4.0686
+2026-03-05 22:09:32,846 | Orchestrator           | 💤 等待 300 秒... (哥哥大人說「停止」就會結束)
+
+2026-03-05 22:14:42,858 | Orchestrator           | 
+🔄 === 第 4 輪 | 22:14:42 ===
+2026-03-05 22:14:42,860 | DataFetcherAgent       | ❌ K線失敗: 无权限获取US.TSLA的行情，请检查美国市场股票行情权限
+2026-03-05 22:14:42,862 | DataFetcherAgent       | ❌ K線失敗: 无权限获取US.F的行情，请检查美国市场股票行情权限
+2026-03-05 22:14:42,863 | DataFetcherAgent       | ❌ K線失敗: 无权限获取US.NVDA的行情，请检查美国市场股票行情权限
+2026-03-05 22:14:42,987 | MonitorAgent           | 📊 2倍做多TSLA ETF-Direxion | 數量:13.0 | 盈虧:-218.4704
+2026-03-05 22:14:42,987 | MonitorAgent           | 📊 福特汽车 | 數量:54.0 | 盈虧:4.3548
+2026-03-05 22:14:42,987 | Orchestrator           | 💤 等待 300 秒... (哥哥大人說「停止」就會結束)
+
+2026-03-05 22:19:53,763 | Orchestrator           | 
+🔄 === 第 5 輪 | 22:19:53 ===
+2026-03-05 22:19:53,765 | DataFetcherAgent       | ❌ K線失敗: 无权限获取US.TSLA的行情，请检查美国市场股票行情权限
+2026-03-05 22:19:53,767 | DataFetcherAgent       | ❌ K線失敗: 无权限获取US.F的行情，请检查美国市场股票行情权限
+2026-03-05 22:19:53,768 | DataFetcherAgent       | ❌ K線失敗: 无权限获取US.NVDA的行情，请检查美国市场股票行情权限
+2026-03-05 22:20:03,774 | Orchestrator           | 💤 等待 300 秒... (哥哥大人說「停止」就會結束)
+
+2026-03-05 22:25:14,602 | Orchestrator           | 
+🔄 === 第 6 輪 | 22:25:14 ===
+2026-03-05 22:25:14,605 | DataFetcherAgent       | ❌ K線失敗: 无权限获取US.TSLA的行情，请检查美国市场股票行情权限
+2026-03-05 22:25:14,608 | DataFetcherAgent       | ❌ K線失敗: 无权限获取US.F的行情，请检查美国市场股票行情权限
+2026-03-05 22:25:14,609 | DataFetcherAgent       | ❌ K線失敗: 无权限获取US.NVDA的行情，请检查美国市场股票行情权限
+2026-03-05 22:25:14,944 | MonitorAgent           | 📊 2倍做多TSLA ETF-Direxion | 數量:13.0 | 盈虧:-218.7161
+2026-03-05 22:25:14,944 | MonitorAgent           | 📊 福特汽车 | 數量:54.0 | 盈虧:3.5502000000000002
+2026-03-05 22:25:14,944 | Orchestrator           | 💤 等待 300 秒... (哥哥大人說「停止」就會結束)
+

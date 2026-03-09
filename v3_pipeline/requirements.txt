@@ -1,0 +1,15 @@
+numpy
+pandas
+yfinance
+ta-lib
+torch
+scikit-learn
+backtrader
+matplotlib
+requests
+beautifulsoup4
+futu
+massive-client
+python-dotenv
+apscheduler
+vaderSentiment

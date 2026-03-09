@@ -1,0 +1,21 @@
+{
+  "date": "2026-03-07",
+  "daily_pnl": 0.0,
+  "daily_trades": 0,
+  "consecutive_errors": 0,
+  "circuit_broken": false,
+  "circuit_break_time": null,
+  "last_orders": {
+    "US.NVDA": {
+      "hash": "70dc5b5e31be",
+      "time": 1772786635.1932034,
+      "signal": "BUY",
+      "qty": 545,
+      "price": 183.34
+    }
+  },
+  "positions": {
+    "US.NVDA": 545
+  },
+  "total_invested": 0.0
+}

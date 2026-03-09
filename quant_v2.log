@@ -1,0 +1,2441 @@
+2026-03-06 15:08:57,354 - QuantV2 - INFO - 🚀 Quant Engine v2 啟動中...
+============================================================
+  Quant Engine v2  |  SIMULATE MODE  |  US
+============================================================
+  股票池:           ['US.TSLA', 'US.F', 'US.NVDA']
+  模擬資金:         $2,000,000
+  單股上限:         10%
+  最大回撤:         3%
+  止損:             3%
+  止盈:             8%
+  信號門檻:         60%
+  冷卻時間:         60s
+============================================================
+2026-03-06 15:08:57,357 | 667368 | 136135437457216 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435582176679066523(1) context=<futu.quote.open_quote_context.OpenQuoteContext object at 0x7bd03bc627b0>
+2026-03-06 15:08:57,358 | 667368 | 136135437457216 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435582176685683637(2) context=<futu.trade.open_trade_context.OpenUSTradeContext object at 0x7bcfecd446e0>
+2026-03-06 15:08:57,592 - ExecutionEngine - INFO - ✅ 交易解鎖成功（SIMULATE 模式）
+2026-03-06 15:08:57,594 | 667368 | 136135437457216 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435582177673411942(3) context=<futu.quote.open_quote_context.OpenQuoteContext object at 0x7bcfecd48410>
+2026-03-06 15:08:57,594 - QuantV2 - INFO - ✅ 系統就位！（含 Massive fallback）
+2026-03-06 15:08:57,594 - QuantV2 - INFO - 
+⚙️  訓練模型...
+2026-03-06 15:08:57,595 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 15:08:58,551 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 15:18:54,056 - QuantV2 - INFO - 🚀 Quant Engine v2 啟動中...
+============================================================
+  Quant Engine v2  |  SIMULATE MODE  |  US
+============================================================
+  股票池:           ['US.TSLA', 'US.F', 'US.NVDA']
+  模擬資金:         $999,998
+  單股上限:         10%
+  最大回撤:         3%
+  止損:             3%
+  止盈:             8%
+  信號門檻:         60%
+  冷卻時間:         60s
+============================================================
+2026-03-06 15:18:54,058 | 669408 | 128110964545344 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435584679424484988(1) context=<futu.quote.open_quote_context.OpenQuoteContext object at 0x7483e3ebea50>
+2026-03-06 15:18:54,060 | 669408 | 128110964545344 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435584679432396415(2) context=<futu.trade.open_trade_context.OpenUSTradeContext object at 0x748394f94980>
+2026-03-06 15:18:54,289 - ExecutionEngine - INFO - ✅ 交易解鎖成功（SIMULATE 模式）
+2026-03-06 15:18:54,291 | 669408 | 128110964545344 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435584680401919248(3) context=<futu.quote.open_quote_context.OpenQuoteContext object at 0x748394f98550>
+2026-03-06 15:18:54,291 - QuantV2 - INFO - ✅ 系統就位！（含 Massive fallback）
+2026-03-06 15:18:54,291 - QuantV2 - INFO - 
+⚙️  訓練模型...
+2026-03-06 15:18:54,293 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 15:18:55,355 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 15:23:54,118 - QuantV2 - INFO - 🚀 Quant Engine v2 啟動中...
+============================================================
+  Quant Engine v2  |  SIMULATE MODE  |  US
+============================================================
+  股票池:           ['US.TSLA', 'US.F', 'US.NVDA']
+  模擬資金:         $999,998
+  單股上限:         10%
+  最大回撤:         3%
+  止損:             3%
+  止盈:             8%
+  信號門檻:         60%
+  冷卻時間:         60s
+============================================================
+2026-03-06 15:23:54,120 | 670458 | 138004186687296 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435585937974958114(1) context=<futu.quote.open_quote_context.OpenQuoteContext object at 0x7d8355f66a50>
+2026-03-06 15:23:54,122 | 670458 | 138004186687296 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435585937981237474(2) context=<futu.trade.open_trade_context.OpenUSTradeContext object at 0x7d8306f84980>
+2026-03-06 15:23:54,349 - ExecutionEngine - INFO - ✅ 交易解鎖成功（SIMULATE 模式）
+2026-03-06 15:23:54,351 | 670458 | 138004186687296 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435585938945051639(3) context=<futu.quote.open_quote_context.OpenQuoteContext object at 0x7d8306f88410>
+2026-03-06 15:23:54,351 - QuantV2 - INFO - ✅ 系統就位！（含 Massive fallback）
+2026-03-06 15:23:54,351 - QuantV2 - INFO - 
+⚙️  訓練模型...
+2026-03-06 15:23:54,352 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 15:23:55,347 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 15:24:18,843 - ModelManager - INFO - ✅ 訓練完成 | 準確率 48.31%
+2026-03-06 15:24:18,843 - QuantV2 - INFO - 📊 US.TSLA 訓練準確率: 48.31%
+2026-03-06 15:24:18,843 - QuantV2 - INFO - 
+🟢 進入持續交易循環 [SIMULATE]...
+
+2026-03-06 15:24:18,843 - QuantV2 - INFO - 
+==================================================
+  第 1 輪 | 2026-03-06 15:24:18 | SIMULATE
+==================================================
+2026-03-06 15:24:18,845 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 15:24:19,328 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 15:24:19,381 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 15:24:19,383 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 15:24:19,657 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 15:24:19,713 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 15:24:19,725 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:24:19,725 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 15:24:19,926 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 15:24:19,930 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:24:19,930 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 15:24:19,930 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 15:24:19,930 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 15:24:19,932 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 15:24:20,385 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 15:24:20,441 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 15:24:20,454 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:24:20,458 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:24:20,458 - RiskGuard - INFO - ✅ 風控通過 | US.NVDA BUY 545股 @ $183.34 | SL: $177.84 | TP: $198.01
+2026-03-06 15:24:20,458 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 1/3)
+2026-03-06 15:24:20,679 - ExecutionEngine - INFO - ✅ 下單成功: #7484971
+2026-03-06 15:24:20,679 - QuantV2 - INFO - 🔄 執行結果: {'status': 'OK', 'order_id': '7484971', 'mode': 'SIMULATE', 'code': 'US.NVDA', 'signal': 'BUY', 'qty': 545, 'price': 183.34}
+2026-03-06 15:24:20,679 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 7 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 15:24:20,679 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 15:29:56,529 - QuantV2 - INFO - 
+==================================================
+  第 2 輪 | 2026-03-06 15:29:56 | SIMULATE
+==================================================
+2026-03-06 15:29:56,531 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 15:29:57,491 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 15:29:57,545 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 15:29:57,549 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 15:29:57,815 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 15:29:57,870 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 15:29:57,884 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:29:57,884 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 15:29:58,088 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 15:29:58,092 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:29:58,092 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 15:29:58,092 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 15:29:58,092 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 15:29:58,093 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 15:29:58,524 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 15:29:58,579 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 15:29:58,592 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:29:58,596 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:29:58,596 - RiskGuard - INFO - ✅ 風控通過 | US.NVDA BUY 545股 @ $183.34 | SL: $177.84 | TP: $198.01
+2026-03-06 15:29:58,596 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 1/3)
+2026-03-06 15:29:58,817 - ExecutionEngine - INFO - ✅ 下單成功: #7484996
+2026-03-06 15:29:58,819 - QuantV2 - INFO - 🔄 執行結果: {'status': 'OK', 'order_id': '7484996', 'mode': 'SIMULATE', 'code': 'US.NVDA', 'signal': 'BUY', 'qty': 545, 'price': 183.34}
+2026-03-06 15:29:58,819 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 8 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 15:29:58,819 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 15:31:52,630 - QuantV2 - INFO - 🚀 Quant Engine v2 啟動中...
+============================================================
+  Quant Engine v2  |  SIMULATE MODE  |  US
+============================================================
+  股票池:           ['US.TSLA', 'US.F', 'US.NVDA']
+  模擬資金:         $999,998
+  單股上限:         10%
+  最大回撤:         3%
+  止損:             3%
+  止盈:             8%
+  信號門檻:         60%
+  冷卻時間:         60s
+============================================================
+2026-03-06 15:31:52,632 | 672117 | 140608807565120 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435587944999281824(1) context=<futu.quote.open_quote_context.OpenQuoteContext object at 0x7fe1c5662900>
+2026-03-06 15:31:52,633 | 672117 | 140608807565120 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435587945007811836(2) context=<futu.trade.open_trade_context.OpenUSTradeContext object at 0x7fe176754830>
+2026-03-06 15:31:52,858 - ExecutionEngine - INFO - ✅ 交易解鎖成功（SIMULATE 模式）
+2026-03-06 15:31:52,860 | 672117 | 140608807565120 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435587945960468343(3) context=<futu.quote.open_quote_context.OpenQuoteContext object at 0x7fe176758550>
+2026-03-06 15:31:52,860 - QuantV2 - INFO - ✅ 系統就位！（含 Massive fallback）
+2026-03-06 15:31:52,860 - QuantV2 - INFO - 
+⚙️  訓練模型...
+2026-03-06 15:31:52,862 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 15:31:53,845 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 15:32:04,095 - ModelManager - INFO - ✅ 訓練完成 | 準確率 48.31%
+2026-03-06 15:32:04,096 - QuantV2 - INFO - 📊 US.TSLA 訓練準確率: 48.31%
+2026-03-06 15:32:04,096 - QuantV2 - INFO - 
+🟢 進入持續交易循環 [SIMULATE]...
+
+2026-03-06 15:32:04,096 - QuantV2 - INFO - 
+==================================================
+  第 1 輪 | 2026-03-06 15:32:04 | SIMULATE
+==================================================
+2026-03-06 15:32:04,099 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 15:32:04,557 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 15:32:04,610 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 15:32:04,612 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 15:32:04,888 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 15:32:04,942 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 15:32:04,954 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:32:04,954 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 15:32:05,157 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 15:32:05,161 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:32:05,161 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 15:32:05,161 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 15:32:05,161 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 15:32:05,162 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 15:32:05,612 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 15:32:05,665 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 15:32:05,677 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:32:05,680 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:32:05,680 - RiskGuard - INFO - ✅ 風控通過 | US.NVDA BUY 545股 @ $183.34 | SL: $177.84 | TP: $198.01
+2026-03-06 15:32:05,680 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 1/3)
+2026-03-06 15:32:05,904 - ExecutionEngine - INFO - ✅ 下單成功: #7485019
+2026-03-06 15:32:05,904 - QuantV2 - INFO - 🔄 執行結果: {'status': 'OK', 'order_id': '7485019', 'mode': 'SIMULATE', 'code': 'US.NVDA', 'signal': 'BUY', 'qty': 545, 'price': 183.34}
+2026-03-06 15:32:05,904 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 9 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 15:32:05,904 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 15:37:41,599 - QuantV2 - INFO - 
+==================================================
+  第 2 輪 | 2026-03-06 15:37:41 | SIMULATE
+==================================================
+2026-03-06 15:37:41,601 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 15:37:42,589 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 15:37:42,636 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 15:37:42,639 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 15:37:42,907 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 15:37:42,977 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 15:37:42,991 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:37:42,991 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 15:37:43,193 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 15:37:43,197 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:37:43,198 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 15:37:43,198 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 15:37:43,198 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 15:37:43,200 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 15:37:43,470 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 15:37:43,523 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 15:37:43,536 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:37:43,540 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:37:43,540 - RiskGuard - INFO - ✅ 風控通過 | US.NVDA BUY 545股 @ $183.34 | SL: $177.84 | TP: $198.01
+2026-03-06 15:37:43,540 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 1/3)
+2026-03-06 15:37:43,759 - ExecutionEngine - INFO - ✅ 下單成功: #7485038
+2026-03-06 15:37:43,760 - QuantV2 - INFO - 🔄 執行結果: {'status': 'OK', 'order_id': '7485038', 'mode': 'SIMULATE', 'code': 'US.NVDA', 'signal': 'BUY', 'qty': 545, 'price': 183.34}
+2026-03-06 15:37:43,760 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 10 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 15:37:43,760 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 15:43:16,021 - QuantV2 - INFO - 
+==================================================
+  第 3 輪 | 2026-03-06 15:43:16 | SIMULATE
+==================================================
+2026-03-06 15:43:16,024 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 15:43:16,996 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 15:43:17,046 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 15:43:17,049 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 15:43:17,315 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 15:43:17,370 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 15:43:17,382 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:43:17,382 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 15:43:17,586 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 15:43:17,590 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:43:17,590 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 15:43:17,590 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 15:43:17,590 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 15:43:17,591 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 15:43:18,033 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 15:43:18,084 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 15:43:18,095 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:43:18,098 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:43:18,099 - RiskGuard - INFO - ✅ 風控通過 | US.NVDA BUY 545股 @ $183.34 | SL: $177.84 | TP: $198.01
+2026-03-06 15:43:18,099 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 1/3)
+2026-03-06 15:43:18,342 - ExecutionEngine - INFO - ✅ 下單成功: #7485061
+2026-03-06 15:43:18,343 - QuantV2 - INFO - 🔄 執行結果: {'status': 'OK', 'order_id': '7485061', 'mode': 'SIMULATE', 'code': 'US.NVDA', 'signal': 'BUY', 'qty': 545, 'price': 183.34}
+2026-03-06 15:43:18,343 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 11 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 15:43:18,343 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 15:48:50,607 - QuantV2 - INFO - 
+==================================================
+  第 4 輪 | 2026-03-06 15:48:50 | SIMULATE
+==================================================
+2026-03-06 15:48:50,609 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 15:48:51,677 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 15:48:51,731 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 15:48:51,734 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 15:48:52,011 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 15:48:52,065 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 15:48:52,076 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:48:52,076 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 15:48:52,278 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 15:48:52,282 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:48:52,282 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 15:48:52,282 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 15:48:52,282 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 15:48:52,283 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 15:48:56,338 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 15:48:56,390 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 15:48:56,401 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:48:56,405 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:48:56,405 - RiskGuard - INFO - ✅ 風控通過 | US.NVDA BUY 545股 @ $183.34 | SL: $177.84 | TP: $198.01
+2026-03-06 15:48:56,405 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 1/3)
+2026-03-06 15:48:56,630 - ExecutionEngine - ERROR - ❌ 下單失敗 (嘗試 1): 账户购买力不足
+2026-03-06 15:48:56,630 - ExecutionEngine - INFO - 🔄 2s 後重試...
+2026-03-06 15:48:58,630 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 2/3)
+2026-03-06 15:48:58,836 - ExecutionEngine - ERROR - ❌ 下單失敗 (嘗試 2): 账户购买力不足
+2026-03-06 15:48:58,836 - ExecutionEngine - INFO - 🔄 4s 後重試...
+2026-03-06 15:49:02,837 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 3/3)
+2026-03-06 15:49:03,046 - ExecutionEngine - ERROR - ❌ 下單失敗 (嘗試 3): 账户购买力不足
+2026-03-06 15:49:03,046 - ExecutionEngine - INFO - 🔄 8s 後重試...
+2026-03-06 15:49:11,046 - RiskGuard - WARNING - ⚠️ 連續錯誤: 1/5
+2026-03-06 15:49:11,047 - QuantV2 - INFO - 🔄 執行結果: {'status': 'FAIL', 'reason': 'MaxRetriesExceeded'}
+2026-03-06 15:49:11,047 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 11 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 15:49:11,047 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 15:54:36,153 - QuantV2 - INFO - 
+==================================================
+  第 5 輪 | 2026-03-06 15:54:36 | SIMULATE
+==================================================
+2026-03-06 15:54:36,155 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 15:54:37,185 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 15:54:37,240 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 15:54:37,249 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 15:54:37,527 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 15:54:37,580 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 15:54:37,592 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:54:37,592 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 15:54:37,801 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 15:54:37,805 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:54:37,805 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 15:54:37,805 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 15:54:37,805 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 15:54:37,806 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 15:54:38,272 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 15:54:38,320 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 15:54:38,332 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:54:38,335 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 15:54:38,335 - RiskGuard - INFO - ✅ 風控通過 | US.NVDA BUY 545股 @ $183.34 | SL: $177.84 | TP: $198.01
+2026-03-06 15:54:38,335 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 1/3)
+2026-03-06 15:54:38,550 - ExecutionEngine - ERROR - ❌ 下單失敗 (嘗試 1): 账户购买力不足
+2026-03-06 15:54:38,550 - ExecutionEngine - INFO - 🔄 2s 後重試...
+2026-03-06 15:54:40,550 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 2/3)
+2026-03-06 15:54:40,761 - ExecutionEngine - ERROR - ❌ 下單失敗 (嘗試 2): 账户购买力不足
+2026-03-06 15:54:40,761 - ExecutionEngine - INFO - 🔄 4s 後重試...
+2026-03-06 15:54:44,761 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 3/3)
+2026-03-06 15:54:44,978 - ExecutionEngine - ERROR - ❌ 下單失敗 (嘗試 3): 账户购买力不足
+2026-03-06 15:54:44,978 - ExecutionEngine - INFO - 🔄 8s 後重試...
+2026-03-06 15:54:52,978 - RiskGuard - WARNING - ⚠️ 連續錯誤: 2/5
+2026-03-06 15:54:52,979 - QuantV2 - INFO - 🔄 執行結果: {'status': 'FAIL', 'reason': 'MaxRetriesExceeded'}
+2026-03-06 15:54:52,979 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 11 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 15:54:52,979 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 16:00:17,339 - QuantV2 - INFO - 
+==================================================
+  第 6 輪 | 2026-03-06 16:00:17 | SIMULATE
+==================================================
+2026-03-06 16:00:17,341 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 16:00:18,404 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 16:00:18,460 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 16:00:18,463 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 16:00:18,749 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 16:00:18,800 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 16:00:18,815 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:00:18,816 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 16:00:19,035 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 16:00:19,038 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:00:19,038 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 16:00:19,038 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 16:00:19,038 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 16:00:19,040 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 16:00:19,533 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 16:00:19,587 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 16:00:19,599 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:00:19,603 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:00:19,603 - RiskGuard - INFO - ✅ 風控通過 | US.NVDA BUY 545股 @ $183.34 | SL: $177.84 | TP: $198.01
+2026-03-06 16:00:19,603 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 1/3)
+2026-03-06 16:00:19,817 - ExecutionEngine - ERROR - ❌ 下單失敗 (嘗試 1): 账户购买力不足
+2026-03-06 16:00:19,817 - ExecutionEngine - INFO - 🔄 2s 後重試...
+2026-03-06 16:00:21,817 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 2/3)
+2026-03-06 16:00:22,037 - ExecutionEngine - ERROR - ❌ 下單失敗 (嘗試 2): 账户购买力不足
+2026-03-06 16:00:22,037 - ExecutionEngine - INFO - 🔄 4s 後重試...
+2026-03-06 16:00:26,037 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 3/3)
+2026-03-06 16:00:26,251 - ExecutionEngine - ERROR - ❌ 下單失敗 (嘗試 3): 账户购买力不足
+2026-03-06 16:00:26,251 - ExecutionEngine - INFO - 🔄 8s 後重試...
+2026-03-06 16:00:34,251 - RiskGuard - WARNING - ⚠️ 連續錯誤: 3/5
+2026-03-06 16:00:34,252 - QuantV2 - INFO - 🔄 執行結果: {'status': 'FAIL', 'reason': 'MaxRetriesExceeded'}
+2026-03-06 16:00:34,252 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 11 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 16:00:34,252 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 16:06:00,767 - QuantV2 - INFO - 
+==================================================
+  第 7 輪 | 2026-03-06 16:06:00 | SIMULATE
+==================================================
+2026-03-06 16:06:00,770 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 16:06:01,739 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 16:06:01,800 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 16:06:01,802 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 16:06:02,071 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 16:06:02,130 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 16:06:02,142 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:06:02,142 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 16:06:02,345 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 16:06:02,349 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:06:02,349 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 16:06:02,349 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 16:06:02,349 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 16:06:02,350 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 16:06:02,620 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 16:06:02,674 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 16:06:02,688 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:06:02,692 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:06:02,692 - RiskGuard - INFO - ✅ 風控通過 | US.NVDA BUY 545股 @ $183.34 | SL: $177.84 | TP: $198.01
+2026-03-06 16:06:02,692 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 1/3)
+2026-03-06 16:06:02,902 - ExecutionEngine - ERROR - ❌ 下單失敗 (嘗試 1): 账户购买力不足
+2026-03-06 16:06:02,902 - ExecutionEngine - INFO - 🔄 2s 後重試...
+2026-03-06 16:06:04,903 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 2/3)
+2026-03-06 16:06:05,115 - ExecutionEngine - ERROR - ❌ 下單失敗 (嘗試 2): 账户购买力不足
+2026-03-06 16:06:05,115 - ExecutionEngine - INFO - 🔄 4s 後重試...
+2026-03-06 16:06:12,049 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 3/3)
+2026-03-06 16:06:12,258 - ExecutionEngine - ERROR - ❌ 下單失敗 (嘗試 3): 账户购买力不足
+2026-03-06 16:06:12,258 - ExecutionEngine - INFO - 🔄 8s 後重試...
+2026-03-06 16:06:20,258 - RiskGuard - WARNING - ⚠️ 連續錯誤: 4/5
+2026-03-06 16:06:20,259 - QuantV2 - INFO - 🔄 執行結果: {'status': 'FAIL', 'reason': 'MaxRetriesExceeded'}
+2026-03-06 16:06:20,259 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 11 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 16:06:20,259 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 16:07:03,616 - QuantV2 - INFO - 🚀 Quant Engine v2 啟動中...
+============================================================
+  Quant Engine v2  |  SIMULATE MODE  |  US
+============================================================
+  股票池:           ['US.TSLA', 'US.F', 'US.NVDA']
+  模擬資金:         $999,998
+  單股上限:         10%
+  最大回撤:         3%
+  止損:             3%
+  止盈:             8%
+  信號門檻:         60%
+  冷卻時間:         60s
+============================================================
+2026-03-06 16:07:03,618 | 677303 | 135476879693632 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435596799120483776(1) context=<futu.quote.open_quote_context.OpenQuoteContext object at 0x7b36e6bd2900>
+2026-03-06 16:07:03,620 | 677303 | 135476879693632 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435596799126280281(2) context=<futu.trade.open_trade_context.OpenUSTradeContext object at 0x7b3697ca4830>
+2026-03-06 16:07:03,850 - ExecutionEngine - INFO - ✅ 交易解鎖成功（SIMULATE 模式）
+2026-03-06 16:07:03,852 | 677303 | 135476879693632 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435596800099326558(3) context=<futu.quote.open_quote_context.OpenQuoteContext object at 0x7b3697ca8410>
+2026-03-06 16:07:03,852 - QuantV2 - INFO - ✅ 系統就位！（含 Massive fallback）
+2026-03-06 16:07:03,852 - QuantV2 - INFO - 
+⚙️  訓練模型...
+2026-03-06 16:07:03,853 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 16:07:04,810 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 16:07:31,807 - ModelManager - INFO - ✅ 訓練完成 | 準確率 48.31%
+2026-03-06 16:07:31,807 - QuantV2 - INFO - 📊 US.TSLA 訓練準確率: 48.31%
+2026-03-06 16:07:31,807 - QuantV2 - INFO - 
+🟢 進入持續交易循環 [SIMULATE]...
+
+2026-03-06 16:07:31,807 - QuantV2 - INFO - 
+==================================================
+  第 1 輪 | 2026-03-06 16:07:31 | SIMULATE
+==================================================
+2026-03-06 16:07:31,810 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 16:07:32,272 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 16:07:32,326 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 16:07:32,328 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 16:07:32,616 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 16:07:32,666 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 16:07:32,680 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:07:32,680 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 16:07:32,903 - ExecutionEngine - INFO - ✅ 空頭平倉成功: US.F 1股
+2026-03-06 16:07:32,906 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:07:32,906 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 16:07:32,906 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 16:07:32,906 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 16:07:32,908 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 16:07:33,361 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 16:07:33,410 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 16:07:33,425 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:07:33,429 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:07:33,429 - RiskGuard - INFO - ✅ 風控通過 | US.NVDA BUY 545股 @ $183.34 | SL: $177.84 | TP: $198.01
+2026-03-06 16:07:33,429 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 1/3)
+2026-03-06 16:07:33,658 - ExecutionEngine - INFO - ✅ 下單成功: #7485176
+2026-03-06 16:07:33,658 - QuantV2 - INFO - 🔄 執行結果: {'status': 'OK', 'order_id': '7485176', 'mode': 'SIMULATE', 'code': 'US.NVDA', 'signal': 'BUY', 'qty': 545, 'price': 183.34}
+2026-03-06 16:07:33,659 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 12 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 16:07:33,659 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 16:12:58,663 - QuantV2 - INFO - 
+==================================================
+  第 2 輪 | 2026-03-06 16:12:58 | SIMULATE
+==================================================
+2026-03-06 16:12:58,665 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 16:12:59,653 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 16:12:59,706 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 16:12:59,709 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 16:12:59,979 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 16:13:00,030 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 16:13:00,044 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:13:00,044 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 16:13:00,250 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 16:13:00,254 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:13:00,254 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 16:13:00,254 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 16:13:00,254 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 16:13:00,255 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 16:13:00,700 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 16:13:00,747 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 16:13:00,765 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:13:00,768 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:13:00,768 - RiskGuard - INFO - ✅ 風控通過 | US.NVDA BUY 545股 @ $183.34 | SL: $177.84 | TP: $198.01
+2026-03-06 16:13:00,768 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 1/3)
+2026-03-06 16:13:00,995 - ExecutionEngine - INFO - ✅ 下單成功: #7485190
+2026-03-06 16:13:00,996 - QuantV2 - INFO - 🔄 執行結果: {'status': 'OK', 'order_id': '7485190', 'mode': 'SIMULATE', 'code': 'US.NVDA', 'signal': 'BUY', 'qty': 545, 'price': 183.34}
+2026-03-06 16:13:00,996 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 13 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 16:13:00,996 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 16:18:30,379 - QuantV2 - INFO - 
+==================================================
+  第 3 輪 | 2026-03-06 16:18:30 | SIMULATE
+==================================================
+2026-03-06 16:18:30,381 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 16:18:31,448 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 16:18:31,505 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 16:18:31,510 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 16:18:31,787 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 16:18:31,841 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 16:18:31,855 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:18:31,855 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 16:18:32,059 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 16:18:32,063 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:18:32,063 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 16:18:32,063 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 16:18:32,063 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 16:18:32,065 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 16:18:32,346 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 16:18:32,401 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 16:18:32,413 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:18:32,417 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:18:32,417 - RiskGuard - INFO - ✅ 風控通過 | US.NVDA BUY 545股 @ $183.34 | SL: $177.84 | TP: $198.01
+2026-03-06 16:18:32,417 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 1/3)
+2026-03-06 16:18:32,647 - ExecutionEngine - INFO - ✅ 下單成功: #7485209
+2026-03-06 16:18:32,648 - QuantV2 - INFO - 🔄 執行結果: {'status': 'OK', 'order_id': '7485209', 'mode': 'SIMULATE', 'code': 'US.NVDA', 'signal': 'BUY', 'qty': 545, 'price': 183.34}
+2026-03-06 16:18:32,648 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 14 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 16:18:32,648 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 16:23:59,159 - QuantV2 - INFO - 
+==================================================
+  第 4 輪 | 2026-03-06 16:23:59 | SIMULATE
+==================================================
+2026-03-06 16:23:59,161 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 16:24:00,191 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 16:24:00,255 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 16:24:00,261 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 16:24:00,537 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 16:24:00,591 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 16:24:00,604 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:24:00,604 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 16:24:00,814 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 16:24:00,819 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:24:00,819 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 16:24:00,819 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 16:24:00,819 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 16:24:00,821 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 16:24:01,284 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 16:24:01,339 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 16:24:01,352 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:24:01,355 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:24:01,355 - RiskGuard - INFO - ✅ 風控通過 | US.NVDA BUY 545股 @ $183.34 | SL: $177.84 | TP: $198.01
+2026-03-06 16:24:01,355 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 1/3)
+2026-03-06 16:24:01,570 - ExecutionEngine - INFO - ✅ 下單成功: #7485230
+2026-03-06 16:24:01,571 - QuantV2 - INFO - 🔄 執行結果: {'status': 'OK', 'order_id': '7485230', 'mode': 'SIMULATE', 'code': 'US.NVDA', 'signal': 'BUY', 'qty': 545, 'price': 183.34}
+2026-03-06 16:24:01,571 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 15 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 16:24:01,571 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 16:29:27,828 - QuantV2 - INFO - 
+==================================================
+  第 5 輪 | 2026-03-06 16:29:27 | SIMULATE
+==================================================
+2026-03-06 16:29:27,829 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 16:29:28,827 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 16:29:28,880 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 16:29:28,883 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 16:29:29,157 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 16:29:29,216 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 16:29:29,229 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:29:29,229 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 16:29:29,432 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 16:29:29,436 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:29:29,436 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 16:29:29,436 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 16:29:29,436 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 16:29:29,437 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 16:29:29,718 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 16:29:29,772 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 16:29:29,783 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:29:29,787 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:29:29,787 - RiskGuard - INFO - ✅ 風控通過 | US.NVDA BUY 545股 @ $183.34 | SL: $177.84 | TP: $198.01
+2026-03-06 16:29:29,787 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 1/3)
+2026-03-06 16:29:30,017 - ExecutionEngine - INFO - ✅ 下單成功: #7485249
+2026-03-06 16:29:30,017 - QuantV2 - INFO - 🔄 執行結果: {'status': 'OK', 'order_id': '7485249', 'mode': 'SIMULATE', 'code': 'US.NVDA', 'signal': 'BUY', 'qty': 545, 'price': 183.34}
+2026-03-06 16:29:30,017 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 16 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 16:29:30,018 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 16:34:57,896 - QuantV2 - INFO - 
+==================================================
+  第 6 輪 | 2026-03-06 16:34:57 | SIMULATE
+==================================================
+2026-03-06 16:34:57,898 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 16:34:58,991 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 16:34:59,051 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 16:34:59,053 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 16:34:59,341 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 16:34:59,399 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 16:34:59,411 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:34:59,411 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 16:34:59,617 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 16:34:59,621 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:34:59,621 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 16:34:59,622 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 16:34:59,622 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 16:34:59,623 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 16:35:00,097 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 16:35:00,151 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 16:35:00,163 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:35:00,167 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:35:00,167 - RiskGuard - INFO - ✅ 風控通過 | US.NVDA BUY 545股 @ $183.34 | SL: $177.84 | TP: $198.01
+2026-03-06 16:35:00,167 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 1/3)
+2026-03-06 16:35:00,388 - ExecutionEngine - INFO - ✅ 下單成功: #7485268
+2026-03-06 16:35:00,389 - QuantV2 - INFO - 🔄 執行結果: {'status': 'OK', 'order_id': '7485268', 'mode': 'SIMULATE', 'code': 'US.NVDA', 'signal': 'BUY', 'qty': 545, 'price': 183.34}
+2026-03-06 16:35:00,389 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 17 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 16:35:00,389 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 16:40:24,785 - QuantV2 - INFO - 
+==================================================
+  第 7 輪 | 2026-03-06 16:40:24 | SIMULATE
+==================================================
+2026-03-06 16:40:24,787 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 16:40:25,781 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 16:40:25,836 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 16:40:25,840 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 16:40:26,113 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 16:40:26,166 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 16:40:26,178 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:40:26,178 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 16:40:26,382 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 16:40:26,387 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:40:26,387 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 16:40:26,387 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 16:40:26,387 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 16:40:26,389 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 16:40:26,836 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 16:40:26,898 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 16:40:26,909 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:40:26,912 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:40:26,912 - RiskGuard - INFO - ✅ 風控通過 | US.NVDA BUY 545股 @ $183.34 | SL: $177.84 | TP: $198.01
+2026-03-06 16:40:26,912 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 1/3)
+2026-03-06 16:40:27,138 - ExecutionEngine - INFO - ✅ 下單成功: #7485286
+2026-03-06 16:40:27,139 - QuantV2 - INFO - 🔄 執行結果: {'status': 'OK', 'order_id': '7485286', 'mode': 'SIMULATE', 'code': 'US.NVDA', 'signal': 'BUY', 'qty': 545, 'price': 183.34}
+2026-03-06 16:40:27,139 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 18 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 16:40:27,139 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 16:43:29,050 - QuantV2 - INFO - 🚀 Quant Engine v2 啟動中...
+============================================================
+  Quant Engine v2  |  SIMULATE MODE  |  US
+============================================================
+  股票池:           ['US.TSLA', 'US.F', 'US.NVDA']
+  模擬資金:         $999,998
+  單股上限:         10%
+  最大回撤:         3%
+  止損:             3%
+  止盈:             8%
+  信號門檻:         60%
+  冷卻時間:         60s
+============================================================
+2026-03-06 16:43:29,052 | 683951 | 135778716624704 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435605965495558873(1) context=<futu.quote.open_quote_context.OpenQuoteContext object at 0x7b7d2d99e900>
+2026-03-06 16:43:29,054 | 683951 | 135778716624704 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435605965500008153(2) context=<futu.trade.open_trade_context.OpenUSTradeContext object at 0x7b7cdea60830>
+2026-03-06 16:43:29,286 - ExecutionEngine - INFO - ✅ 交易解鎖成功（SIMULATE 模式）
+2026-03-06 16:43:29,288 | 683951 | 135778716624704 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435605966480541352(3) context=<futu.quote.open_quote_context.OpenQuoteContext object at 0x7b7cdea64410>
+2026-03-06 16:43:29,288 - QuantV2 - INFO - ✅ 系統就位！（含 Massive fallback）
+2026-03-06 16:43:29,289 - QuantV2 - INFO - 
+⚙️  訓練模型...
+2026-03-06 16:43:29,290 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 16:43:30,280 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 16:43:53,534 - ModelManager - INFO - ✅ 訓練完成 | 準確率 48.31%
+2026-03-06 16:43:53,534 - QuantV2 - INFO - 📊 US.TSLA 訓練準確率: 48.31%
+2026-03-06 16:43:53,534 - QuantV2 - INFO - 
+🟢 進入持續交易循環 [SIMULATE]...
+
+2026-03-06 16:43:53,534 - QuantV2 - INFO - 
+==================================================
+  第 1 輪 | 2026-03-06 16:43:53 | SIMULATE
+==================================================
+2026-03-06 16:43:53,537 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 16:43:54,011 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 16:43:54,060 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 16:43:54,063 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 16:43:54,333 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 16:43:54,389 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 16:43:54,401 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:43:54,401 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 16:43:54,617 - ExecutionEngine - INFO - ✅ 空頭平倉成功: US.F 1股
+2026-03-06 16:43:54,621 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:43:54,621 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 16:43:54,621 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 16:43:54,621 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 16:43:54,622 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 16:43:54,900 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 16:43:54,953 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 16:43:54,968 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:43:54,972 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:43:54,972 - RiskGuard - INFO - ✅ 風控通過 | US.NVDA BUY 545股 @ $183.34 | SL: $177.84 | TP: $198.01
+2026-03-06 16:43:54,972 - ExecutionEngine - INFO - 📤 [SIMULATE] BUY 545股 US.NVDA @ $183.34 (嘗試 1/3)
+2026-03-06 16:43:55,193 - ExecutionEngine - INFO - ✅ 下單成功: #7485290
+2026-03-06 16:43:55,193 - QuantV2 - INFO - 🔄 執行結果: {'status': 'OK', 'order_id': '7485290', 'mode': 'SIMULATE', 'code': 'US.NVDA', 'signal': 'BUY', 'qty': 545, 'price': 183.34}
+2026-03-06 16:43:55,193 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 16:43:55,193 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 16:49:21,637 - QuantV2 - INFO - 
+==================================================
+  第 2 輪 | 2026-03-06 16:49:21 | SIMULATE
+==================================================
+2026-03-06 16:49:21,638 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 16:49:22,706 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 16:49:22,760 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 16:49:22,763 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 16:49:23,036 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 16:49:23,091 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 16:49:23,104 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:49:23,104 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 16:49:23,305 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 16:49:23,309 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:49:23,309 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 16:49:23,309 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 16:49:23,309 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 16:49:23,311 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 16:49:23,778 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 16:49:23,836 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 16:49:23,848 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:49:23,852 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:49:23,852 - ExecutionEngine - INFO - ⏸ US.NVDA 今日已下 BUY（5 分鐘前），等待成交確認
+2026-03-06 16:49:23,852 - QuantV2 - INFO - 🔄 執行結果: {'status': 'SKIP', 'reason': 'OrderPending'}
+2026-03-06 16:49:23,853 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 16:49:23,853 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 16:54:53,407 - QuantV2 - INFO - 
+==================================================
+  第 3 輪 | 2026-03-06 16:54:53 | SIMULATE
+==================================================
+2026-03-06 16:54:53,409 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 16:54:54,550 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 16:54:54,605 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 16:54:54,610 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 16:54:54,925 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 16:54:54,978 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 16:54:54,990 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:54:54,990 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 16:54:55,222 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 16:54:55,227 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:54:55,227 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 16:54:55,227 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 16:54:55,227 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 16:54:55,228 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 16:54:55,724 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 16:54:55,778 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 16:54:55,791 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:54:55,795 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 16:54:55,795 - ExecutionEngine - INFO - ⏸ US.NVDA 今日已下 BUY（11 分鐘前），等待成交確認
+2026-03-06 16:54:55,795 - QuantV2 - INFO - 🔄 執行結果: {'status': 'SKIP', 'reason': 'OrderPending'}
+2026-03-06 16:54:55,795 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 16:54:55,795 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 17:00:21,053 - QuantV2 - INFO - 
+==================================================
+  第 4 輪 | 2026-03-06 17:00:21 | SIMULATE
+==================================================
+2026-03-06 17:00:21,055 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 17:00:22,202 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 17:00:22,260 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 17:00:22,263 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 17:00:22,658 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 17:00:22,712 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 17:00:22,726 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:00:22,726 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 17:00:22,960 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 17:00:22,964 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:00:22,964 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 17:00:22,964 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 17:00:22,964 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 17:00:22,966 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 17:00:23,296 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 17:00:23,352 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 17:00:23,365 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:00:23,368 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:00:23,368 - ExecutionEngine - INFO - ⏸ US.NVDA 今日已下 BUY（16 分鐘前），等待成交確認
+2026-03-06 17:00:23,368 - QuantV2 - INFO - 🔄 執行結果: {'status': 'SKIP', 'reason': 'OrderPending'}
+2026-03-06 17:00:23,368 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 17:00:23,368 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 17:05:49,829 - QuantV2 - INFO - 
+==================================================
+  第 5 輪 | 2026-03-06 17:05:49 | SIMULATE
+==================================================
+2026-03-06 17:05:49,832 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 17:05:50,882 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 17:05:50,937 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 17:05:50,941 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 17:05:51,233 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 17:05:51,293 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 17:05:51,309 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:05:51,309 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 17:05:51,511 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 17:05:51,515 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:05:51,515 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 17:05:51,515 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 17:05:51,515 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 17:05:51,516 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 17:05:51,807 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 17:05:51,861 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 17:05:51,876 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:05:51,880 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:05:51,880 - ExecutionEngine - INFO - ⏸ US.NVDA 今日已下 BUY（21 分鐘前），等待成交確認
+2026-03-06 17:05:51,880 - QuantV2 - INFO - 🔄 執行結果: {'status': 'SKIP', 'reason': 'OrderPending'}
+2026-03-06 17:05:51,880 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 17:05:51,880 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 17:11:21,284 - QuantV2 - INFO - 
+==================================================
+  第 6 輪 | 2026-03-06 17:11:21 | SIMULATE
+==================================================
+2026-03-06 17:11:21,286 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 17:11:22,309 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 17:11:22,364 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 17:11:22,372 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 17:11:22,986 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 17:11:23,041 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 17:11:23,056 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:11:23,056 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 17:11:23,257 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 17:11:23,261 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:11:23,261 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 17:11:23,261 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 17:11:23,261 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 17:11:23,263 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 17:11:23,731 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 17:11:23,800 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 17:11:23,819 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:11:23,825 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:11:23,825 - ExecutionEngine - INFO - ⏸ US.NVDA 今日已下 BUY（27 分鐘前），等待成交確認
+2026-03-06 17:11:23,825 - QuantV2 - INFO - 🔄 執行結果: {'status': 'SKIP', 'reason': 'OrderPending'}
+2026-03-06 17:11:23,825 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 17:11:23,825 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 17:16:50,271 - QuantV2 - INFO - 
+==================================================
+  第 7 輪 | 2026-03-06 17:16:50 | SIMULATE
+==================================================
+2026-03-06 17:16:50,273 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 17:16:51,295 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 17:16:51,351 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 17:16:51,358 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 17:16:51,633 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 17:16:51,690 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 17:16:51,705 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:16:51,705 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 17:16:51,907 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 17:16:51,912 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:16:51,912 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 17:16:51,912 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 17:16:51,912 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 17:16:51,913 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 17:16:52,373 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 17:16:52,432 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 17:16:52,447 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:16:52,451 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:16:52,451 - ExecutionEngine - INFO - ⏸ US.NVDA 今日已下 BUY（32 分鐘前），等待成交確認
+2026-03-06 17:16:52,451 - QuantV2 - INFO - 🔄 執行結果: {'status': 'SKIP', 'reason': 'OrderPending'}
+2026-03-06 17:16:52,451 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 17:16:52,451 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 17:22:18,879 - QuantV2 - INFO - 
+==================================================
+  第 8 輪 | 2026-03-06 17:22:18 | SIMULATE
+==================================================
+2026-03-06 17:22:18,881 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 17:22:19,894 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 17:22:19,951 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 17:22:19,955 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 17:22:20,241 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 17:22:20,314 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 17:22:20,327 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:22:20,327 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 17:22:20,531 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 17:22:20,535 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:22:20,535 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 17:22:20,535 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 17:22:20,535 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 17:22:20,537 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 17:22:21,011 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 17:22:21,070 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 17:22:21,084 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:22:21,088 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:22:21,088 - ExecutionEngine - INFO - ⏸ US.NVDA 今日已下 BUY（38 分鐘前），等待成交確認
+2026-03-06 17:22:21,088 - QuantV2 - INFO - 🔄 執行結果: {'status': 'SKIP', 'reason': 'OrderPending'}
+2026-03-06 17:22:21,088 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 17:22:21,088 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 17:27:44,576 - QuantV2 - INFO - 
+==================================================
+  第 9 輪 | 2026-03-06 17:27:44 | SIMULATE
+==================================================
+2026-03-06 17:27:44,578 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 17:27:45,620 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 17:27:45,674 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 17:27:45,677 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 17:27:45,953 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 17:27:46,004 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 17:27:46,018 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:27:46,018 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 17:27:46,220 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 17:27:46,224 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:27:46,225 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 17:27:46,225 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 17:27:46,225 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 17:27:46,226 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 17:27:46,691 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 17:27:46,746 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 17:27:46,759 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:27:46,762 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:27:46,762 - ExecutionEngine - INFO - ⏸ US.NVDA 今日已下 BUY（43 分鐘前），等待成交確認
+2026-03-06 17:27:46,762 - QuantV2 - INFO - 🔄 執行結果: {'status': 'SKIP', 'reason': 'OrderPending'}
+2026-03-06 17:27:46,762 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 17:27:46,762 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 17:33:13,210 - QuantV2 - INFO - 
+==================================================
+  第 10 輪 | 2026-03-06 17:33:13 | SIMULATE
+==================================================
+2026-03-06 17:33:13,212 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 17:33:17,134 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 17:33:17,194 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 17:33:17,198 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 17:33:17,474 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 17:33:17,534 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 17:33:17,546 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:33:17,546 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 17:33:17,751 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 17:33:17,755 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:33:17,755 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 17:33:17,755 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 17:33:17,755 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 17:33:17,756 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 17:33:18,202 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 17:33:18,266 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 17:33:18,280 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:33:18,284 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:33:18,284 - ExecutionEngine - INFO - ⏸ US.NVDA 今日已下 BUY（49 分鐘前），等待成交確認
+2026-03-06 17:33:18,284 - QuantV2 - INFO - 🔄 執行結果: {'status': 'SKIP', 'reason': 'OrderPending'}
+2026-03-06 17:33:18,284 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 17:33:18,284 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 17:38:44,704 - QuantV2 - INFO - 
+==================================================
+  第 11 輪 | 2026-03-06 17:38:44 | SIMULATE
+==================================================
+2026-03-06 17:38:44,706 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 17:38:45,725 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 17:38:45,778 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 17:38:45,781 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 17:38:46,076 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 17:38:46,129 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 17:38:46,143 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:38:46,144 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 17:38:46,344 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 17:38:46,348 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:38:46,348 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 17:38:46,348 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 17:38:46,348 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 17:38:46,349 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 17:38:46,811 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 17:38:46,865 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 17:38:46,878 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:38:46,884 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:38:46,884 - ExecutionEngine - INFO - ⏸ US.NVDA 今日已下 BUY（54 分鐘前），等待成交確認
+2026-03-06 17:38:46,884 - QuantV2 - INFO - 🔄 執行結果: {'status': 'SKIP', 'reason': 'OrderPending'}
+2026-03-06 17:38:46,884 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 17:38:46,884 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 17:44:13,358 - QuantV2 - INFO - 
+==================================================
+  第 12 輪 | 2026-03-06 17:44:13 | SIMULATE
+==================================================
+2026-03-06 17:44:13,360 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 17:44:14,414 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 17:44:14,467 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 17:44:14,470 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 17:44:14,759 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 17:44:14,815 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 17:44:14,826 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:44:14,826 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 17:44:15,029 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 17:44:15,033 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:44:15,033 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 17:44:15,033 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 17:44:15,033 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 17:44:15,034 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 17:44:15,518 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 17:44:15,572 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 17:44:15,584 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:44:15,588 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:44:15,588 - ExecutionEngine - INFO - ⏸ US.NVDA 今日已下 BUY（60 分鐘前），等待成交確認
+2026-03-06 17:44:15,588 - QuantV2 - INFO - 🔄 執行結果: {'status': 'SKIP', 'reason': 'OrderPending'}
+2026-03-06 17:44:15,588 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 17:44:15,588 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 17:49:45,032 - QuantV2 - INFO - 
+==================================================
+  第 13 輪 | 2026-03-06 17:49:45 | SIMULATE
+==================================================
+2026-03-06 17:49:45,034 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 17:49:46,020 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 17:49:46,075 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 17:49:46,079 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 17:49:46,349 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 17:49:46,403 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 17:49:46,416 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:49:46,416 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 17:49:46,618 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 17:49:46,622 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:49:46,622 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 17:49:46,622 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 17:49:46,622 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 17:49:46,623 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 17:49:47,184 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 17:49:47,244 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 17:49:47,256 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:49:47,260 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:49:47,260 - ExecutionEngine - INFO - ⏸ US.NVDA 今日已下 BUY（65 分鐘前），等待成交確認
+2026-03-06 17:49:47,260 - QuantV2 - INFO - 🔄 執行結果: {'status': 'SKIP', 'reason': 'OrderPending'}
+2026-03-06 17:49:47,260 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 17:49:47,260 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 17:55:13,689 - QuantV2 - INFO - 
+==================================================
+  第 14 輪 | 2026-03-06 17:55:13 | SIMULATE
+==================================================
+2026-03-06 17:55:13,690 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 17:55:14,698 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 17:55:14,752 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 17:55:14,755 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 17:55:15,035 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 17:55:15,095 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 17:55:15,108 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:55:15,109 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 17:55:15,307 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 17:55:15,311 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:55:15,311 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 17:55:15,311 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 17:55:15,311 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 17:55:15,313 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 17:55:15,770 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 17:55:15,827 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 17:55:15,843 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:55:15,848 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 17:55:15,848 - ExecutionEngine - INFO - ⏸ US.NVDA 今日已下 BUY（71 分鐘前），等待成交確認
+2026-03-06 17:55:15,848 - QuantV2 - INFO - 🔄 執行結果: {'status': 'SKIP', 'reason': 'OrderPending'}
+2026-03-06 17:55:15,848 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 17:55:15,848 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 18:00:42,317 - QuantV2 - INFO - 
+==================================================
+  第 15 輪 | 2026-03-06 18:00:42 | SIMULATE
+==================================================
+2026-03-06 18:00:42,319 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 18:00:43,315 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 18:00:43,388 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 18:00:43,396 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 18:00:43,683 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 18:00:43,736 - QuantV2 - INFO - 📡 US.F | 信號: BUY | 信心: 82.45% | 價格: $12.34
+2026-03-06 18:00:43,751 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 18:00:43,751 - ExecutionEngine - WARNING - ⚠️ US.F 有空頭 -1 股，先平倉...
+2026-03-06 18:00:43,956 - ExecutionEngine - ERROR - ❌ 空頭平倉失敗: 您当前持有空头，请先平仓再买入多头
+2026-03-06 18:00:43,960 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 18:00:43,960 - RiskGuard - WARNING - ⚠️ US.F 有空頭持倉（-1股），跳過 BUY 直到空頭平倉
+2026-03-06 18:00:43,960 - RiskGuard - WARNING - ⛔ 風控拒絕: ShortPositionExists
+2026-03-06 18:00:43,960 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'ShortPositionExists'}
+2026-03-06 18:00:43,961 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 18:00:44,407 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 18:00:44,465 - QuantV2 - INFO - 📡 US.NVDA | 信號: BUY | 信心: 67.10% | 價格: $183.34
+2026-03-06 18:00:44,478 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 18:00:44,482 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 18:00:44,482 - ExecutionEngine - INFO - ⏸ US.NVDA 今日已下 BUY（76 分鐘前），等待成交確認
+2026-03-06 18:00:44,482 - QuantV2 - INFO - 🔄 執行結果: {'status': 'SKIP', 'reason': 'OrderPending'}
+2026-03-06 18:00:44,482 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 18:00:44,482 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 18:01:01,271 - QuantV2 - INFO - 🚀 Quant Engine v2 啟動中...
+============================================================
+  Quant Engine v2  |  SIMULATE MODE  |  US
+============================================================
+  股票池:           ['US.TSLA', 'US.F', 'US.NVDA']
+  模擬資金:         $999,998
+  單股上限:         10%
+  最大回撤:         3%
+  止損:             3%
+  止盈:             8%
+  信號門檻:         60%
+  冷卻時間:         60s
+============================================================
+2026-03-06 18:01:01,274 | 694683 | 131263891822400 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435625478324564684(1) context=<futu.quote.open_quote_context.OpenQuoteContext object at 0x7761fd17e7b0>
+2026-03-06 18:01:01,276 | 694683 | 131263891822400 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435625478338214090(2) context=<futu.trade.open_trade_context.OpenUSTradeContext object at 0x7761ae1a86e0>
+2026-03-06 18:01:01,508 - ExecutionEngine - INFO - ✅ 交易解鎖成功（SIMULATE 模式）
+2026-03-06 18:01:01,510 | 694683 | 131263891822400 | [open_context_base.py:409] _init_connect_sync: New connect ready: conn=7435625479316280307(3) context=<futu.quote.open_quote_context.OpenQuoteContext object at 0x7761ae1ac550>
+2026-03-06 18:01:01,510 - QuantV2 - INFO - ✅ 系統就位！（含 Massive fallback）
+2026-03-06 18:01:01,510 - QuantV2 - INFO - 
+⚙️  訓練模型...
+2026-03-06 18:01:01,511 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 18:01:02,540 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 18:02:06,837 - ModelManager - INFO - ✅ US.TSLA 訓練完成 | 準確率 48.31%
+2026-03-06 18:02:06,837 - QuantV2 - INFO - 📊 US.TSLA 訓練準確率: 48.31%
+2026-03-06 18:02:06,840 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 18:02:07,808 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 18:02:47,343 - ModelManager - INFO - ✅ US.F 訓練完成 | 準確率 62.92%
+2026-03-06 18:02:47,343 - QuantV2 - INFO - 📊 US.F 訓練準確率: 62.92%
+2026-03-06 18:02:47,346 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 18:02:47,830 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 18:03:35,355 - ModelManager - INFO - ✅ US.NVDA 訓練完成 | 準確率 52.81%
+2026-03-06 18:03:35,355 - QuantV2 - INFO - 📊 US.NVDA 訓練準確率: 52.81%
+2026-03-06 18:03:35,356 - QuantV2 - INFO - 
+🟢 進入持續交易循環 [SIMULATE]...
+
+2026-03-06 18:03:35,356 - QuantV2 - INFO - 
+==================================================
+  第 1 輪 | 2026-03-06 18:03:35 | SIMULATE
+==================================================
+2026-03-06 18:03:35,359 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 18:03:35,822 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 18:03:35,875 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 18:03:35,880 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 18:03:36,154 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 18:03:36,211 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 18:03:36,224 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 18:03:36,224 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 18:03:36,224 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 18:03:36,225 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 18:03:36,511 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 18:03:36,567 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 18:03:36,567 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 18:03:36,567 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 18:09:02,835 - QuantV2 - INFO - 
+==================================================
+  第 2 輪 | 2026-03-06 18:09:02 | SIMULATE
+==================================================
+2026-03-06 18:09:02,837 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 18:09:07,000 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 18:09:07,060 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 18:09:07,066 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 18:09:07,413 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 18:09:07,466 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 18:09:07,480 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 18:09:07,480 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 18:09:07,480 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 18:09:07,481 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 18:09:07,770 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 18:09:07,824 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 18:09:07,825 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 18:09:07,825 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 18:14:34,268 - QuantV2 - INFO - 
+==================================================
+  第 3 輪 | 2026-03-06 18:14:34 | SIMULATE
+==================================================
+2026-03-06 18:14:34,269 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 18:14:35,290 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 18:14:35,350 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 18:14:35,353 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 18:14:35,654 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 18:14:35,710 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 18:14:35,723 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 18:14:35,723 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 18:14:35,723 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 18:14:35,725 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 18:14:36,015 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 18:14:36,071 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 18:14:36,071 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 18:14:36,071 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 18:20:02,518 - QuantV2 - INFO - 
+==================================================
+  第 4 輪 | 2026-03-06 18:20:02 | SIMULATE
+==================================================
+2026-03-06 18:20:02,520 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 18:20:03,562 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 18:20:03,657 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 18:20:03,662 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 18:20:03,986 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 18:20:04,052 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 18:20:04,073 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 18:20:04,073 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 18:20:04,073 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 18:20:04,074 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 18:20:04,365 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 18:20:04,436 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 18:20:04,437 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 18:20:04,437 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 18:25:33,816 - QuantV2 - INFO - 
+==================================================
+  第 5 輪 | 2026-03-06 18:25:33 | SIMULATE
+==================================================
+2026-03-06 18:25:33,818 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 18:25:34,808 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 18:25:34,864 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 18:25:34,867 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 18:25:35,153 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 18:25:35,209 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 18:25:35,222 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 18:25:35,222 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 18:25:35,222 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 18:25:35,224 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 18:25:35,516 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 18:25:35,572 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 18:25:35,573 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 18:25:35,573 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 18:31:02,043 - QuantV2 - INFO - 
+==================================================
+  第 6 輪 | 2026-03-06 18:31:02 | SIMULATE
+==================================================
+2026-03-06 18:31:02,045 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 18:31:03,046 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 18:31:03,103 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 18:31:03,108 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 18:31:03,381 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 18:31:03,436 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 18:31:03,448 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 18:31:03,448 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 18:31:03,448 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 18:31:03,450 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 18:31:03,731 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 18:31:03,791 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 18:31:03,791 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 18:31:03,791 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 18:36:30,324 - QuantV2 - INFO - 
+==================================================
+  第 7 輪 | 2026-03-06 18:36:30 | SIMULATE
+==================================================
+2026-03-06 18:36:30,326 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 18:36:31,339 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 18:36:31,422 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 18:36:31,429 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 18:36:31,702 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 18:36:31,756 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 18:36:31,770 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 18:36:31,770 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 18:36:31,770 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 18:36:31,772 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 18:36:32,048 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 18:36:32,105 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 18:36:32,106 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 18:36:32,107 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 18:41:58,557 - QuantV2 - INFO - 
+==================================================
+  第 8 輪 | 2026-03-06 18:41:58 | SIMULATE
+==================================================
+2026-03-06 18:41:58,559 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 18:41:59,582 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 18:41:59,637 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 18:41:59,641 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 18:41:59,936 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 18:41:59,993 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 18:42:00,007 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 18:42:00,007 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 18:42:00,007 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 18:42:00,008 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 18:42:00,313 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 18:42:00,370 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 18:42:00,370 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 18:42:00,371 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 18:47:19,985 - QuantV2 - INFO - 
+==================================================
+  第 9 輪 | 2026-03-06 18:47:19 | SIMULATE
+==================================================
+2026-03-06 18:47:19,987 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 18:47:21,172 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 18:47:21,238 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 18:47:21,247 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 18:47:21,557 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 18:47:21,630 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 18:47:21,651 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 18:47:21,651 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 18:47:21,651 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 18:47:21,653 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 18:47:21,971 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 18:47:22,026 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 18:47:22,026 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 18:47:22,026 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 18:52:22,027 - QuantV2 - INFO - 
+==================================================
+  第 10 輪 | 2026-03-06 18:52:22 | SIMULATE
+==================================================
+2026-03-06 18:52:22,029 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 18:52:23,180 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 18:52:23,242 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 18:52:23,245 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 18:52:23,582 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 18:52:23,646 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 18:52:23,663 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 18:52:23,663 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 18:52:23,663 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 18:52:23,665 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 18:52:24,029 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 18:52:24,106 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 18:52:24,106 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 18:52:24,106 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 18:57:24,106 - QuantV2 - INFO - 
+==================================================
+  第 11 輪 | 2026-03-06 18:57:24 | SIMULATE
+==================================================
+2026-03-06 18:57:24,109 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 18:57:25,194 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 18:57:25,255 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 18:57:25,258 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 18:57:25,551 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 18:57:25,610 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 18:57:25,626 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 18:57:25,626 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 18:57:25,626 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 18:57:25,627 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 18:57:25,946 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 18:57:26,009 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 18:57:26,009 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 18:57:26,009 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 19:02:26,009 - QuantV2 - INFO - 
+==================================================
+  第 12 輪 | 2026-03-06 19:02:26 | SIMULATE
+==================================================
+2026-03-06 19:02:26,011 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 19:02:27,131 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 19:02:27,190 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 19:02:27,194 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 19:02:27,515 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 19:02:27,571 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 19:02:27,588 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 19:02:27,588 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 19:02:27,588 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 19:02:27,590 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 19:02:27,915 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 19:02:27,978 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 19:02:27,978 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 19:02:27,978 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 19:07:27,979 - QuantV2 - INFO - 
+==================================================
+  第 13 輪 | 2026-03-06 19:07:27 | SIMULATE
+==================================================
+2026-03-06 19:07:27,981 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 19:07:29,284 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 19:07:29,351 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 19:07:29,358 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 19:07:29,677 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 19:07:29,734 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 19:07:29,750 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 19:07:29,750 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 19:07:29,750 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 19:07:29,751 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 19:07:30,073 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 19:07:30,133 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 19:07:30,134 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 19:07:30,134 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 19:12:30,134 - QuantV2 - INFO - 
+==================================================
+  第 14 輪 | 2026-03-06 19:12:30 | SIMULATE
+==================================================
+2026-03-06 19:12:30,136 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 19:12:31,288 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 19:12:31,350 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 19:12:31,353 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 19:12:31,685 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 19:12:31,746 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 19:12:31,759 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 19:12:31,759 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 19:12:31,759 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 19:12:31,761 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 19:12:32,110 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 19:12:32,170 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 19:12:32,170 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 19:12:32,170 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 19:17:32,171 - QuantV2 - INFO - 
+==================================================
+  第 15 輪 | 2026-03-06 19:17:32 | SIMULATE
+==================================================
+2026-03-06 19:17:32,173 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 19:17:33,392 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 19:17:33,450 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 19:17:33,454 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 19:17:33,798 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 19:17:33,871 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 19:17:33,887 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 19:17:33,887 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 19:17:33,887 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 19:17:33,889 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 19:17:34,238 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 19:17:34,302 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 19:17:34,302 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 19:17:34,302 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 19:22:34,303 - QuantV2 - INFO - 
+==================================================
+  第 16 輪 | 2026-03-06 19:22:34 | SIMULATE
+==================================================
+2026-03-06 19:22:34,305 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 19:22:35,447 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 19:22:35,506 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 19:22:35,510 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 19:22:35,832 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 19:22:35,894 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 19:22:35,908 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 19:22:35,908 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 19:22:35,908 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 19:22:35,910 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 19:22:36,246 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 19:22:36,302 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 19:22:36,303 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 19:22:36,303 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 19:27:36,303 - QuantV2 - INFO - 
+==================================================
+  第 17 輪 | 2026-03-06 19:27:36 | SIMULATE
+==================================================
+2026-03-06 19:27:36,305 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 19:27:37,456 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 19:27:37,522 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 19:27:37,530 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 19:27:37,837 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 19:27:37,899 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 19:27:37,915 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 19:27:37,915 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 19:27:37,915 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 19:27:37,917 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 19:27:38,228 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 19:27:38,282 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 19:27:38,282 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 19:27:38,282 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 19:32:38,282 - QuantV2 - INFO - 
+==================================================
+  第 18 輪 | 2026-03-06 19:32:38 | SIMULATE
+==================================================
+2026-03-06 19:32:38,284 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 19:32:39,408 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 19:32:39,475 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 19:32:39,478 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 19:32:39,830 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 19:32:39,888 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 19:32:39,901 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 19:32:39,901 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 19:32:39,901 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 19:32:39,903 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 19:32:40,237 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 19:32:40,298 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 19:32:40,299 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 19:32:40,299 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 19:37:40,299 - QuantV2 - INFO - 
+==================================================
+  第 19 輪 | 2026-03-06 19:37:40 | SIMULATE
+==================================================
+2026-03-06 19:37:40,301 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 19:37:41,464 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 19:37:41,522 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 19:37:41,524 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 19:37:41,857 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 19:37:41,910 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 19:37:41,926 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 19:37:41,926 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 19:37:41,926 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 19:37:41,927 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 19:37:42,276 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 19:37:42,338 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 19:37:42,338 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 19:37:42,338 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 19:42:42,338 - QuantV2 - INFO - 
+==================================================
+  第 20 輪 | 2026-03-06 19:42:42 | SIMULATE
+==================================================
+2026-03-06 19:42:42,340 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 19:42:43,469 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 19:42:43,538 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 19:42:43,541 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 19:42:43,840 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 19:42:43,901 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 19:42:43,915 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 19:42:43,915 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 19:42:43,915 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 19:42:43,916 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 19:42:45,039 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 19:42:45,098 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 19:42:45,098 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 19:42:45,098 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 19:47:45,098 - QuantV2 - INFO - 
+==================================================
+  第 21 輪 | 2026-03-06 19:47:45 | SIMULATE
+==================================================
+2026-03-06 19:47:45,100 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 19:47:46,222 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 19:47:46,278 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 19:47:46,280 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 19:47:46,650 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 19:47:46,710 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 19:47:46,727 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 19:47:46,727 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 19:47:46,727 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 19:47:46,729 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 19:47:47,035 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 19:47:47,090 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 19:47:47,090 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 19:47:47,090 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 19:52:47,090 - QuantV2 - INFO - 
+==================================================
+  第 22 輪 | 2026-03-06 19:52:47 | SIMULATE
+==================================================
+2026-03-06 19:52:47,092 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 19:52:48,211 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 19:52:48,270 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 19:52:48,274 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 19:52:48,595 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 19:52:48,646 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 19:52:48,660 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 19:52:48,660 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 19:52:48,660 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 19:52:48,661 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 19:52:48,990 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 19:52:49,037 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 19:52:49,037 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 19:52:49,037 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 19:57:49,037 - QuantV2 - INFO - 
+==================================================
+  第 23 輪 | 2026-03-06 19:57:49 | SIMULATE
+==================================================
+2026-03-06 19:57:49,040 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 19:57:50,358 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 19:57:50,418 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 19:57:50,420 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 19:57:50,746 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 19:57:50,810 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 19:57:50,824 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 19:57:50,824 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 19:57:50,824 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 19:57:50,825 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 19:57:51,143 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 19:57:51,201 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 19:57:51,203 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 19:57:51,203 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 20:02:51,203 - QuantV2 - INFO - 
+==================================================
+  第 24 輪 | 2026-03-06 20:02:51 | SIMULATE
+==================================================
+2026-03-06 20:02:51,205 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 20:02:52,370 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 20:02:52,430 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 20:02:52,432 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 20:02:52,741 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 20:02:52,802 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 20:02:52,815 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 20:02:52,816 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 20:02:52,816 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 20:02:52,817 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 20:02:53,138 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 20:02:53,195 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 20:02:53,195 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 20:02:53,195 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 20:07:53,197 - QuantV2 - INFO - 
+==================================================
+  第 25 輪 | 2026-03-06 20:07:53 | SIMULATE
+==================================================
+2026-03-06 20:07:53,199 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 20:07:54,284 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 20:07:54,346 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 20:07:54,348 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 20:07:54,649 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 20:07:54,706 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 20:07:54,718 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 20:07:54,718 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 20:07:54,719 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 20:07:54,720 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 20:07:55,063 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 20:07:55,118 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 20:07:55,118 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 20:07:55,118 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 20:12:55,118 - QuantV2 - INFO - 
+==================================================
+  第 26 輪 | 2026-03-06 20:12:55 | SIMULATE
+==================================================
+2026-03-06 20:12:55,120 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 20:12:56,252 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 20:12:56,310 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 20:12:56,313 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 20:12:56,623 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 20:12:56,691 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 20:12:56,706 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 20:12:56,706 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 20:12:56,706 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 20:12:56,707 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 20:12:57,005 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 20:12:57,062 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 20:12:57,062 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 20:12:57,062 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 20:17:57,062 - QuantV2 - INFO - 
+==================================================
+  第 27 輪 | 2026-03-06 20:17:57 | SIMULATE
+==================================================
+2026-03-06 20:17:57,065 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 20:17:58,250 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 20:17:58,314 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 20:17:58,318 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 20:17:58,645 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 20:17:58,737 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 20:17:58,755 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 20:17:58,755 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 20:17:58,755 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 20:17:58,758 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 20:17:59,093 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 20:17:59,155 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 20:17:59,155 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 20:17:59,155 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 20:22:59,156 - QuantV2 - INFO - 
+==================================================
+  第 28 輪 | 2026-03-06 20:22:59 | SIMULATE
+==================================================
+2026-03-06 20:22:59,158 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 20:23:00,402 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 20:23:00,475 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 20:23:00,480 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 20:23:00,810 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 20:23:00,869 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 20:23:00,887 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 20:23:00,887 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 20:23:00,887 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 20:23:00,888 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 20:23:01,227 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 20:23:01,286 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 20:23:01,286 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 20:23:01,286 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 20:28:01,691 - QuantV2 - INFO - 
+==================================================
+  第 29 輪 | 2026-03-06 20:28:01 | SIMULATE
+==================================================
+2026-03-06 20:28:01,693 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 20:28:02,778 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 20:28:02,838 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 20:28:02,842 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 20:28:03,162 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 20:28:03,222 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 20:28:03,237 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 20:28:03,237 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 20:28:03,237 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 20:28:03,238 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 20:28:03,767 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 20:28:03,829 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 20:28:03,831 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 20:28:03,831 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 20:33:06,777 - QuantV2 - INFO - 
+==================================================
+  第 30 輪 | 2026-03-06 20:33:06 | SIMULATE
+==================================================
+2026-03-06 20:33:06,780 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 20:33:08,110 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 20:33:08,174 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 20:33:08,182 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 20:33:08,488 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 20:33:08,548 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 20:33:08,563 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 20:33:08,563 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 20:33:08,563 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 20:33:08,564 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 20:33:08,902 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 20:33:08,960 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 20:33:08,961 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 20:33:08,961 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 20:38:12,733 - QuantV2 - INFO - 
+==================================================
+  第 31 輪 | 2026-03-06 20:38:12 | SIMULATE
+==================================================
+2026-03-06 20:38:12,735 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 20:38:13,881 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 20:38:13,936 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 20:38:13,942 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 20:38:14,253 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 20:38:14,316 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 20:38:14,330 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 20:38:14,330 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 20:38:14,330 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 20:38:14,332 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 20:38:14,657 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 20:38:14,712 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 20:38:14,712 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 20:38:14,712 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 20:43:17,630 - QuantV2 - INFO - 
+==================================================
+  第 32 輪 | 2026-03-06 20:43:17 | SIMULATE
+==================================================
+2026-03-06 20:43:17,632 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 20:43:20,084 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 20:43:20,141 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 20:43:20,146 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 20:43:20,816 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 20:43:20,873 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 20:43:20,889 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 20:43:20,889 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 20:43:20,889 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 20:43:20,890 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 20:43:21,829 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 20:43:21,872 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 20:43:21,873 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 20:43:21,873 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 20:48:21,873 - QuantV2 - INFO - 
+==================================================
+  第 33 輪 | 2026-03-06 20:48:21 | SIMULATE
+==================================================
+2026-03-06 20:48:21,875 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 20:48:22,994 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 20:48:23,047 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 20:48:23,050 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 20:48:23,351 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 20:48:23,405 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 20:48:23,419 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 20:48:23,419 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 20:48:23,419 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 20:48:23,421 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 20:48:23,728 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 20:48:23,802 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 20:48:23,803 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 20:48:23,803 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 20:53:28,347 - QuantV2 - INFO - 
+==================================================
+  第 34 輪 | 2026-03-06 20:53:28 | SIMULATE
+==================================================
+2026-03-06 20:53:28,348 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 20:53:29,438 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 20:53:29,501 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 20:53:29,504 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 20:53:29,814 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 20:53:29,873 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 20:53:29,888 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 20:53:29,888 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 20:53:29,888 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 20:53:29,890 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 20:53:31,058 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 20:53:31,113 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 20:53:31,113 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 20:53:31,113 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 20:58:36,101 - QuantV2 - INFO - 
+==================================================
+  第 35 輪 | 2026-03-06 20:58:36 | SIMULATE
+==================================================
+2026-03-06 20:58:36,102 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 20:58:37,187 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 20:58:37,260 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 20:58:37,262 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 20:58:37,567 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 20:58:37,624 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 20:58:37,638 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 20:58:37,638 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 20:58:37,638 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 20:58:37,639 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 20:58:37,945 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 20:58:38,004 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 20:58:38,004 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 20:58:38,004 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 21:03:42,953 - QuantV2 - INFO - 
+==================================================
+  第 36 輪 | 2026-03-06 21:03:42 | SIMULATE
+==================================================
+2026-03-06 21:03:42,955 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 21:03:44,263 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 21:03:44,316 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 21:03:44,318 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 21:03:44,822 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 21:03:44,884 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 21:03:44,898 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 21:03:44,898 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 21:03:44,898 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 21:03:44,899 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 21:03:45,451 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 21:03:45,480 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 21:03:45,480 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 21:03:45,480 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 21:08:50,536 - QuantV2 - INFO - 
+==================================================
+  第 37 輪 | 2026-03-06 21:08:50 | SIMULATE
+==================================================
+2026-03-06 21:08:50,538 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 21:08:52,856 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 21:08:52,916 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 21:08:52,918 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 21:08:54,158 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 21:08:54,221 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 21:08:54,236 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 21:08:54,236 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 21:08:54,236 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 21:08:54,238 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 21:08:55,838 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 21:08:55,896 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 21:08:55,897 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 21:08:55,897 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 21:14:01,766 - QuantV2 - INFO - 
+==================================================
+  第 38 輪 | 2026-03-06 21:14:01 | SIMULATE
+==================================================
+2026-03-06 21:14:01,768 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 21:14:02,924 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 21:14:02,986 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 21:14:02,989 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 21:14:03,304 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 21:14:03,361 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 21:14:03,374 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 21:14:03,374 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 21:14:03,374 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 21:14:03,376 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 21:14:03,697 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 21:14:03,753 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 21:14:03,753 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 21:14:03,753 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 21:19:09,412 - QuantV2 - INFO - 
+==================================================
+  第 39 輪 | 2026-03-06 21:19:09 | SIMULATE
+==================================================
+2026-03-06 21:19:09,414 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 21:19:10,485 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 21:19:10,553 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 21:19:10,563 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 21:19:11,599 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 21:19:11,666 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 21:19:11,686 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 21:19:11,686 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 21:19:11,686 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 21:19:11,689 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 21:19:11,999 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 21:19:12,072 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 21:19:12,073 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 21:19:12,073 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 21:24:18,280 - QuantV2 - INFO - 
+==================================================
+  第 40 輪 | 2026-03-06 21:24:18 | SIMULATE
+==================================================
+2026-03-06 21:24:18,283 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 21:24:19,410 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 21:24:19,463 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 21:24:19,471 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 21:24:19,768 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 21:24:19,823 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 21:24:19,836 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 21:24:19,836 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 21:24:19,836 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 21:24:19,838 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 21:24:20,147 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 21:24:20,207 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 21:24:20,209 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 21:24:20,209 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 21:29:26,768 - QuantV2 - INFO - 
+==================================================
+  第 41 輪 | 2026-03-06 21:29:26 | SIMULATE
+==================================================
+2026-03-06 21:29:26,770 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 21:29:27,788 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 21:29:27,845 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 21:29:27,848 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 21:29:28,134 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 21:29:28,189 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 21:29:28,203 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 21:29:28,203 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 21:29:28,203 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 21:29:28,205 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 21:29:28,493 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 21:29:28,553 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 21:29:28,554 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 21:29:28,554 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 21:34:36,238 - QuantV2 - INFO - 
+==================================================
+  第 42 輪 | 2026-03-06 21:34:36 | SIMULATE
+==================================================
+2026-03-06 21:34:36,240 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 21:34:37,386 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 21:34:37,445 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 21:34:37,448 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 21:34:37,743 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 21:34:37,809 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 21:34:37,824 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 21:34:37,824 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 21:34:37,824 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 21:34:37,825 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 21:34:38,136 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 21:34:38,190 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 21:34:38,190 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 21:34:38,190 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 21:39:46,792 - QuantV2 - INFO - 
+==================================================
+  第 43 輪 | 2026-03-06 21:39:46 | SIMULATE
+==================================================
+2026-03-06 21:39:46,794 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 21:39:47,974 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 21:39:48,054 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 21:39:48,057 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 21:39:48,363 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 21:39:48,439 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 21:39:48,455 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 21:39:48,455 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 21:39:48,455 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 21:39:48,457 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 21:39:48,970 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 21:39:49,043 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 21:39:49,044 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 21:39:49,044 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 21:44:56,784 - QuantV2 - INFO - 
+==================================================
+  第 44 輪 | 2026-03-06 21:44:56 | SIMULATE
+==================================================
+2026-03-06 21:44:56,786 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 21:44:57,929 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 21:44:57,991 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 21:44:57,994 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 21:44:58,288 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 21:44:58,351 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 21:44:58,368 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 21:44:58,369 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 21:44:58,369 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 21:44:58,370 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 21:44:58,669 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 21:44:58,739 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 21:44:58,739 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 21:44:58,739 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 21:50:07,237 - QuantV2 - INFO - 
+==================================================
+  第 45 輪 | 2026-03-06 21:50:07 | SIMULATE
+==================================================
+2026-03-06 21:50:07,239 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 21:50:08,623 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 21:50:08,702 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 21:50:08,706 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 21:50:09,002 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 21:50:09,064 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 21:50:09,078 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 21:50:09,078 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 21:50:09,079 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 21:50:09,080 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 21:50:09,392 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 21:50:09,461 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 21:50:09,461 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 21:50:09,461 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 21:55:15,544 - QuantV2 - INFO - 
+==================================================
+  第 46 輪 | 2026-03-06 21:55:15 | SIMULATE
+==================================================
+2026-03-06 21:55:15,546 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 21:55:16,658 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 21:55:16,750 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 21:55:16,760 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 21:55:17,085 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 21:55:17,170 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 21:55:17,193 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 21:55:17,193 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 21:55:17,193 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 21:55:17,196 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 21:55:17,512 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 21:55:17,584 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 21:55:17,584 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 21:55:17,584 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 22:00:23,693 - QuantV2 - INFO - 
+==================================================
+  第 47 輪 | 2026-03-06 22:00:23 | SIMULATE
+==================================================
+2026-03-06 22:00:23,695 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 22:00:25,413 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 22:00:25,478 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 22:00:25,482 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 22:00:25,930 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 22:00:26,000 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 22:00:26,013 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 22:00:26,013 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 22:00:26,013 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 22:00:26,014 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 22:00:26,609 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 22:00:26,667 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 22:00:26,667 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 22:00:26,667 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 22:05:33,680 - QuantV2 - INFO - 
+==================================================
+  第 48 輪 | 2026-03-06 22:05:33 | SIMULATE
+==================================================
+2026-03-06 22:05:33,682 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 22:05:35,305 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 22:05:35,375 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 22:05:35,381 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 22:05:35,773 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 22:05:35,839 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 22:05:35,855 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 22:05:35,855 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 22:05:35,855 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 22:05:35,857 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 22:05:36,238 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 22:05:36,303 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 22:05:36,303 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 22:05:36,303 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 22:10:43,158 - QuantV2 - INFO - 
+==================================================
+  第 49 輪 | 2026-03-06 22:10:43 | SIMULATE
+==================================================
+2026-03-06 22:10:43,160 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 22:10:44,733 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 22:10:44,833 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 22:10:44,839 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 22:10:45,146 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 22:10:45,221 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 22:10:45,241 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 22:10:45,241 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 22:10:45,241 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 22:10:45,243 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 22:10:45,554 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 22:10:45,641 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 22:10:45,641 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 22:10:45,641 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 22:15:52,558 - QuantV2 - INFO - 
+==================================================
+  第 50 輪 | 2026-03-06 22:15:52 | SIMULATE
+==================================================
+2026-03-06 22:15:52,560 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 22:15:53,744 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 22:15:53,807 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 22:15:53,815 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 22:15:54,292 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 22:15:54,346 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 22:15:54,361 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 22:15:54,361 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 22:15:54,361 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 22:15:54,362 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 22:15:54,959 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 22:15:55,019 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 22:15:55,019 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 22:15:55,019 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 22:21:04,481 - QuantV2 - INFO - 
+==================================================
+  第 51 輪 | 2026-03-06 22:21:04 | SIMULATE
+==================================================
+2026-03-06 22:21:04,483 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 22:21:05,858 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 22:21:05,927 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 22:21:05,930 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 22:21:06,251 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 22:21:06,307 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 22:21:06,322 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 22:21:06,322 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 22:21:06,322 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 22:21:06,324 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 22:21:06,641 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 22:21:06,699 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 22:21:06,699 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 22:21:06,699 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 22:26:15,391 - QuantV2 - INFO - 
+==================================================
+  第 52 輪 | 2026-03-06 22:26:15 | SIMULATE
+==================================================
+2026-03-06 22:26:15,393 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 22:26:16,757 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 22:26:16,822 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 22:26:16,826 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 22:26:17,355 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 22:26:17,414 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 22:26:17,434 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: -1 | 成本: $12.67 | 盈虧: $0.33
+2026-03-06 22:26:17,434 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 22:26:17,434 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 22:26:17,436 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 22:26:17,932 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 22:26:17,990 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 22:26:17,991 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 22:26:17,991 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 22:31:26,710 - QuantV2 - INFO - 
+==================================================
+  第 53 輪 | 2026-03-06 22:31:26 | SIMULATE
+==================================================
+2026-03-06 22:31:26,712 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 22:31:28,085 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 22:31:28,149 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 22:31:28,157 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 22:31:29,013 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 22:31:29,093 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 22:31:29,108 - ExecutionEngine - INFO - 📊 持倉: US.NVDA | 數量: 545 | 成本: $179.79 | 盈虧: $1934.75
+2026-03-06 22:31:29,108 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: 0 | 成本: $0.00 | 盈虧: $0.49
+2026-03-06 22:31:29,108 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 22:31:29,108 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 22:31:29,110 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 22:31:29,728 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 22:31:29,829 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 22:31:29,830 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 22:31:29,830 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 22:36:39,717 - QuantV2 - INFO - 
+==================================================
+  第 54 輪 | 2026-03-06 22:36:39 | SIMULATE
+==================================================
+2026-03-06 22:36:39,719 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 22:36:40,972 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 22:36:41,037 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 22:36:41,042 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 22:36:41,393 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 22:36:41,456 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 22:36:41,471 - ExecutionEngine - INFO - 📊 持倉: US.NVDA | 數量: 545 | 成本: $179.79 | 盈虧: $1934.75
+2026-03-06 22:36:41,472 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: 0 | 成本: $0.00 | 盈虧: $0.49
+2026-03-06 22:36:41,472 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 22:36:41,472 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 22:36:41,474 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 22:36:41,845 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 22:36:41,902 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 22:36:41,903 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 22:36:41,903 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 22:41:49,450 - QuantV2 - INFO - 
+==================================================
+  第 55 輪 | 2026-03-06 22:41:49 | SIMULATE
+==================================================
+2026-03-06 22:41:49,453 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 22:41:50,946 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 22:41:51,029 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 22:41:51,037 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 22:41:51,777 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 22:41:51,835 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 22:41:51,852 - ExecutionEngine - INFO - 📊 持倉: US.NVDA | 數量: 545 | 成本: $179.79 | 盈虧: $1934.75
+2026-03-06 22:41:51,852 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: 0 | 成本: $0.00 | 盈虧: $0.49
+2026-03-06 22:41:51,852 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 22:41:51,852 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 22:41:51,853 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 22:41:52,470 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 22:41:52,535 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 22:41:52,536 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 22:41:52,536 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 22:46:59,998 - QuantV2 - INFO - 
+==================================================
+  第 56 輪 | 2026-03-06 22:46:59 | SIMULATE
+==================================================
+2026-03-06 22:47:00,001 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 22:47:01,273 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 22:47:01,337 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 22:47:01,340 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 22:47:01,789 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 22:47:01,850 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 22:47:01,865 - ExecutionEngine - INFO - 📊 持倉: US.NVDA | 數量: 545 | 成本: $179.79 | 盈虧: $1934.75
+2026-03-06 22:47:01,865 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: 0 | 成本: $0.00 | 盈虧: $0.49
+2026-03-06 22:47:01,865 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 22:47:01,865 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 22:47:01,867 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 22:47:02,488 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 22:47:02,547 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 22:47:02,547 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 22:47:02,547 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 22:52:10,062 - QuantV2 - INFO - 
+==================================================
+  第 57 輪 | 2026-03-06 22:52:10 | SIMULATE
+==================================================
+2026-03-06 22:52:10,064 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 22:52:11,275 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 22:52:11,334 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 22:52:11,340 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 22:52:11,695 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 22:52:11,792 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 22:52:11,817 - ExecutionEngine - INFO - 📊 持倉: US.NVDA | 數量: 545 | 成本: $179.79 | 盈虧: $1934.75
+2026-03-06 22:52:11,817 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: 0 | 成本: $0.00 | 盈虧: $0.49
+2026-03-06 22:52:11,817 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 22:52:11,817 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 22:52:11,819 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 22:52:12,220 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 22:52:12,284 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 22:52:12,285 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 22:52:12,285 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 22:57:18,874 - QuantV2 - INFO - 
+==================================================
+  第 58 輪 | 2026-03-06 22:57:18 | SIMULATE
+==================================================
+2026-03-06 22:57:18,876 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 22:57:20,120 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 22:57:20,179 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 22:57:20,182 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 22:57:20,960 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 22:57:21,015 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 22:57:21,031 - ExecutionEngine - INFO - 📊 持倉: US.NVDA | 數量: 545 | 成本: $179.79 | 盈虧: $1934.75
+2026-03-06 22:57:21,031 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: 0 | 成本: $0.00 | 盈虧: $0.49
+2026-03-06 22:57:21,031 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 22:57:21,031 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 22:57:21,033 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 22:57:21,617 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 22:57:21,674 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 22:57:21,674 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 22:57:21,674 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 23:02:29,735 - QuantV2 - INFO - 
+==================================================
+  第 59 輪 | 2026-03-06 23:02:29 | SIMULATE
+==================================================
+2026-03-06 23:02:29,737 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 23:02:31,158 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 23:02:31,219 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 23:02:31,222 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 23:02:32,284 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 23:02:32,347 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 23:02:32,365 - ExecutionEngine - INFO - 📊 持倉: US.NVDA | 數量: 545 | 成本: $179.79 | 盈虧: $1934.75
+2026-03-06 23:02:32,365 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: 0 | 成本: $0.00 | 盈虧: $0.49
+2026-03-06 23:02:32,365 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 23:02:32,365 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 23:02:32,367 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 23:02:33,226 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 23:02:33,287 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 23:02:33,287 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 23:02:33,287 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 23:07:42,257 - QuantV2 - INFO - 
+==================================================
+  第 60 輪 | 2026-03-06 23:07:42 | SIMULATE
+==================================================
+2026-03-06 23:07:42,259 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 23:07:43,654 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 23:07:43,713 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 23:07:43,717 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 23:07:44,172 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 23:07:44,225 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 23:07:44,238 - ExecutionEngine - INFO - 📊 持倉: US.NVDA | 數量: 545 | 成本: $179.79 | 盈虧: $1479.67
+2026-03-06 23:07:44,238 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: 0 | 成本: $0.00 | 盈虧: $0.49
+2026-03-06 23:07:44,238 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 23:07:44,238 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 23:07:44,240 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 23:07:44,951 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 23:07:45,005 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 23:07:45,005 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 23:07:45,005 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 23:12:54,288 - QuantV2 - INFO - 
+==================================================
+  第 61 輪 | 2026-03-06 23:12:54 | SIMULATE
+==================================================
+2026-03-06 23:12:54,291 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 23:12:55,783 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 23:12:55,867 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 23:12:55,871 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 23:12:56,514 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 23:12:56,599 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 23:12:56,616 - ExecutionEngine - INFO - 📊 持倉: US.NVDA | 數量: 545 | 成本: $179.79 | 盈虧: $1479.67
+2026-03-06 23:12:56,616 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: 0 | 成本: $0.00 | 盈虧: $0.49
+2026-03-06 23:12:56,616 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 23:12:56,616 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 23:12:56,619 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 23:12:57,199 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 23:12:57,271 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 23:12:57,272 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 23:12:57,272 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 23:18:06,725 - QuantV2 - INFO - 
+==================================================
+  第 62 輪 | 2026-03-06 23:18:06 | SIMULATE
+==================================================
+2026-03-06 23:18:06,726 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 23:18:08,040 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 23:18:08,097 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 23:18:08,102 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 23:18:08,490 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 23:18:08,556 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 23:18:08,572 - ExecutionEngine - INFO - 📊 持倉: US.NVDA | 數量: 545 | 成本: $179.79 | 盈虧: $1479.67
+2026-03-06 23:18:08,572 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: 0 | 成本: $0.00 | 盈虧: $0.49
+2026-03-06 23:18:08,572 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 23:18:08,572 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 23:18:08,574 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 23:18:08,920 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 23:18:08,980 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 23:18:08,980 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 23:18:08,980 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 23:23:19,098 - QuantV2 - INFO - 
+==================================================
+  第 63 輪 | 2026-03-06 23:23:19 | SIMULATE
+==================================================
+2026-03-06 23:23:19,100 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 23:23:20,258 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 23:23:20,320 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 23:23:20,327 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 23:23:20,711 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 23:23:21,889 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 23:23:21,908 - ExecutionEngine - INFO - 📊 持倉: US.NVDA | 數量: 545 | 成本: $179.79 | 盈虧: $1479.67
+2026-03-06 23:23:21,908 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: 0 | 成本: $0.00 | 盈虧: $0.49
+2026-03-06 23:23:21,908 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 23:23:21,908 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 23:23:21,910 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 23:23:22,641 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 23:23:22,721 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 23:23:22,721 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 23:23:22,721 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 23:28:33,643 - QuantV2 - INFO - 
+==================================================
+  第 64 輪 | 2026-03-06 23:28:33 | SIMULATE
+==================================================
+2026-03-06 23:28:33,645 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 23:28:34,993 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 23:28:35,049 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 23:28:35,054 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 23:28:35,491 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 23:28:35,556 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 23:28:35,569 - ExecutionEngine - INFO - 📊 持倉: US.NVDA | 數量: 545 | 成本: $179.79 | 盈虧: $1479.67
+2026-03-06 23:28:35,570 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: 0 | 成本: $0.00 | 盈虧: $0.49
+2026-03-06 23:28:35,570 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 23:28:35,570 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 23:28:35,571 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 23:28:35,946 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 23:28:36,002 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 23:28:36,003 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 23:28:36,003 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 23:33:48,544 - QuantV2 - INFO - 
+==================================================
+  第 65 輪 | 2026-03-06 23:33:48 | SIMULATE
+==================================================
+2026-03-06 23:33:48,547 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 23:33:49,732 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 23:33:49,786 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 23:33:49,790 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 23:33:52,080 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 23:33:52,135 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 23:33:52,150 - ExecutionEngine - INFO - 📊 持倉: US.NVDA | 數量: 545 | 成本: $179.79 | 盈虧: $1479.67
+2026-03-06 23:33:52,150 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: 0 | 成本: $0.00 | 盈虧: $0.49
+2026-03-06 23:33:52,150 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 23:33:52,150 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 23:33:52,153 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 23:33:52,785 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 23:33:52,836 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 23:33:52,836 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 23:33:52,836 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 23:39:04,966 - QuantV2 - INFO - 
+==================================================
+  第 66 輪 | 2026-03-06 23:39:04 | SIMULATE
+==================================================
+2026-03-06 23:39:04,968 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 23:39:06,353 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 23:39:06,410 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 23:39:06,414 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 23:39:06,741 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 23:39:06,798 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 23:39:06,812 - ExecutionEngine - INFO - 📊 持倉: US.NVDA | 數量: 545 | 成本: $179.79 | 盈虧: $1479.67
+2026-03-06 23:39:06,812 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: 0 | 成本: $0.00 | 盈虧: $0.49
+2026-03-06 23:39:06,812 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 23:39:06,812 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 23:39:06,813 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 23:39:07,140 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 23:39:07,194 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 23:39:07,194 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 23:39:07,194 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 23:44:20,711 - QuantV2 - INFO - 
+==================================================
+  第 67 輪 | 2026-03-06 23:44:20 | SIMULATE
+==================================================
+2026-03-06 23:44:20,713 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 23:44:21,882 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 23:44:21,943 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 23:44:21,945 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 23:44:22,317 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 23:44:22,371 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 23:44:22,384 - ExecutionEngine - INFO - 📊 持倉: US.NVDA | 數量: 545 | 成本: $179.79 | 盈虧: $1479.67
+2026-03-06 23:44:22,384 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: 0 | 成本: $0.00 | 盈虧: $0.49
+2026-03-06 23:44:22,384 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 23:44:22,384 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 23:44:22,385 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 23:44:22,751 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 23:44:22,811 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 23:44:22,811 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 23:44:22,811 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 23:49:33,498 - QuantV2 - INFO - 
+==================================================
+  第 68 輪 | 2026-03-06 23:49:33 | SIMULATE
+==================================================
+2026-03-06 23:49:33,500 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 23:49:34,952 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 23:49:35,009 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 23:49:35,011 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 23:49:35,366 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 23:49:35,430 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 23:49:35,447 - ExecutionEngine - INFO - 📊 持倉: US.NVDA | 數量: 545 | 成本: $179.79 | 盈虧: $1479.67
+2026-03-06 23:49:35,447 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: 0 | 成本: $0.00 | 盈虧: $0.49
+2026-03-06 23:49:35,447 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 23:49:35,447 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 23:49:35,449 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 23:49:35,848 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 23:49:35,922 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 23:49:35,922 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 23:49:35,922 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 23:54:44,262 - QuantV2 - INFO - 
+==================================================
+  第 69 輪 | 2026-03-06 23:54:44 | SIMULATE
+==================================================
+2026-03-06 23:54:44,263 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 23:54:45,391 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 23:54:45,445 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 23:54:45,449 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 23:54:45,789 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 23:54:45,849 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 23:54:45,868 - ExecutionEngine - INFO - 📊 持倉: US.NVDA | 數量: 545 | 成本: $179.79 | 盈虧: $1479.67
+2026-03-06 23:54:45,868 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: 0 | 成本: $0.00 | 盈虧: $0.49
+2026-03-06 23:54:45,869 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 23:54:45,869 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 23:54:45,870 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 23:54:46,216 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 23:54:46,273 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 23:54:46,273 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 23:54:46,273 - QuantV2 - INFO - 💤 等待 300s...
+
+2026-03-06 23:59:56,883 - QuantV2 - INFO - 
+==================================================
+  第 70 輪 | 2026-03-06 23:59:56 | SIMULATE
+==================================================
+2026-03-06 23:59:56,885 - QuantV2 - INFO - 🔄 [Massive fallback] 取 TSLA K線...
+2026-03-06 23:59:58,052 - QuantV2 - INFO - 📥 [Massive] US.TSLA K線 501 條
+2026-03-06 23:59:58,107 - QuantV2 - INFO - 📡 US.TSLA | 信號: HOLD | 信心: 55.33% | 價格: $405.55
+2026-03-06 23:59:58,109 - QuantV2 - INFO - 🔄 [Massive fallback] 取 F K線...
+2026-03-06 23:59:58,537 - QuantV2 - INFO - 📥 [Massive] US.F K線 501 條
+2026-03-06 23:59:58,592 - QuantV2 - INFO - 📡 US.F | 信號: SELL | 信心: 85.00% | 價格: $12.34
+2026-03-06 23:59:58,606 - ExecutionEngine - INFO - 📊 持倉: US.NVDA | 數量: 545 | 成本: $179.79 | 盈虧: $1479.67
+2026-03-06 23:59:58,606 - ExecutionEngine - INFO - 📊 持倉: US.F | 數量: 0 | 成本: $0.00 | 盈虧: $0.49
+2026-03-06 23:59:58,606 - RiskGuard - WARNING - ⛔ 風控拒絕: NoPosition
+2026-03-06 23:59:58,606 - QuantV2 - INFO - 🔄 執行結果: {'status': 'REJECTED', 'reason': 'NoPosition'}
+2026-03-06 23:59:58,607 - QuantV2 - INFO - 🔄 [Massive fallback] 取 NVDA K線...
+2026-03-06 23:59:59,007 - QuantV2 - INFO - 📥 [Massive] US.NVDA K線 501 條
+2026-03-06 23:59:59,067 - QuantV2 - INFO - 📡 US.NVDA | 信號: HOLD | 信心: 58.64% | 價格: $183.34
+2026-03-06 23:59:59,067 - QuantV2 - INFO - 📊 今日狀態 | 交易次數: 1 | 今日 PnL: $0.00 | 熔斷: False
+2026-03-06 23:59:59,067 - QuantV2 - INFO - 💤 等待 300s...
+
+  File "/home/tsukii0607/.openclaw/workspace/skills/futu-api/quant_v2.py", line 142
+    model.fit(Xtr, ytr, eval_set=[(Xte, yte)], verbose=False)
+IndentationError: unexpected indent
