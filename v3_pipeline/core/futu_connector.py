@@ -105,14 +105,15 @@ class FutuConnector:
             raise RuntimeError("Futu SDK not loaded. Call connect() first.")
         return getattr(self.ft.TrdEnv, self.config.trd_env, self.ft.TrdEnv.SIMULATE)
 
-    def _safe_trade_call(self, method_name: str, **kwargs):
+    def _safe_trade_call(self, method_name: str, include_trd_env: bool = True, **kwargs):
         if self.trade_ctx is None or self.ft is None:
             raise RuntimeError("FutuConnector not connected")
         method = getattr(self.trade_ctx, method_name)
-        trd_env = self._resolved_trd_env()
 
         try:
-            ret, data = method(trd_env=trd_env, **kwargs)
+            if include_trd_env:
+                kwargs["trd_env"] = self._resolved_trd_env()
+            ret, data = method(**kwargs)
             if ret != self.ft.RET_OK:
                 raise RuntimeError(f"{method_name} failed: {data}")
             return data
@@ -125,7 +126,7 @@ class FutuConnector:
         Returns DataFrame with account metadata, including acc_id, account type and status.
         """
         try:
-            data = self._safe_trade_call("get_acc_list")
+            data = self._safe_trade_call("get_acc_list", include_trd_env=False)
             if data is None:
                 self.discovered_accounts = pd.DataFrame()
                 return self.discovered_accounts
@@ -179,27 +180,68 @@ class FutuConnector:
             self.logger.warning("Futu heartbeat failed: %s", exc)
             return False
 
-    def get_latest_quote(self, symbol: str) -> dict:
-        if self.quote_ctx is None or self.ft is None:
-            raise RuntimeError("FutuConnector not connected")
+    def _quote_dict(self, open_price: float, high_price: float, low_price: float, close_price: float, volume: float) -> dict:
+        return {
+            "Date": pd.Timestamp.now(),
+            "Open": float(open_price),
+            "High": float(high_price),
+            "Low": float(low_price),
+            "Close": float(close_price),
+            "Volume": float(volume),
+        }
 
-        code = f"{self.config.market_prefix}.{symbol}"
+    def _get_latest_quote_yfinance(self, symbol: str) -> dict:
         try:
+            import yfinance as yf
+        except Exception as exc:
+            raise RuntimeError(f"yfinance unavailable in current environment: {exc}") from exc
+
+        ticker = yf.Ticker(symbol)
+        hist = ticker.history(period="1d", interval="1m")
+        if hist.empty:
+            hist = ticker.history(period="5d", interval="1d")
+        if hist.empty:
+            raise RuntimeError(f"yfinance returned empty data for {symbol}")
+
+        row = hist.iloc[-1]
+        close_price = float(row.get("Close", 0.0))
+        open_price = float(row.get("Open", close_price))
+        high_price = float(row.get("High", close_price))
+        low_price = float(row.get("Low", close_price))
+        volume = float(row.get("Volume", 0.0))
+
+        quote = self._quote_dict(open_price, high_price, low_price, close_price, volume)
+        self.logger.warning("[YFINANCE] Quote fallback in use for %s: close=%.4f", symbol, quote["Close"])
+        return quote
+
+    def get_latest_quote(self, symbol: str) -> dict:
+        code = f"{self.config.market_prefix}.{symbol}"
+
+        try:
+            if self.quote_ctx is None or self.ft is None:
+                raise RuntimeError("FutuConnector not connected")
+
             ret, df = self.quote_ctx.get_stock_quote([code])
             if ret != self.ft.RET_OK or df.empty:
                 raise RuntimeError(f"Failed to fetch quote for {code}: {df}")
 
             row = df.iloc[0]
-            return {
-                "Date": pd.Timestamp.now(),
-                "Open": float(row.get("open_price", row.get("last_price", 0.0))),
-                "High": float(row.get("high_price", row.get("last_price", 0.0))),
-                "Low": float(row.get("low_price", row.get("last_price", 0.0))),
-                "Close": float(row.get("last_price", 0.0)),
-                "Volume": float(row.get("volume", 0.0)),
-            }
-        except Exception as exc:
-            raise RuntimeError(f"Quote query failed for {code}: {exc}") from exc
+            close_price = float(row.get("last_price", 0.0))
+            quote = self._quote_dict(
+                open_price=float(row.get("open_price", close_price)),
+                high_price=float(row.get("high_price", close_price)),
+                low_price=float(row.get("low_price", close_price)),
+                close_price=close_price,
+                volume=float(row.get("volume", 0.0)),
+            )
+            self.logger.info("[FUTU] Quote for %s: close=%.4f", code, quote["Close"])
+            return quote
+        except Exception as futu_exc:
+            self.logger.warning("[FUTU] Quote query failed for %s, fallback to yfinance: %s", code, futu_exc)
+            try:
+                return self._get_latest_quote_yfinance(symbol)
+            except Exception as yf_exc:
+                raise RuntimeError(f"Quote query failed for {code}. Futu error={futu_exc}; yfinance error={yf_exc}") from yf_exc
 
     def get_sync_assets(self) -> dict:
         data = self._safe_trade_call("accinfo_query", **self._account_kwargs())

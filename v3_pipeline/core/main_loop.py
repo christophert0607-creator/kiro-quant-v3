@@ -180,6 +180,11 @@ class LiveTradingLoop:
     def _execute(self, side: str, qty: int, price: float, reason: str) -> None:
         self.logger.info("Execute %s qty=%d price=%.4f reason=%s", side, qty, price, reason)
 
+        if self.config.auto_trade and not self.config.paper_trading:
+            self.futu_connector.place_order(self.config.symbol, qty, side, price)
+        else:
+            self.logger.info("Paper trading mode: simulated %s %d %s", side, qty, self.config.symbol)
+
         if side == "BUY":
             self.position_qty += qty
             self.highest_price_since_entry = price
@@ -187,11 +192,6 @@ class LiveTradingLoop:
             self.position_qty = max(0, self.position_qty - qty)
             if self.position_qty == 0:
                 self.highest_price_since_entry = 0.0
-
-        if self.config.auto_trade and not self.config.paper_trading:
-            self.futu_connector.place_order(self.config.symbol, qty, side, price)
-        else:
-            self.logger.info("Paper trading mode: simulated %s %d %s", side, qty, self.config.symbol)
 
     def _notify(self, message: str) -> None:
         self.logger.info(message)

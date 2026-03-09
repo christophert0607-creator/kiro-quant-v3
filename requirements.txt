@@ -1,2 +1,5 @@
 futu-api>=9.0
 pandas>=1.0
+fastapi>=0.110
+uvicorn>=0.29
+aiofiles>=23.2
