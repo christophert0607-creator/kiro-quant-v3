@@ -237,53 +237,59 @@ class FutuConnector:
             return False
 
     def get_latest_quote(self, symbol: str) -> dict:
-        if self.quote_ctx is None or self.ft is None:
-            raise RuntimeError("FutuConnector not connected")
-
         code = f"{self.config.market_prefix}.{symbol}"
+        provider_errors: list[str] = []
+
         try:
-            ret, df = self.quote_ctx.get_stock_quote([code])
-            if ret != self.ft.RET_OK or df.empty:
-                raise RuntimeError(f"Failed to fetch quote for {code}: {df}")
-
-            row = df.iloc[0]
-            quote = {
-                "Date": pd.Timestamp.now(),
-                "Open": float(row.get("open_price", row.get("last_price", 0.0))),
-                "High": float(row.get("high_price", row.get("last_price", 0.0))),
-                "Low": float(row.get("low_price", row.get("last_price", 0.0))),
-                "Close": float(row.get("last_price", 0.0)),
-                "Volume": float(row.get("volume", 0.0)),
-            }
+            quote = self._get_latest_quote_yfinance(symbol)
             self._cache_quote(symbol, quote)
+            self.logger.info("Using yfinance quote for %s", symbol)
             return quote
-        except Exception as exc:
-            self.logger.warning("Futu quote query failed for %s, trying efinance/yfinance fallbacks: %s", code, exc)
+        except Exception as yf_exc:
+            provider_errors.append(f"yfinance={yf_exc}")
+            self.logger.warning("yfinance quote failed for %s (%s): %s", symbol, yf_exc.__class__.__name__, yf_exc)
 
+        try:
+            quote = self._get_latest_quote_efinance(symbol)
+            self._cache_quote(symbol, quote)
+            self.logger.info("Using efinance quote for %s", symbol)
+            return quote
+        except Exception as ef_exc:
+            provider_errors.append(f"efinance={ef_exc}")
+            self.logger.warning("efinance quote failed for %s (%s): %s", symbol, ef_exc.__class__.__name__, ef_exc)
+
+        if self.quote_ctx is not None and self.ft is not None:
             try:
-                quote = self._get_latest_quote_efinance(symbol)
+                ret, df = self.quote_ctx.get_stock_quote([code])
+                if ret != self.ft.RET_OK or df.empty:
+                    raise RuntimeError(f"Failed to fetch quote for {code}: {df}")
+
+                row = df.iloc[0]
+                quote = {
+                    "Date": pd.Timestamp.now(),
+                    "Open": float(row.get("open_price", row.get("last_price", 0.0))),
+                    "High": float(row.get("high_price", row.get("last_price", 0.0))),
+                    "Low": float(row.get("low_price", row.get("last_price", 0.0))),
+                    "Close": float(row.get("last_price", 0.0)),
+                    "Volume": float(row.get("volume", 0.0)),
+                }
                 self._cache_quote(symbol, quote)
-                self.logger.info("Using efinance fallback quote for %s", symbol)
+                self.logger.info("Using futu quote for %s", symbol)
                 return quote
-            except Exception as ef_exc:
-                self.logger.warning("efinance fallback failed for %s (%s): %s", symbol, ef_exc.__class__.__name__, ef_exc)
+            except Exception as futu_exc:
+                provider_errors.append(f"futu={futu_exc}")
+                self.logger.warning("Futu quote failed for %s (%s): %s", code, futu_exc.__class__.__name__, futu_exc)
+        else:
+            provider_errors.append("futu=not_connected")
+            self.logger.warning("Futu quote skipped for %s: connector not ready", code)
 
-            try:
-                quote = self._get_latest_quote_yfinance(symbol)
-                self._cache_quote(symbol, quote)
-                self.logger.info("Using yfinance fallback quote for %s", symbol)
-                return quote
-            except Exception as yf_exc:
-                self.logger.warning("yfinance fallback failed for %s (%s): %s", symbol, yf_exc.__class__.__name__, yf_exc)
+        cached_quote = self._get_cached_quote(symbol)
+        if cached_quote is not None:
+            self.logger.warning("Using last cached quote for %s after provider failures", symbol)
+            return cached_quote
 
-                cached_quote = self._get_cached_quote(symbol)
-                if cached_quote is not None:
-                    self.logger.warning("Using last cached quote for %s after provider failures", symbol)
-                    return cached_quote
-
-                raise RuntimeError(
-                    f"Quote query failed for {code}: {exc}; efinance fallback failed: {ef_exc}; yfinance fallback failed: {yf_exc}"
-                ) from yf_exc
+        errors = "; ".join(provider_errors)
+        raise RuntimeError(f"Quote query failed for {code}. Providers exhausted: {errors}")
 
     def get_sync_assets(self) -> dict:
         data = self._safe_trade_call("accinfo_query", **self._account_kwargs())
