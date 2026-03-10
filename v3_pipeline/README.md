@@ -39,6 +39,16 @@
 20. **Holographic daily snapshot**: planned EOD fleet PnL visual report pipeline.
 
 ---
+
+## ⚡ V3 Launcher Lightweight Runtime
+- `v3_launcher.py` now supports runtime profiles for quick deployment:
+  - `lite` (default): lower compute footprint (`lookback=40`, `hidden_dim=32`, `layers=1`)
+  - `standard`: original stronger profile (`lookback=60`, `hidden_dim=64`, `layers=2`)
+- Config key: `v3_live.runtime_profile` in `config.json` (`lite`/`standard`).
+- CLI override:
+  - `python v3_launcher.py --profile lite --dry-run`
+  - `python v3_launcher.py --profile standard`
+
 ## V4.0: Galactic Conquest
 
 - **核心科技**：引入 Reinforcement Learning (RL) 強化學習，讓系統自我對弈、自我優化。
