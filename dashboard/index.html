@@ -1,146 +1,413 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Kiro-Quant V3.5 Terminal</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiro-Quant V3.5 全息戰術終端</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <style>
-      :root {
-        --bg: #0d1117;
-        --fg: #c9d1d9;
-        --gold: #e3b341;
-        --green: #3fb950;
-        --red: #f85149;
-        --blue: #58a6ff;
-      }
-      body { background: var(--bg); color: var(--fg); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-      .terminal-line { white-space: pre-wrap; word-break: break-word; }
+        :root {
+            --bg: #0d1117;
+            --fg: #c9d1d9;
+            --gold: #e3b341;
+            --green: #3fb950;
+            --red: #f85149;
+            --blue: #58a6ff;
+            --purple: #a371f7;
+        }
+        body { 
+            background: var(--bg); 
+            color: var(--fg); 
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+        .glass-panel {
+            background: rgba(13, 17, 23, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(48, 54, 61, 0.5);
+        }
+        .stock-card {
+            transition: all 0.3s ease;
+        }
+        .stock-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(88, 166, 255, 0.15);
+        }
+        .prediction-line {
+            border-top: 2px dashed var(--blue);
+            opacity: 0.8;
+        }
+        .terminal-line { 
+            white-space: pre-wrap; 
+            word-break: break-word;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .pulse-dot {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+        .up-trend { color: var(--green); }
+        .down-trend { color: var(--red); }
+        .neutral { color: var(--fg); }
     </style>
-  </head>
-  <body class="min-h-screen p-4 md:p-6">
-    <div class="mx-auto max-w-7xl rounded-2xl border border-slate-700/70 bg-[#0d1117] shadow-2xl">
-      <header class="flex items-center justify-between gap-4 border-b border-slate-700 px-5 py-4">
-        <h1 class="text-lg md:text-2xl font-bold tracking-wide">🚀 Kiro-Quant V3.5: 全息戰術終端</h1>
-        <div class="flex items-center gap-3 text-sm">
-          <span class="text-slate-300">Connection Status</span>
-          <span id="statusDot" class="inline-block h-3 w-3 rounded-full bg-red-500 shadow-[0_0_8px_rgba(248,81,73,.8)]"></span>
-          <span id="statusText" class="text-red-400">Disconnected</span>
+</head>
+<body class="min-h-screen p-4">
+    <!-- Header -->
+    <header class="mb-4 flex items-center justify-between rounded-xl glass-panel p-4">
+        <div class="flex items-center gap-3">
+            <div class="text-2xl">🚀</div>
+            <div>
+                <h1 class="text-xl font-bold text-white">Kiro-Quant V3.5</h1>
+                <p class="text-sm text-slate-400">全息戰術終端 · 光速時代</p>
+            </div>
         </div>
-      </header>
+        <div class="flex items-center gap-4 text-sm">
+            <div class="flex items-center gap-2">
+                <span class="pulse-dot inline-block h-2 w-2 rounded-full bg-green-500"></span>
+                <span class="text-green-400">Live</span>
+            </div>
+            <div id="connectionStatus" class="text-slate-400">
+                <span class="inline-block h-2 w-2 rounded-full bg-red-500"></span>
+                Disconnected
+            </div>
+            <div id="gpuUsage" class="rounded bg-slate-800 px-3 py-1 text-xs">
+                GPU: --%
+            </div>
+        </div>
+    </header>
 
-      <main class="p-4 md:p-5">
-        <div class="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-slate-700 bg-slate-900/40 px-4 py-3">
-          <label class="inline-flex items-center gap-2 text-sm cursor-pointer select-none">
-            <input id="autoScrollToggle" type="checkbox" class="h-4 w-4 accent-blue-500" checked />
-            Auto-Scroll 鎖定
-          </label>
-          <button id="clearBtn" class="rounded-lg border border-slate-600 px-3 py-1.5 text-sm hover:bg-slate-800">一鍵清空日誌</button>
-          <span id="meta" class="ml-auto text-xs text-slate-400">Lines: 0</span>
+    <!-- Main Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+        <!-- Left: Main Chart -->
+        <div class="lg:col-span-2 glass-panel rounded-xl p-4">
+            <div class="mb-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <select id="symbolSelector" class="rounded bg-slate-800 border border-slate-600 px-3 py-1 text-sm text-white">
+                        <option value="TSLL">TSLL (3x Tesla)</option>
+                        <option value="TSLA">TSLA</option>
+                        <option value="NVDA">NVDA</option>
+                        <option value="AVGO">AVGO</option>
+                        <option value="ANET">ANET</option>
+                    </select>
+                    <span id="currentPrice" class="text-2xl font-bold text-white">--.--</span>
+                    <span id="priceChange" class="text-sm">--%</span>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="setTimeframe('1m')" class="rounded bg-slate-700 px-2 py-1 text-xs hover:bg-slate-600">1M</button>
+                    <button onclick="setTimeframe('5m')" class="rounded bg-slate-700 px-2 py-1 text-xs hover:bg-slate-600">5M</button>
+                    <button onclick="setTimeframe('15m')" class="rounded bg-blue-600 px-2 py-1 text-xs">15M</button>
+                    <button onclick="setTimeframe('1h')" class="rounded bg-slate-700 px-2 py-1 text-xs hover:bg-slate-600">1H</button>
+                </div>
+            </div>
+            <div class="relative h-[400px]">
+                <canvas id="mainChart"></canvas>
+                <div id="predictionOverlay" class="absolute right-4 top-4 rounded bg-slate-900/90 p-3 text-xs">
+                    <div class="mb-1 text-slate-400">AI 預測</div>
+                    <div id="predictionPrice" class="text-lg font-bold text-blue-400">--.--</div>
+                    <div id="predictionConfidence" class="text-xs text-slate-500">信心度: --%</div>
+                </div>
+            </div>
         </div>
 
-        <section id="terminal" class="h-[70vh] overflow-y-auto rounded-xl border border-slate-700 bg-black/30 p-4 text-sm leading-6"></section>
-      </main>
+        <!-- Right: Radar Grid -->
+        <div class="glass-panel rounded-xl p-4">
+            <h2 class="mb-4 flex items-center gap-2 text-sm font-bold text-slate-300">
+                <span>📡</span> 多標的雷達
+            </h2>
+            <div id="radarGrid" class="grid grid-cols-1 gap-2">
+                <!-- Stock cards will be generated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom: Terminal Logs -->
+    <div class="glass-panel rounded-xl p-4">
+        <div class="mb-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <span class="text-sm font-bold text-slate-300">📊 實時日誌</span>
+                <label class="flex items-center gap-2 text-xs text-slate-400">
+                    <input id="autoScroll" type="checkbox" checked class="rounded">
+                    自動滾動
+                </label>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="filterLogs('all')" class="rounded bg-slate-700 px-2 py-1 text-xs">全部</button>
+                <button onclick="filterLogs('signal')" class="rounded bg-slate-700 px-2 py-1 text-xs">訊號</button>
+                <button onclick="filterLogs('trade')" class="rounded bg-slate-700 px-2 py-1 text-xs">交易</button>
+                <button onclick="clearLogs()" class="rounded bg-red-900/50 px-2 py-1 text-xs text-red-400">清空</button>
+            </div>
+        </div>
+        <div id="terminal" class="h-[200px] overflow-y-auto rounded bg-black/50 p-3 text-xs">
+            <div class="text-slate-500">等待 WebSocket 連線...</div>
+        </div>
     </div>
 
     <script>
-      const terminal = document.getElementById('terminal');
-      const dot = document.getElementById('statusDot');
-      const statusText = document.getElementById('statusText');
-      const autoScrollToggle = document.getElementById('autoScrollToggle');
-      const clearBtn = document.getElementById('clearBtn');
-      const meta = document.getElementById('meta');
+        // Configuration
+        const WS_URL = `ws://${location.host}/ws/v3_logs`;
+        const API_URL = `http://${location.host}/api`;
+        
+        // State
+        let ws = null;
+        let reconnectAttempts = 0;
+        let chart = null;
+        let currentSymbol = 'TSLL';
+        let priceHistory = {};
+        
+        // Stock list
+        const stocks = [
+            { symbol: 'TSLL', name: 'TSLL 3x', type: 'leveraged' },
+            { symbol: 'TSLA', name: 'Tesla', type: 'stock' },
+            { symbol: 'NVDA', name: 'NVIDIA', type: 'stock' },
+            { symbol: 'AVGO', name: 'Broadcom', type: 'optical' },
+            { symbol: 'ANET', name: 'Arista', type: 'optical' },
+            { symbol: 'MRVL', name: 'Marvell', type: 'optical' },
+            { symbol: 'COHR', name: 'Coherent', type: 'optical' },
+            { symbol: 'LITE', name: 'Lumentum', type: 'optical' },
+            { symbol: 'TSM', name: 'TSMC', type: 'foundry' }
+        ];
 
-      let socket = null;
-      let reconnectAttempts = 0;
-      let lineCount = 0;
-      let reconnectTimer = null;
+        // Initialize Chart
+        function initChart() {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: '價格',
+                        data: [],
+                        borderColor: '#58a6ff',
+                        backgroundColor: 'rgba(88, 166, 255, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6
+                    }, {
+                        label: 'AI 預測',
+                        data: [],
+                        borderColor: '#a371f7',
+                        borderDash: [5, 5],
+                        fill: false,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: {
+                            labels: { color: '#c9d1d9' }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(13, 17, 23, 0.9)',
+                            titleColor: '#c9d1d9',
+                            bodyColor: '#c9d1d9',
+                            borderColor: '#30363d',
+                            borderWidth: 1
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'minute',
+                                displayFormats: {
+                                    minute: 'HH:mm'
+                                }
+                            },
+                            grid: { color: '#30363d' },
+                            ticks: { color: '#8b949e' }
+                        },
+                        y: {
+                            grid: { color: '#30363d' },
+                            ticks: { color: '#8b949e' }
+                        }
+                    }
+                }
+            });
+        }
 
-      const sourceRegex = /(\[YFINANCE\]|\[FUTU\])/g;
-      const heartbeatRegex = /(\[HEARTBEAT\]|💓)/;
+        // Generate radar cards
+        function generateRadarCards() {
+            const container = document.getElementById('radarGrid');
+            container.innerHTML = stocks.map(stock => `
+                <div class="stock-card flex items-center justify-between rounded-lg bg-slate-800/50 p-3 cursor-pointer" 
+                     onclick="selectSymbol('${stock.symbol}')">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-white">${stock.symbol}</span>
+                            <span class="text-xs text-slate-500">${stock.name}</span>
+                            ${stock.type === 'optical' ? '<span class="text-xs text-purple-400">⚡光速</span>' : ''}
+                        </div>
+                        <div class="mt-1 text-xs text-slate-400">
+                            <span id="pred-${stock.symbol}">預測: --</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div id="price-${stock.symbol}" class="font-bold text-white">--.--</div>
+                        <div id="signal-${stock.symbol}" class="text-xs">--</div>
+                    </div>
+                </div>
+            `).join('');
+        }
 
-      function setStatus(connected) {
-        dot.className = `inline-block h-3 w-3 rounded-full ${connected ? 'bg-green-500 shadow-[0_0_8px_rgba(63,185,80,.9)]' : 'bg-red-500 shadow-[0_0_8px_rgba(248,81,73,.8)]'}`;
-        statusText.textContent = connected ? 'Connected' : 'Disconnected';
-        statusText.className = connected ? 'text-green-400' : 'text-red-400';
-      }
+        // WebSocket Connection
+        function connect() {
+            ws = new WebSocket(WS_URL);
+            
+            ws.onopen = () => {
+                reconnectAttempts = 0;
+                updateConnectionStatus(true);
+                log('[Kiro-Boost] WebSocket 連線成功', 'info');
+            };
+            
+            ws.onmessage = (event) => {
+                const lines = event.data.split('\n').filter(Boolean);
+                lines.forEach(processLogLine);
+            };
+            
+            ws.onclose = () => {
+                updateConnectionStatus(false);
+                log('[ERROR] WebSocket 斷線，正在重連...', 'error');
+                setTimeout(connect, Math.min(30000, 1000 * Math.pow(2, reconnectAttempts)));
+                reconnectAttempts++;
+            };
+            
+            ws.onerror = (err) => {
+                log('[ERROR] WebSocket 錯誤', 'error');
+            };
+        }
 
-      function shouldDropLine(line) {
-        return heartbeatRegex.test(line);
-      }
+        // Process log line
+        function processLogLine(line) {
+            // Add to terminal
+            log(line);
+            
+            // Parse prediction
+            const predMatch = line.match(/Prediction \(scaled=[\d.-]+, inverse=([\d.]+)/);
+            if (predMatch) {
+                const price = parseFloat(predMatch[1]);
+                updatePrediction(currentSymbol, price);
+            }
+            
+            // Parse price updates
+            const priceMatch = line.match(/Buffer\[(\w+)\].*size:\s*(\d+)/);
+            if (priceMatch) {
+                updateRadarCard(priceMatch[1], priceMatch[2]);
+            }
+            
+            // Parse signals
+            if (line.includes('BUY') || line.includes('SELL')) {
+                highlightSignal(line);
+            }
+        }
 
-      function colorize(line) {
-        const escaped = line
-          .replaceAll('&', '&amp;')
-          .replaceAll('<', '&lt;')
-          .replaceAll('>', '&gt;');
+        // Log to terminal
+        function log(message, type = 'normal') {
+            const terminal = document.getElementById('terminal');
+            const div = document.createElement('div');
+            div.className = 'terminal-line mb-1';
+            
+            let colorClass = 'text-slate-300';
+            if (type === 'error') colorClass = 'text-red-400';
+            if (type === 'info') colorClass = 'text-green-400';
+            if (type === 'signal') colorClass = 'text-yellow-400';
+            
+            div.innerHTML = `<span class="text-slate-600">${new Date().toLocaleTimeString()}</span> <span class="${colorClass}">${escapeHtml(message)}</span>`;
+            terminal.appendChild(div);
+            
+            if (document.getElementById('autoScroll').checked) {
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+        }
 
-        let html = escaped.replace(sourceRegex, '<span style="color: var(--blue);">$1</span>');
+        // Update UI functions
+        function updateConnectionStatus(connected) {
+            const status = document.getElementById('connectionStatus');
+            if (connected) {
+                status.innerHTML = '<span class="inline-block h-2 w-2 rounded-full bg-green-500 pulse-dot"></span> <span class="text-green-400">Connected</span>';
+            } else {
+                status.innerHTML = '<span class="inline-block h-2 w-2 rounded-full bg-red-500"></span> <span class="text-red-400">Disconnected</span>';
+            }
+        }
 
-        const isSignal = /\[SIGNAL\]|\bBUY\b|\bSELL\b/.test(line);
-        const isFitted = /Fitted .* OK|\[Kiro-Boost\]/.test(line);
-        const isError = /\[ERROR\]|Exception|failed/i.test(line);
+        function updatePrediction(symbol, price) {
+            document.getElementById('predictionPrice').textContent = price.toFixed(2);
+            document.getElementById(`pred-${symbol}`).textContent = `預測: ${price.toFixed(2)}`;
+        }
 
-        let style = 'color: var(--fg);';
-        if (isSignal) style = 'color: var(--gold); font-weight: 700;';
-        else if (isFitted) style = 'color: var(--green);';
-        else if (isError) style = 'color: var(--red);';
+        function updateRadarCard(symbol, size) {
+            const priceEl = document.getElementById(`price-${symbol}`);
+            if (priceEl) {
+                priceEl.textContent = `載入中`;
+            }
+        }
 
-        return `<div class="terminal-line" style="${style}">${html}</div>`;
-      }
+        function selectSymbol(symbol) {
+            currentSymbol = symbol;
+            document.getElementById('symbolSelector').value = symbol;
+            log(`[INFO] 切換到 ${symbol}`, 'info');
+        }
 
-      function appendLine(line) {
-        if (shouldDropLine(line)) return;
-        terminal.insertAdjacentHTML('beforeend', colorize(line));
-        lineCount += 1;
-        meta.textContent = `Lines: ${lineCount}`;
-        if (autoScrollToggle.checked) terminal.scrollTop = terminal.scrollHeight;
-      }
+        function setTimeframe(tf) {
+            log(`[INFO] 切換時間框架: ${tf}`, 'info');
+        }
 
-      function scheduleReconnect() {
-        if (reconnectTimer) clearTimeout(reconnectTimer);
-        const delay = Math.min(30000, 1000 * Math.pow(2, reconnectAttempts));
-        reconnectAttempts += 1;
-        appendLine(`[INFO] Reconnecting in ${Math.round(delay / 1000)}s (attempt ${reconnectAttempts})`);
-        reconnectTimer = setTimeout(connect, delay);
-      }
+        function filterLogs(type) {
+            log(`[INFO] 過濾器: ${type}`, 'info');
+        }
 
-      function connect() {
-        if (socket && socket.readyState === WebSocket.OPEN) return;
+        function clearLogs() {
+            document.getElementById('terminal').innerHTML = '';
+        }
 
-        const wsUrl = `ws://${location.host}/ws/v3_logs`;
-        socket = new WebSocket(wsUrl);
+        function highlightSignal(line) {
+            if (line.includes('BUY')) {
+                log(`🟢 ${line}`, 'signal');
+            } else if (line.includes('SELL')) {
+                log(`🔴 ${line}`, 'signal');
+            }
+        }
 
-        socket.onopen = () => {
-          reconnectAttempts = 0;
-          setStatus(true);
-          appendLine(`[Kiro-Boost] Connected to ${wsUrl}`);
-        };
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
 
-        socket.onmessage = (event) => {
-          const payload = String(event.data ?? '');
-          payload.split('\n').filter(Boolean).forEach(appendLine);
-        };
+        // GPU Monitor
+        async function updateGPUStatus() {
+            try {
+                const response = await fetch(`${API_URL}/status`);
+                const data = await response.json();
+                document.getElementById('gpuUsage').textContent = `GPU: ${data.gpu || '--'}%`;
+            } catch (e) {
+                // Silent fail
+            }
+        }
 
-        socket.onerror = () => {
-          setStatus(false);
-          appendLine('[ERROR] WebSocket encountered an error.');
-        };
-
-        socket.onclose = () => {
-          setStatus(false);
-          appendLine('[ERROR] Connection closed.');
-          scheduleReconnect();
-        };
-      }
-
-      clearBtn.addEventListener('click', () => {
-        terminal.innerHTML = '';
-        lineCount = 0;
-        meta.textContent = 'Lines: 0';
-      });
-
-      connect();
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initChart();
+            generateRadarCards();
+            connect();
+            setInterval(updateGPUStatus, 5000);
+            
+            // Symbol selector change
+            document.getElementById('symbolSelector').addEventListener('change', (e) => {
+                selectSymbol(e.target.value);
+            });
+        });
     </script>
-  </body>
+</body>
 </html>
