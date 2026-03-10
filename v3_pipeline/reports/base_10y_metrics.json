@@ -1,0 +1,12 @@
+{
+  "status": "no_data",
+  "trained_symbols": [],
+  "combined_rows": 0,
+  "losses": [],
+  "loss_curve_svg": "v3_pipeline/reports/loss_curve_10y.svg",
+  "checkpoint": null,
+  "training_win_rate": 0.0,
+  "backtest_symbol": null,
+  "backtest_summary": {},
+  "device": "unknown"
+}

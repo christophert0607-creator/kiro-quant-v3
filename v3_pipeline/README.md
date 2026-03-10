@@ -57,3 +57,14 @@
 - **RL 強化學習核心**：導入策略自我博弈與在線獎懲更新機制。
 - **LLM 情緒引擎**：融合 Reddit/X 與新聞流的情緒向量，作為 Alpha 先驗。
 - **多雲與多券商佈署**：以 broker abstraction + cloud failover 進行低中斷交易編排。
+
+
+## V4.1 十載特訓成果面板
+- 10Y 地基特訓器：`v3_pipeline/models/trainer_base_10y.py`（會讀取 `v3_pipeline/data/storage/base_10y/*.parquet`，訓練全局權重模型，並帶 Cosine LR Scheduler）。
+- Loss 曲線圖輸出：`v3_pipeline/reports/loss_curve_10y.svg`
+- 十年指標報告：`v3_pipeline/reports/base_10y_metrics.json`（含 training_win_rate 與 backtest_summary）
+- 回測入口：`v3_pipeline/backtest/engine.py`
+
+> 若要啟動十載特訓：
+>
+> `python v3_pipeline/models/trainer_base_10y.py --epochs 8 --symbols TSLA TSLL NVDA AAPL MSFT AMZN GOOG META`
