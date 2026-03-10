@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kiro-Quant V3.5 Terminal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root {
+        --bg: #0d1117;
+        --fg: #c9d1d9;
+        --gold: #e3b341;
+        --green: #3fb950;
+        --red: #f85149;
+        --blue: #58a6ff;
+      }
+      body { background: var(--bg); color: var(--fg); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+      .terminal-line { white-space: pre-wrap; word-break: break-word; }
+    </style>
+  </head>
+  <body class="min-h-screen p-4 md:p-6">
+    <div class="mx-auto max-w-7xl rounded-2xl border border-slate-700/70 bg-[#0d1117] shadow-2xl">
+      <header class="flex items-center justify-between gap-4 border-b border-slate-700 px-5 py-4">
+        <h1 class="text-lg md:text-2xl font-bold tracking-wide">🚀 Kiro-Quant V3.5: 全息戰術終端</h1>
+        <div class="flex items-center gap-3 text-sm">
+          <span class="text-slate-300">Connection Status</span>
+          <span id="statusDot" class="inline-block h-3 w-3 rounded-full bg-red-500 shadow-[0_0_8px_rgba(248,81,73,.8)]"></span>
+          <span id="statusText" class="text-red-400">Disconnected</span>
+        </div>
+      </header>
+
+      <main class="p-4 md:p-5">
+        <div class="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-slate-700 bg-slate-900/40 px-4 py-3">
+          <label class="inline-flex items-center gap-2 text-sm cursor-pointer select-none">
+            <input id="autoScrollToggle" type="checkbox" class="h-4 w-4 accent-blue-500" checked />
+            Auto-Scroll 鎖定
+          </label>
+          <button id="clearBtn" class="rounded-lg border border-slate-600 px-3 py-1.5 text-sm hover:bg-slate-800">一鍵清空日誌</button>
+          <span id="meta" class="ml-auto text-xs text-slate-400">Lines: 0</span>
+        </div>
+
+        <section id="terminal" class="h-[70vh] overflow-y-auto rounded-xl border border-slate-700 bg-black/30 p-4 text-sm leading-6"></section>
+      </main>
+    </div>
+
+    <script>
+      const terminal = document.getElementById('terminal');
+      const dot = document.getElementById('statusDot');
+      const statusText = document.getElementById('statusText');
+      const autoScrollToggle = document.getElementById('autoScrollToggle');
+      const clearBtn = document.getElementById('clearBtn');
+      const meta = document.getElementById('meta');
+
+      let socket = null;
+      let reconnectAttempts = 0;
+      let lineCount = 0;
+      let reconnectTimer = null;
+
+      const sourceRegex = /(\[YFINANCE\]|\[FUTU\])/g;
+      const heartbeatRegex = /(\[HEARTBEAT\]|💓)/;
+
+      function setStatus(connected) {
+        dot.className = `inline-block h-3 w-3 rounded-full ${connected ? 'bg-green-500 shadow-[0_0_8px_rgba(63,185,80,.9)]' : 'bg-red-500 shadow-[0_0_8px_rgba(248,81,73,.8)]'}`;
+        statusText.textContent = connected ? 'Connected' : 'Disconnected';
+        statusText.className = connected ? 'text-green-400' : 'text-red-400';
+      }
+
+      function shouldDropLine(line) {
+        return heartbeatRegex.test(line);
+      }
+
+      function colorize(line) {
+        const escaped = line
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;');
+
+        let html = escaped.replace(sourceRegex, '<span style="color: var(--blue);">$1</span>');
+
+        const isSignal = /\[SIGNAL\]|\bBUY\b|\bSELL\b/.test(line);
+        const isFitted = /Fitted .* OK|\[Kiro-Boost\]/.test(line);
+        const isError = /\[ERROR\]|Exception|failed/i.test(line);
+
+        let style = 'color: var(--fg);';
+        if (isSignal) style = 'color: var(--gold); font-weight: 700;';
+        else if (isFitted) style = 'color: var(--green);';
+        else if (isError) style = 'color: var(--red);';
+
+        return `<div class="terminal-line" style="${style}">${html}</div>`;
+      }
+
+      function appendLine(line) {
+        if (shouldDropLine(line)) return;
+        terminal.insertAdjacentHTML('beforeend', colorize(line));
+        lineCount += 1;
+        meta.textContent = `Lines: ${lineCount}`;
+        if (autoScrollToggle.checked) terminal.scrollTop = terminal.scrollHeight;
+      }
+
+      function scheduleReconnect() {
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        const delay = Math.min(30000, 1000 * Math.pow(2, reconnectAttempts));
+        reconnectAttempts += 1;
+        appendLine(`[INFO] Reconnecting in ${Math.round(delay / 1000)}s (attempt ${reconnectAttempts})`);
+        reconnectTimer = setTimeout(connect, delay);
+      }
+
+      function connect() {
+        if (socket && socket.readyState === WebSocket.OPEN) return;
+
+        const wsUrl = `ws://${location.host}/ws/v3_logs`;
+        socket = new WebSocket(wsUrl);
+
+        socket.onopen = () => {
+          reconnectAttempts = 0;
+          setStatus(true);
+          appendLine(`[Kiro-Boost] Connected to ${wsUrl}`);
+        };
+
+        socket.onmessage = (event) => {
+          const payload = String(event.data ?? '');
+          payload.split('\n').filter(Boolean).forEach(appendLine);
+        };
+
+        socket.onerror = () => {
+          setStatus(false);
+          appendLine('[ERROR] WebSocket encountered an error.');
+        };
+
+        socket.onclose = () => {
+          setStatus(false);
+          appendLine('[ERROR] Connection closed.');
+          scheduleReconnect();
+        };
+      }
+
+      clearBtn.addEventListener('click', () => {
+        terminal.innerHTML = '';
+        lineCount = 0;
+        meta.textContent = 'Lines: 0';
+      });
+
+      connect();
+    </script>
+  </body>
+</html>
