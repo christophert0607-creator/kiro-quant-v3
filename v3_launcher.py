@@ -41,6 +41,14 @@ RUNTIME_PROFILES = {
         num_layers=1,
         dropout=0.1,
     ),
+    "micro": RuntimeProfile(
+        name="micro",
+        lookback=20,
+        input_dim=26,
+        hidden_dim=16,
+        num_layers=1,
+        dropout=0.05,
+    ),
 }
 
 
