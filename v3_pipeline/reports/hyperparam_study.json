@@ -1,0 +1,121 @@
+{
+  "best": {
+    "trial": 5,
+    "lookback": 30,
+    "learning_rate": 0.005,
+    "lstm_layers": 3,
+    "attention_heads": 8,
+    "val_mse": 0.0008296784819228131,
+    "engine": "fallback"
+  },
+  "trials": [
+    {
+      "trial": 0,
+      "lookback": 90,
+      "learning_rate": 0.005,
+      "lstm_layers": 2,
+      "attention_heads": 4,
+      "val_mse": 0.003874374555607901,
+      "engine": "fallback"
+    },
+    {
+      "trial": 1,
+      "lookback": 30,
+      "learning_rate": 0.0001,
+      "lstm_layers": 4,
+      "attention_heads": 8,
+      "val_mse": 0.001455176985412051,
+      "engine": "fallback"
+    },
+    {
+      "trial": 2,
+      "lookback": 90,
+      "learning_rate": 0.001,
+      "lstm_layers": 2,
+      "attention_heads": 8,
+      "val_mse": 0.0014000406352721513,
+      "engine": "fallback"
+    },
+    {
+      "trial": 3,
+      "lookback": 90,
+      "learning_rate": 0.0005,
+      "lstm_layers": 2,
+      "attention_heads": 8,
+      "val_mse": 0.0038323948435206637,
+      "engine": "fallback"
+    },
+    {
+      "trial": 4,
+      "lookback": 60,
+      "learning_rate": 0.0005,
+      "lstm_layers": 3,
+      "attention_heads": 8,
+      "val_mse": 0.004967288549023114,
+      "engine": "fallback"
+    },
+    {
+      "trial": 5,
+      "lookback": 30,
+      "learning_rate": 0.005,
+      "lstm_layers": 3,
+      "attention_heads": 8,
+      "val_mse": 0.0008296784819228131,
+      "engine": "fallback"
+    },
+    {
+      "trial": 6,
+      "lookback": 30,
+      "learning_rate": 0.0001,
+      "lstm_layers": 4,
+      "attention_heads": 4,
+      "val_mse": 0.002479416081204073,
+      "engine": "fallback"
+    },
+    {
+      "trial": 7,
+      "lookback": 120,
+      "learning_rate": 0.005,
+      "lstm_layers": 4,
+      "attention_heads": 8,
+      "val_mse": 0.0011805470250378473,
+      "engine": "fallback"
+    },
+    {
+      "trial": 8,
+      "lookback": 60,
+      "learning_rate": 0.001,
+      "lstm_layers": 4,
+      "attention_heads": 8,
+      "val_mse": 0.003288141189220578,
+      "engine": "fallback"
+    },
+    {
+      "trial": 9,
+      "lookback": 90,
+      "learning_rate": 0.0001,
+      "lstm_layers": 4,
+      "attention_heads": 4,
+      "val_mse": 0.0015162013194866244,
+      "engine": "fallback"
+    },
+    {
+      "trial": 10,
+      "lookback": 90,
+      "learning_rate": 0.0005,
+      "lstm_layers": 2,
+      "attention_heads": 8,
+      "val_mse": 0.0031658105149512646,
+      "engine": "fallback"
+    },
+    {
+      "trial": 11,
+      "lookback": 60,
+      "learning_rate": 0.0001,
+      "lstm_layers": 3,
+      "attention_heads": 4,
+      "val_mse": 0.0017697540676130258,
+      "engine": "fallback"
+    }
+  ]
+}

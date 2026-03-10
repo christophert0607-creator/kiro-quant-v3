@@ -1,11 +1,28 @@
 {
-    "TSLA": {
-        "buy_price": 380.0,
-        "sell_price": 410.0
+  "TSLA": {
+    "buy_price": 380.0,
+    "sell_price": 410.0
+  },
+  "TSLL": {
+    "buy_price": 13.5,
+    "sell_price": 15.0
+  },
+  "auto_trade": true,
+  "paper_trading": true,
+  "v3_live": {
+    "symbols_list": [
+      "TSLA",
+      "TSLL",
+      "NVDA"
+    ],
+    "prediction_thresholds": {
+      "TSLA": 0.01,
+      "TSLL": 0.01,
+      "NVDA": 0.01
     },
-    "TSLL": {
-        "buy_price": 13.5,
-        "sell_price": 15.0
-    },
-    "auto_trade": false
+    "buy_cooldown_cycles": 3,
+    "polling_seconds": 15,
+    "auto_trade": true,
+    "paper_trading": true
+  }
 }

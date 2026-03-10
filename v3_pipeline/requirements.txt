@@ -13,3 +13,10 @@ massive-client
 python-dotenv
 apscheduler
 vaderSentiment
+efinance
+curl_cffi
+optuna
+ray[tune]
+stable-baselines3
+gymnasium
+pynvml
