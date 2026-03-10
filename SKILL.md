@@ -1,65 +1,53 @@
 ---
 name: futu-api
 description: |
-  Futu Quant Dynamic V2.1 (Kiro Edition)
-  - Dual-account training (Real/Simulation)
-  - Triple-fallback data sync (Futu -> Massive -> yfinance)
-  - Multi-indicator RSI/Volume/VIX monitoring
-  - WSL2 auto-gateway detection
+  Kiro Quant Futu + V3 pipeline operation skill.
+  Use this when an agent needs to:
+  - run/rebuild the V3 launcher and switch runtime profile (lite/standard)
+  - execute end-to-end health checks (compile, dry-run, core commands)
+  - update task progress documents and handoff notes
+  - operate Futu OpenAPI data/trading workflow with fallback data sources
 ---
 
-# 富途 API 量化雙星系統 (Kiro Edition)
+# Futu API + Kiro V3 操作技能
 
-## 🎯 概述
-基於富途牛牛 OpenAPI 的高階自動化交易與監控技能。專為 **SOXL/TSLL** 等高波動標的設計，支持模擬倉與實盤同步運作。
+## 何時使用
+當使用者要求以下任一項目時，啟用本技能：
+1. 「重整 / 重編譯 / 輕量化」V3 流程
+2. 要 Agent 自行接手執行整套量化流程
+3. 更新任務進度（TASK LIST / PROGRESS）
+4. Futu API 行情、資金流、持倉、模擬交易排查
 
-## 🚀 快速開始
+## 最小執行流程（Agent Runbook）
+1. **讀配置**：先讀 `config.json`（無則參考 `config.example.json`）
+2. **選 profile**：`v3_live.runtime_profile`（預設 `lite`）
+3. **做快檢**：`python v3_launcher.py --dry-run`
+4. **做編譯檢查**：`python -m compileall v3_launcher.py v3_pipeline`
+5. **需要時才實跑**：`python v3_launcher.py --profile lite|standard`
+6. **更新進度文件**：按完成項目更新 `PROGRESS.md`
 
-### 安裝依賴
+> 詳細流程與命令清單見：`references/v3-agent-workflow.md`
+
+## 快速命令
 ```bash
-cd ~/.openclaw/workspace/skills/futu-api
-pip install -r requirements.txt
-```
+# 1) 啟動前快檢
+python v3_launcher.py --dry-run
+python v3_launcher.py --dry-run --profile standard
 
-### 前置要求
-1. 安裝並運行 **FutuOpenD** (Windows 宿主機)
-2. 在 WSL 中確保能訪問宿主機端口 `11111`
-3. 模擬倉初始資金建議設定為 **US$10,000**
+# 2) 編譯檢查
+python -m compileall v3_launcher.py v3_pipeline
 
-## 📊 核心功能
+# 3) V3 執行
+python v3_launcher.py --profile lite
 
-### 1. 雙帳戶同步監控
-支持同時連接實盤與模擬帳戶，出現 3星/5星 信號時自動執行：
-- **⭐⭐⭐⭐⭐ (五星)**: 全指標共振，高倉位衝鋒。
-- **⭐⭐⭐ (三星)**: 關鍵指標達成，試探性建倉。
-
-### 2. Triple Fallback 數據守護
-當 Futu 數據延遲或斷線時，自動切換備援路徑：
-**Futu (Priority) ➔ Massive ➔ yfinance (Safety Net)**
-
-### 3. 三位一體量化指標
-- **超跌偵測**: 15m/1h RSI < 25
-- **爆量驗證**: 成交量比前 20 根平均 > 1.3x
-- **環境過濾**: VIX 指數 < 22 (防 Decay 神器)
-- **盤口讀心**: Level 2 Order Book 買賣深度比分析
-
-## 💻 常用指令
-
-```bash
-# 啟動 multi-symbol 全自動監控 (包含模擬倉交易)
-python futu_api.py SOXL TSLL NVDA
-
-# 查詢特定標的資金流向 (包含主力大單分析)
-python futu_api.py capital SOXL --market US
-
-# 檢查模擬倉當前持倉與盈虧
+# 4) Futu 常用查詢
+python futu_api.py quote TSLA --market US
+python futu_api.py capital TSLA --market US
 python futu_api.py assets --env simulated
 ```
 
-## ⚙️ 進階配置 (WSL2)
-本技能已內置宿主機自動偵測邏輯，無需手動填寫電腦 IP。系統會自動追蹤 Windows 的 `FutuOpenD` 地址。
-
----
-**版本**: 2.1.0 (Kiro Edition)
-**維護**: 小祈 (Kiro)
-**適用**: 全球美股/港股量化交易玩家
+## 文件更新規則
+- 架構改動：同步更新 `v3_pipeline/README.md`
+- 配置改動：同步更新 `config.example.json`
+- 執行狀態：同步更新 `PROGRESS.md`
+- 交付時需附：已執行命令、結果、後續建議

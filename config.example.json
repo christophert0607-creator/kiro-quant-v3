@@ -13,5 +13,22 @@
     "default_kline_type": "day",
     "default_kline_count": 100,
     "default_orderbook_depth": 5
+  },
+  "v3_live": {
+    "symbols_list": [
+      "TSLA",
+      "TSLL",
+      "NVDA"
+    ],
+    "polling_seconds": 15,
+    "runtime_profile": "lite",
+    "prediction_thresholds": {
+      "TSLA": 0.01,
+      "TSLL": 0.01,
+      "NVDA": 0.01
+    },
+    "auto_trade": true,
+    "paper_trading": true,
+    "buy_cooldown_cycles": 3
   }
 }
