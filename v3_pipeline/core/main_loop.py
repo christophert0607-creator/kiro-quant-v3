@@ -10,8 +10,10 @@ from typing import Optional
 import pandas as pd
 
 from notifier import send_tg_msg
+from v3_pipeline.core.alpha_engine import KiroAlphaEngine
 from v3_pipeline.core.futu_connector import FutuConnector
 from v3_pipeline.core.history_priming import HistoryPrimer, PrimingConfig
+from v3_pipeline.core.monte_carlo import MonteCarloSimulator
 from v3_pipeline.core.strategy_factory import StrategyFactory
 from v3_pipeline.features.indicators import TechnicalIndicatorGenerator
 from v3_pipeline.models.manager import DataPreparer, ModelManager
@@ -79,6 +81,8 @@ class LiveTradingLoop:
         self.equity_peak = 0.0
         self.account_value = 100000.0
         self.strategy_factory = StrategyFactory()
+        self.alpha_engine = KiroAlphaEngine()
+        self.monte_carlo = MonteCarloSimulator()
         self.history_primer = HistoryPrimer(
             self.logger,
             PrimingConfig(
@@ -158,18 +162,24 @@ class LiveTradingLoop:
             self.logger.info("Warmup[%s]: indicators not ready (%d/%d)", symbol, len(featured), lookback)
             return
 
+        wfa_frame = self.alpha_engine.select_features(symbol, featured)
+
         symbol_preparer = self.data_preparers_by_symbol[symbol]
-        needs_refit = (not symbol_preparer.is_fitted) or (symbol_preparer.feature_columns is not None and any(c not in featured.columns for c in symbol_preparer.feature_columns))
+        desired_features = [c for c in wfa_frame.columns if c != "Date"]
+        needs_refit = (
+            not symbol_preparer.is_fitted
+            or symbol_preparer.feature_columns != desired_features
+        )
         if needs_refit:
             try:
-                symbol_preparer.fit_transform(featured)
-                self.logger.info("[%s] Fitted with %d bars - OK", symbol, len(featured))
+                symbol_preparer.fit_transform(wfa_frame)
+                self.logger.info("[%s] Fitted with %d bars - OK", symbol, len(wfa_frame))
             except Exception as exc:
                 self.logger.warning("[%s] Fitting failed: %s", symbol, exc)
                 return
 
-        current_price = float(featured.iloc[-1]["Close"])
-        prediction = float(self.model_manager.predict(featured, data_preparer=symbol_preparer))
+        current_price = float(wfa_frame.iloc[-1]["Close"])
+        prediction = float(self.model_manager.predict(wfa_frame, data_preparer=symbol_preparer))
         confidence = min(1.0, abs(prediction - current_price) / max(current_price, 1e-9))
         vix_value = await asyncio.to_thread(self._get_vix)
         profile = self.strategy_factory.choose_profile(vix_value)
@@ -205,7 +215,24 @@ class LiveTradingLoop:
         threshold_down = current_price * (1 - symbol_threshold)
 
         if allow_long and prediction > threshold_up and qty == 0:
+            returns = self.market_buffers[symbol]["Close"].pct_change().dropna()
+            mc = self.monte_carlo.stress_test(returns)
             risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
+            rr = max(0.5, abs(prediction - current_price) / max(current_price * symbol_threshold, 1e-6))
+            if not self.risk_controller.allow_trade_with_ror(
+                win_rate=mc["win_rate"],
+                reward_risk_ratio=rr,
+                risk_fraction=risk_pct,
+                mc_var_95=mc["var95"],
+            ):
+                self.logger.warning(
+                    "[ROR_GATE][%s] blocked BUY: win_rate=%.3f var95=%.4f",
+                    symbol,
+                    mc["win_rate"],
+                    mc["var95"],
+                )
+                return
+
             alloc = self.account_value * risk_pct
             buy_qty = max(0, int(alloc / max(current_price, 1e-9)))
             if buy_qty > 0:
@@ -273,9 +300,8 @@ class LiveTradingLoop:
             self.logger.warning("Position sync failed: %s", exc)
 
     def _execute(self, symbol: str, side: str, qty: int, price: float, reason: str) -> None:
-        sim_slippage = 0.0005
         reference_price = self.futu_connector.get_order_reference_price(symbol, side, fallback_price=price)
-        fill_price = reference_price if reference_price > 0 else price * (1 + sim_slippage if side == "BUY" else 1 - sim_slippage)
+        fill_price = reference_price if reference_price > 0 else price
 
         if side == "BUY":
             self.position_qty_by_symbol[symbol] += qty

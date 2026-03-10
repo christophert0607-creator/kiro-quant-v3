@@ -1,4 +1,5 @@
 import logging
+import math
 import sys
 from dataclasses import dataclass
 
@@ -24,6 +25,8 @@ class RiskConfig:
     max_drawdown: float = 0.20
     max_position_fraction: float = 0.05
     trailing_stop_pct: float = 0.05
+    ruin_threshold: float = 0.35
+    max_trade_var_95: float = 0.03
 
 
 class RiskController:
@@ -75,3 +78,59 @@ class RiskController:
                 stop,
             )
         return hit
+
+    def estimate_risk_of_ruin(
+        self,
+        win_rate: float,
+        reward_risk_ratio: float,
+        risk_fraction: float,
+    ) -> float:
+        """Deeptest-style approximation for ruin risk.
+
+        A conservative proxy: ruin decreases when edge and RR improve, increases with
+        risk_fraction. Values are clipped to [0,1].
+        """
+        p = min(max(win_rate, 1e-6), 1 - 1e-6)
+        q = 1 - p
+        b = max(reward_risk_ratio, 1e-6)
+        edge = p - q / b
+        if edge <= 0:
+            return 1.0
+
+        # approximate number of consecutive losses affordable
+        loss_budget_steps = max(1.0, 1.0 / max(risk_fraction, 1e-6))
+        ruin = (q / (p * b)) ** loss_budget_steps
+        ruin = float(min(max(ruin, 0.0), 1.0))
+        if math.isnan(ruin):
+            return 1.0
+        return ruin
+
+    def allow_trade_with_ror(
+        self,
+        win_rate: float,
+        reward_risk_ratio: float,
+        risk_fraction: float,
+        mc_var_95: float,
+    ) -> bool:
+        ror = self.estimate_risk_of_ruin(
+            win_rate=win_rate,
+            reward_risk_ratio=reward_risk_ratio,
+            risk_fraction=risk_fraction,
+        )
+        if ror > self.config.ruin_threshold:
+            self.logger.warning(
+                "ROR gate blocked trade. ror=%.3f threshold=%.3f",
+                ror,
+                self.config.ruin_threshold,
+            )
+            return False
+
+        if mc_var_95 < -abs(self.config.max_trade_var_95):
+            self.logger.warning(
+                "MonteCarlo VaR gate blocked trade. var95=%.4f limit=-%.4f",
+                mc_var_95,
+                abs(self.config.max_trade_var_95),
+            )
+            return False
+
+        return True

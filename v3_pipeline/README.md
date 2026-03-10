@@ -45,3 +45,15 @@
 - **情報體系**：結合 LLM 進行 Sentiment Engine（情緒引擎），監控 Reddit / X 市場風向。
 - **通訊協議**：支援多經紀商（Multi-Broker）混合下單與多雲分佈式主機部署。
 - **人機合一**：全語音指令操控及超低延遲手機端 Dashboard。
+
+
+## V4.0 Phase 1-2 Execution Snapshot
+- **Kiro-Alpha-Engine**: added walk-forward factor selection (`core/alpha_engine.py`) to score and keep top factors per symbol.
+- **Monte Carlo Simulator**: added 1000-sim pre-trade stress test (`core/monte_carlo.py`) with VaR/CVaR/win-rate outputs.
+- **Risk of Ruin (ROR)**: integrated ruin-risk gate in `risk/manager.py` and invoked in live entry decisions (`core/main_loop.py`).
+- **WFA + ROR Integration**: live loop now performs WFA feature selection before prediction and blocks BUY actions when ROR/VaR constraints are violated.
+
+### V4.0 Strategic Blueprint (Formal)
+- **RL 強化學習核心**：導入策略自我博弈與在線獎懲更新機制。
+- **LLM 情緒引擎**：融合 Reddit/X 與新聞流的情緒向量，作為 Alpha 先驗。
+- **多雲與多券商佈署**：以 broker abstraction + cloud failover 進行低中斷交易編排。
