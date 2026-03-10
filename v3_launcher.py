@@ -9,7 +9,8 @@ import argparse
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+<<<<<<< HEAD
+from typing import Any, Optional
 
 
 
@@ -47,26 +48,76 @@ def _load_cfg(config_path: str) -> dict:
     p = Path(config_path)
     if not p.exists():
         return {}
+<<<<<<< HEAD
     raw = json.loads(p.read_text(encoding="utf-8"))
     return raw if isinstance(raw, dict) else {}
 
 
+=======
+    try:
+        raw = json.loads(p.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Invalid JSON config: {config_path}") from exc
+    return raw if isinstance(raw, dict) else {}
+
+
+def _parse_bool(value: Any, default: bool) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "y", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "n", "off"}:
+            return False
+        return default
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return default
+
+
+def _parse_int(value: Any, default: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0 else default
+
+
+>>>>>>> 9f7ba44 (Harden launcher config parsing and profile fallback)
 def build_live_config(config_path: str = "config.json") -> dict:
     cfg = _load_cfg(config_path)
 
     v3_live = cfg.get("v3_live", {}) if isinstance(cfg, dict) else {}
 
+<<<<<<< HEAD
     return {
         "symbols_list": v3_live.get("symbols_list", ["TSLA", "TSLL", "NVDA"]),
         "polling_seconds": int(v3_live.get("polling_seconds", 15)),
+=======
+    root_auto_trade = _parse_bool(cfg.get("auto_trade"), True)
+    root_paper_trading = _parse_bool(cfg.get("paper_trading"), True)
+
+    return {
+        "symbols_list": v3_live.get("symbols_list", ["TSLA", "TSLL", "NVDA"]),
+        "polling_seconds": _parse_int(v3_live.get("polling_seconds", 15), 15),
+>>>>>>> 9f7ba44 (Harden launcher config parsing and profile fallback)
         "prediction_threshold": 0.01,
         "prediction_thresholds": v3_live.get(
             "prediction_thresholds",
             {"TSLA": 0.01, "TSLL": 0.01, "NVDA": 0.01},
         ),
+<<<<<<< HEAD
         "auto_trade": bool(v3_live.get("auto_trade", cfg.get("auto_trade", True))),
         "paper_trading": bool(v3_live.get("paper_trading", cfg.get("paper_trading", True))),
         "buy_cooldown_cycles": int(v3_live.get("buy_cooldown_cycles", 3)),
+=======
+        "auto_trade": _parse_bool(v3_live.get("auto_trade"), root_auto_trade),
+        "paper_trading": _parse_bool(v3_live.get("paper_trading"), root_paper_trading),
+        "buy_cooldown_cycles": _parse_int(v3_live.get("buy_cooldown_cycles", 3), 3),
+>>>>>>> 9f7ba44 (Harden launcher config parsing and profile fallback)
     }
 
 
@@ -78,7 +129,15 @@ def resolve_runtime_profile(config_path: str = "config.json", override: Optional
         v3_live = cfg.get("v3_live", {}) if isinstance(cfg, dict) else {}
         key = str(v3_live.get("runtime_profile", "lite")).lower()
 
+<<<<<<< HEAD
     return RUNTIME_PROFILES.get(key, RUNTIME_PROFILES["lite"])
+=======
+    profile = RUNTIME_PROFILES.get(key)
+    if profile:
+        return profile
+    print(f"[launcher] unknown runtime profile '{key}', fallback to 'lite'")
+    return RUNTIME_PROFILES["lite"]
+>>>>>>> 9f7ba44 (Harden launcher config parsing and profile fallback)
 
 
 def run_kiro_v35(config_path: str = "config.json", profile_override: Optional[str] = None, dry_run: bool = False) -> None:
