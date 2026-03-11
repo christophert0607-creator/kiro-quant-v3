@@ -36,3 +36,18 @@
 ## 📌 下一步建議
 - 在 dashboard 顯示最近一次 benchmark 結果（可讀取報表檔）
 - 若進入實跑環境，補充 profile-by-profile 的實單迴圈延遲統計
+
+---
+
+## 🆕 2026-03-11：訓練數據利用率修復（Sliding Window）
+
+### 完成項目
+- [x] 修復 `DataPreparer.fit_transform()`，新增 `sliding_window: bool = False` 參數（預設兼容舊行為）
+- [x] 設定窗口步進：`stride = 1 if sliding_window else self.lookback`
+- [x] 新增驗證腳本：`scripts/test_sliding_window_data_utilization.py`
+- [x] 驗證 272,698 筆資料利用率提升
+
+### 驗證摘要
+- 舊模式（stride=lookback）：約 34~35 筆樣本（~0.013% 利用率）
+- Sliding Window（stride=1）：264,922 筆樣本（100% 可用點利用率）
+- 樣本數提升：約 7,792x

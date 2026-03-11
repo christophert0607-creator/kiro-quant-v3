@@ -83,7 +83,7 @@ class DataPreparer:
             and self.target_max is not None
         )
 
-    def fit_transform(self, frame: pd.DataFrame) -> Tuple[torch.Tensor, torch.Tensor]:
+    def fit_transform(self, frame: pd.DataFrame, sliding_window: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
         clean = self._sanitize(frame)
         features = clean.drop(columns=["Date"]).copy()
 
@@ -100,7 +100,7 @@ class DataPreparer:
         self.target_max = float(target_series.max())
         scaled_target = self._scale_target(target_series)
 
-        x, y = self._windowize(scaled_features.values, scaled_target.values)
+        x, y = self._windowize(scaled_features.values, scaled_target.values, sliding_window=sliding_window)
         self.logger.info("Prepared tensors with X=%s and y=%s", tuple(x.shape), tuple(y.shape))
         return x, y
 
@@ -171,9 +171,15 @@ class DataPreparer:
             )
         return clean
 
-    def _windowize(self, feature_array: np.ndarray, target_array: np.ndarray) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _windowize(
+        self,
+        feature_array: np.ndarray,
+        target_array: np.ndarray,
+        sliding_window: bool = False,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         x_list, y_list = [], []
-        for idx in range(self.lookback, len(feature_array)):
+        stride = 1 if sliding_window else self.lookback
+        for idx in range(self.lookback, len(feature_array), stride):
             x_list.append(feature_array[idx - self.lookback : idx])
             y_list.append(target_array[idx])
 
