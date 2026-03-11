@@ -42,16 +42,12 @@
 
 ## ⚡ V3 Launcher Lightweight Runtime
 - `v3_launcher.py` now supports runtime profiles for quick deployment:
-  - `micro`: ultra-light巡檢 (`lookback=20`, `hidden_dim=16`, `layers=1`)
   - `lite` (default): lower compute footprint (`lookback=40`, `hidden_dim=32`, `layers=1`)
   - `standard`: original stronger profile (`lookback=60`, `hidden_dim=64`, `layers=2`)
-- Config key: `v3_live.runtime_profile` in `config.json` (`micro`/`lite`/`standard`).
+- Config key: `v3_live.runtime_profile` in `config.json` (`lite`/`standard`).
 - CLI override:
-  - `python v3_launcher.py --profile micro --dry-run`
   - `python v3_launcher.py --profile lite --dry-run`
   - `python v3_launcher.py --profile standard`
-- Benchmark helper:
-  - `python scripts/benchmark_runtime_profiles.py --rounds 5`
 
 ## V4.0: Galactic Conquest
 

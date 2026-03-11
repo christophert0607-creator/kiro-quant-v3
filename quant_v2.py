@@ -40,7 +40,7 @@ logging.basicConfig(
     format="%(asctime)s | %(name)-20s | %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),
-        RotatingFileHandler(LOG_PATH, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"),
+        RotatingFileHandler(LOG_PATH, maxBytes=1 * 1024 * 1024, backupCount=5, encoding="utf-8"),
     ]
 )
 log = logging.getLogger("QuantV2")

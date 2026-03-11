@@ -98,6 +98,8 @@ RISK_CONFIG = RiskConfig()
 # ============================================================
 NET_ASSETS       = 999_998      # 模擬戶口實際資金（用於計算倉位）
 RETRAIN_INTERVAL = 86400        # 每天重訓一次（秒）
+POSITION_SYNC_INTERVAL = 300    # 每 5 分鐘強制同步持倉（秒）
+ORDER_COOLDOWN_HOURS = 1        # 同股票買入冷卻時間（小時），避免 OrderPending 過長
 LOOP_INTERVAL    = 300          # 主循環間隔（秒）
 KLINE_COUNT      = 500          # 取 K 線數量
 
