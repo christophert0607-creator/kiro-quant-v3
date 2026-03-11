@@ -2,52 +2,30 @@
 **更新時間**: 2026-03-10
 
 ## 🎯 本輪目標
-根據上一輪 review comment，完成 launcher 任務清單收尾：
-1) 增加 `micro` 低資源 profile
-2) 產出 `lite` 相關延遲/記憶體基準報表工具
-3) 將 profile 選擇接入 dashboard 設定
+將系統重新整理為更輕便可切換的執行架構，並完成一次可驗證的重新編譯檢查。
 
 ## ✅ TASK LIST 進度
-- [x] 盤點現有入口與配置（`v3_launcher.py`, `config.example.json`, `dashboard.py`）
-- [x] 新增 `micro` runtime profile（`v3_launcher.py`）
-- [x] 建立 runtime 基準檢測腳本（`scripts/benchmark_runtime_profiles.py`）
-- [x] 將 runtime profile 切換接入 dashboard（`dashboard.py`）
-- [x] 更新 pipeline 說明文件（`v3_pipeline/README.md`）
-- [x] 執行編譯檢查（`python -m compileall`）
-- [x] 執行 launcher dry-run 驗證（含 `micro`）
-- [x] 執行 benchmark 腳本輸出
+- [x] 盤點現有入口與配置（`v3_launcher.py`, `config.example.json`）
+- [x] 建立「輕便 / 標準」雙執行配置（runtime profile）
+- [x] 增加 CLI 參數覆寫能力（`--profile`, `--config`, `--dry-run`）
+- [x] 更新文件，加入新架構與使用方式
+- [x] 執行重新編譯檢查（`python -m compileall`）
+- [x] 執行 launcher dry-run 驗證
 
-## 🧱 本輪調整摘要
-1. **Runtime Profile 擴展**
-   - 新增 `micro`：`lookback=20`、`hidden_dim=16`、`layers=1`
-   - 保留 `lite` / `standard` 供常規切換
-2. **運維可觀測性**
-   - 新增 `scripts/benchmark_runtime_profiles.py`
-   - 可輸出 `micro/lite/standard` 的 dry-run 最小延遲、平均延遲、峰值記憶體
-3. **Dashboard 可操作性**
-   - 側欄新增 Runtime Profile 下拉選單（`micro/lite/standard`）
-   - 保存設定會寫回 `config.json -> v3_live.runtime_profile`
+## 🧱 架構調整摘要
+1. **Runtime Profile 機制**
+   - `lite`：預設低負載（較少 lookback / 較小 hidden_dim / 單層網路）
+   - `standard`：保持原本較高容量配置
+2. **配置來源統一**
+   - 新增 `_load_cfg()` 集中讀取 JSON 設定
+3. **啟動模式強化**
+   - 加入 `--dry-run` 快速檢查啟動參數，不進入交易主循環
 
 ## 🧪 驗證結果
 - 編譯檢查：通過
-- dry-run：通過（`micro/lite/standard`）
-- benchmark：通過（可輸出 markdown table）
+- dry-run：通過（可正確輸出 profile 與 symbols）
 
 ## 📌 下一步建議
-- 在 dashboard 顯示最近一次 benchmark 結果（可讀取報表檔）
-- 若進入實跑環境，補充 profile-by-profile 的實單迴圈延遲統計
-
----
-
-## 🆕 2026-03-11：訓練數據利用率修復（Sliding Window）
-
-### 完成項目
-- [x] 修復 `DataPreparer.fit_transform()`，新增 `sliding_window: bool = False` 參數（預設兼容舊行為）
-- [x] 設定窗口步進：`stride = 1 if sliding_window else self.lookback`
-- [x] 新增驗證腳本：`scripts/test_sliding_window_data_utilization.py`
-- [x] 驗證 272,698 筆資料利用率提升
-
-### 驗證摘要
-- 舊模式（stride=lookback）：約 34~35 筆樣本（~0.013% 利用率）
-- Sliding Window（stride=1）：264,922 筆樣本（100% 可用點利用率）
-- 樣本數提升：約 7,792x
+- 加入 `micro` profile（超低資源巡檢模式）
+- 針對 `lite` profile 建立基準延遲與記憶體監控報表
+- 將 profile 選擇接入 dashboard 以便運維切換

@@ -1,0 +1,67 @@
+import os
+import sys
+import logging
+import time
+from datetime import datetime
+
+# 設置路徑
+BASE_DIR = "/home/tsukii0607/.openclaw/workspace/skills/futu-api"
+sys.path.append(BASE_DIR)
+
+from v3_pipeline.core.main_loop import LiveTradingLoop, LiveConfig
+from v3_pipeline.models.manager import ModelManager, DataPreparer
+from v3_pipeline.models.brain import KiroLSTM
+from v3_pipeline.risk.manager import RiskController
+
+def run_kiro_v3_super_fleet():
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger("KiroSuperFleet")
+
+    # --- 🌌 奇蹟艦隊 111 隻標的大型名單 ---
+    # 核心 11 隻菁英
+    core_elite = ["TSLA", "NVDA", "F", "GOOG", "AAPL", "MSFT", "AMZN", "SOXL", "TSLL", "TQQQ", "SQQQ"]
+    
+    # 10 大核心版塊擴張 (10 版塊 * 10 隻 = 100 隻) 
+    # 小祈幫你篩選了最活躍、上下游分佈均勻的代表股！
+    tech = ["AMD", "AVGO", "ORCL", "CRM", "INTC", "CSCO", "ADBE", "TXN", "QCOM", "IBM"]
+    consumer = ["AMZN", "TSLA", "HD", "NKE", "MCD", "LOW", "SBUX", "BKNG", "TJX", "ABNB"]
+    fin = ["JPM", "BAC", "WFC", "GS", "MS", "V", "MA", "PYPL", "COIN", "HOOD"]
+    comm = ["META", "NFLX", "DIS", "GOOGL", "CHTR", "TMUS", "VZ", "T", "SNAP", "PINS"]
+    health = ["LLY", "UNH", "JNJ", "ABBV", "MRK", "PFE", "TMO", "ISRG", "AMGN", "MRNA"]
+    indus = ["GE", "CAT", "HON", "LMT", "BA", "UPS", "FDX", "UBER", "AAL", "DAL"]
+    energy = ["XOM", "CVX", "COP", "SLB", "EOG", "VLO", "MPC", "OXY", "HAL", "CHPT"]
+    semi_plus = ["ASML", "MU", "LRCX", "ADI", "KLAC", "SNPS", "CDNS", "MSTR", "SMCI", "ARM"]
+    materials = ["LIN", "APD", "FCX", "SHW", "NEM", "CTVA", "ALB", "MP", "CF", "MOS"]
+    utils_reit = ["NEE", "DUK", "SO", "PLD", "AMT", "CCI", "EQIX", "DLR", "OKTA", "NET"]
+    
+    # 剔除重複並結合成 111 隻艦隊！
+    super_fleet = list(set(core_elite + tech + consumer + fin + comm + health + indus + energy + semi_plus + materials + utils_reit))
+    super_fleet = sorted(super_fleet)[:111] # 確保精確 111 隻！
+
+    logger.info(f"🚀 小祈正在啟動「111 奇蹟艦隊」！目前編隊數量: {len(super_fleet)}")
+
+    # 初始化 (V3 組件)
+    model = KiroLSTM(input_dim=10) 
+    preparer = DataPreparer(lookback=60)
+    model_manager = ModelManager(model=model, data_preparer=preparer)
+    risk_controller = RiskController()
+    
+    # 全域配置 (精準平衡版)
+    config = LiveConfig(
+        symbols_list=super_fleet, 
+        polling_seconds=15,      # 15秒一巡，歐尼醬指示的黃金頻率！
+        auto_trade=False,
+        paper_trading=True
+    )
+
+    loop = LiveTradingLoop(
+        model_manager=model_manager,
+        risk_controller=risk_controller,
+        config=config
+    )
+    
+    logger.info("✨ 「111 奇蹟艦隊」引擎噴火！開始全域監控戰場...")
+    loop.start()
+
+if __name__ == "__main__":
+    run_kiro_v3_super_fleet()
