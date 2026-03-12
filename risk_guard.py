@@ -29,6 +29,7 @@ class RiskGuard:
         price: float,
         available_cash: float,
         current_positions: dict,
+        net_assets: float | None = None,
     ) -> dict:
         """
         全面風控檢查
@@ -45,7 +46,9 @@ class RiskGuard:
 
         # ─── 3. 每日虧損上限 ───────────────────────────────────
         daily_pnl = ss.get_daily_pnl(state)
-        net = NET_ASSETS
+        net = float(net_assets or 0) if net_assets is not None else float(NET_ASSETS)
+        if net <= 0:
+            net = float(NET_ASSETS)
         loss_ratio = daily_pnl / net
         if loss_ratio < -self.cfg.max_daily_loss_pct:
             log.warning(

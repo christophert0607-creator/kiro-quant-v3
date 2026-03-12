@@ -146,6 +146,7 @@ class ExecutionEngine:
         # 1. 查賬戶資金
         acct = self.get_account_info()
         available_cash = acct.get("cash", 0)
+        total_assets = float(acct.get("total_assets", 0) or 0)
         
         # 實盤且資金過低（例如 < $1000）時警告
         if TRADE_MODE == "LIVE" and available_cash < 1000:
@@ -186,6 +187,7 @@ class ExecutionEngine:
             price=price,
             available_cash=available_cash,
             current_positions=positions,
+            net_assets=total_assets,
         )
 
         if not risk_result.get("ok"):

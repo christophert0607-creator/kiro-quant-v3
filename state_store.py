@@ -32,6 +32,29 @@ def _default_state() -> dict:
     }
 
 
+def _sanitize_last_order_timestamps(state: dict):
+    """修正異常時間戳，避免未來時間導致冷卻/去重邏輯失真。"""
+    now = time.time()
+    last_orders = state.get("last_orders", {})
+    if not isinstance(last_orders, dict):
+        return
+
+    changed = False
+    for item in last_orders.values():
+        if not isinstance(item, dict):
+            continue
+        ts = item.get("time")
+        if not isinstance(ts, (int, float)):
+            continue
+        # 超過現在 5 分鐘視為異常未來時間
+        if ts > now + 300:
+            item["time"] = now
+            changed = True
+
+    if changed:
+        log.warning("⚠️ 偵測到未來時間戳，已自動修正 last_orders.time")
+
+
 def load() -> dict:
     try:
         with open(STATE_PATH, "r") as f:
@@ -41,6 +64,8 @@ def load() -> dict:
         s = _default_state()
         if isinstance(loaded, dict):
             s.update(loaded)
+
+        _sanitize_last_order_timestamps(s)
 
         # 如果日期不同（新的一天）→ 重置每日狀態
         if s.get("date") != str(date.today()):
