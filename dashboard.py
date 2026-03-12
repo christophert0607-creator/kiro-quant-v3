@@ -4,9 +4,20 @@ import json
 import os
 import time
 from datetime import datetime
+from execution_engine import ExecutionEngine
+import state_store as ss
 
 # 設定頁面資訊
 st.set_page_config(page_title="Futu Quant Dashboard", layout="wide")
+
+# 自訂按鈕顏色（緊急按鈕）
+st.markdown("""<style>
+div.stButton > button[kind='primary'] {
+    background-color: #b91c1c;
+    border-color: #b91c1c;
+    color: white;
+}
+</style>""", unsafe_allow_html=True)
 
 # 路徑定義
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -110,6 +121,66 @@ if not df_sent.empty:
     st.line_chart(df_sent.set_index('timestamp'))
 else:
     st.write("暫無 Sentiment 資料。")
+
+
+# 緊急控制區
+st.divider()
+st.subheader("🛑 安全控制")
+if "engine" not in st.session_state:
+    st.session_state.engine = ExecutionEngine()
+if "confirm_liquidation" not in st.session_state:
+    st.session_state.confirm_liquidation = False
+if "bot_running" not in st.session_state:
+    st.session_state.bot_running = config.get("auto_trade", False)
+
+ctl_col1, ctl_col2, ctl_col3 = st.columns(3)
+with ctl_col1:
+    if st.button("⏹️ 停止 Bot", type="secondary"):
+        st.session_state.bot_running = False
+        config["auto_trade"] = False
+        save_config(config)
+        st.warning("Bot 已停止，停止接收交易信號。")
+
+with ctl_col2:
+    if st.button("🚨 緊急平倉", type="primary"):
+        st.session_state.confirm_liquidation = True
+
+with ctl_col3:
+    if st.button("▶️ 啟動 Bot"):
+        st.session_state.bot_running = True
+        config["auto_trade"] = True
+        save_config(config)
+        st.success("Bot 已啟動。")
+
+if st.session_state.confirm_liquidation:
+    st.error("確認執行緊急平倉？此操作將賣出全部持倉。")
+    confirm_col, cancel_col = st.columns(2)
+    with confirm_col:
+        if st.button("確認平倉", type="primary"):
+            engine = st.session_state.engine
+            if not engine.trade_ctx:
+                engine.connect()
+            result = engine.emergency_liquidate_all()
+            st.session_state.confirm_liquidation = False
+            if result.get("status") in {"OK", "PARTIAL"}:
+                st.error(f"緊急平倉已執行：{result}")
+            else:
+                st.warning(f"緊急平倉未執行：{result}")
+    with cancel_col:
+        if st.button("取消"):
+            st.session_state.confirm_liquidation = False
+
+# 自動風控檢查
+try:
+    state = ss.load()
+    emergency_status = st.session_state.engine.check_emergency_triggers(state=state)
+    if emergency_status.get("alerts"):
+        for alert in emergency_status["alerts"]:
+            st.warning(alert)
+    if emergency_status.get("triggered"):
+        st.error("已觸發自動緊急平倉，並啟用熔斷停止交易。")
+except Exception as e:
+    st.info(f"自動風控檢查暫不可用: {e}")
 
 # 自動重新整理
 if st.button("手動刷新"):
