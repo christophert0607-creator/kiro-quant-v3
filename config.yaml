@@ -1,0 +1,22 @@
+﻿# Auto Trading Configuration
+mode: simulate
+market: HK
+symbols:
+  - 00700
+  - 09988
+interval_seconds: 60
+qty: 100
+strategy:
+  name: rsi_ma
+  rsi_period: 14
+  rsi_buy: 30
+  rsi_sell: 70
+  ma_period: 20
+  ma_confirm: true
+risk:
+  max_position_pct: 0.10
+  max_total_exposure: 0.60
+  max_daily_loss_pct: 0.03
+  stop_loss_pct: 0.03
+  stop_profit_pct: 0.08
+

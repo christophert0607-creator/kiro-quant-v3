@@ -129,25 +129,37 @@ class ModelManager:
             self.log.warning(f"⚠️ {code} 數據量不足 ({len(X)})，跳過訓練")
             return 0.0
 
-        Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, shuffle=False)
-        scaler = StandardScaler()
-        Xtr = scaler.fit_transform(Xtr)
-        Xte = scaler.transform(Xte)
-        
-        model = XGBClassifier(
-            n_estimators=100, max_depth=4, learning_rate=0.05,
-            subsample=0.8, colsample_bytree=0.8,
-            eval_metric="logloss", random_state=42,
-            device="cpu"
-        )
-        model.fit(Xtr, ytr, eval_set=[(Xte, yte)], verbose=False)
-        acc = accuracy_score(yte, model.predict(Xte))
-        
-        self.models[code] = model
-        self.scalers[code] = scaler
-        self._last_train = time.time()
-        self.log.info(f"✅ {code} 訓練完成 | 準確率 {acc:.2%}")
-        return acc
+        try:
+            Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, shuffle=False)
+            scaler = StandardScaler()
+            Xtr = scaler.fit_transform(Xtr)
+            Xte = scaler.transform(Xte)
+            
+            model = XGBClassifier(
+                n_estimators=100, max_depth=4, learning_rate=0.05,
+                subsample=0.8, colsample_bytree=0.8,
+                eval_metric="logloss", random_state=42,
+                device="cpu"
+            )
+            model.fit(Xtr, ytr, eval_set=[(Xte, yte)], verbose=False)
+            acc = accuracy_score(yte, model.predict(Xte))
+            
+            # Log feature importance for debugging
+            try:
+                importances = model.feature_importances_
+                feat_imp = sorted(zip(FEATURE_COLS, importances), key=lambda x: x[1], reverse=True)[:10]
+                self.log.info(f"📊 {code} Top features: {feat_imp[:3]}")
+            except Exception:
+                pass
+            
+            self.models[code] = model
+            self.scalers[code] = scaler
+            self._last_train = time.time()
+            self.log.info(f"✅ {code} 訓練完成 | 準確率 {acc:.2%}")
+            return acc
+        except Exception as e:
+            self.log.error(f"❌ {code} 訓練失敗: {e}", exc_info=True)
+            return 0.0
 
     def predict(self, code: str, row: pd.Series) -> tuple:
         if code not in self.models or code not in self.scalers:

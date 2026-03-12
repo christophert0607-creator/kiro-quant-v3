@@ -156,7 +156,9 @@ class Base10yTrainer:
             self.logger.warning("Training skipped due to dependency issue: %s", exc)
             return metrics
 
-        combined = pd.concat(featured_by_symbol.values(), ignore_index=True).sort_values("Date").reset_index(drop=True)
+        combined = pd.concat(featured_by_symbol.values(), ignore_index=True)
+        combined["Date"] = pd.to_datetime(combined["Date"], errors="coerce", utc=True).dt.tz_convert(None)
+        combined = combined.sort_values("Date").reset_index(drop=True)
 
         train_cfg = TrainingConfig(
             lookback=self.config.lookback,
