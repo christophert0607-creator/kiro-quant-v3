@@ -305,6 +305,57 @@ class FutuConnector:
         data = self._safe_trade_call("position_list_query", **self._account_kwargs())
         return pd.DataFrame() if data is None else data.copy()
 
+    def _is_account_disabled(self, row: dict[str, Any]) -> bool:
+        status_keys = (
+            "status",
+            "trade_status",
+            "acc_status",
+            "account_status",
+            "trd_status",
+        )
+        disabled_tokens = (
+            "disable",
+            "disabled",
+            "suspend",
+            "inactive",
+            "停用",
+            "冻结",
+            "禁用",
+            "不支持下单",
+        )
+        for key in status_keys:
+            if key not in row:
+                continue
+            text = str(row.get(key, "")).strip().lower()
+            if any(token in text for token in disabled_tokens):
+                return True
+        return False
+
+    def validate_trading_ready(self, symbol: str, qty: int, side: str, est_price: float) -> None:
+        if self.trade_ctx is None or self.ft is None:
+            raise RuntimeError("FutuConnector not connected")
+
+        side_upper = side.upper()
+        if qty <= 0:
+            raise ValueError("qty must be > 0")
+
+        data = self._safe_trade_call("accinfo_query", **self._account_kwargs())
+        if data is None or data.empty:
+            raise RuntimeError("account_precheck_failed: accinfo_query returned empty dataset")
+
+        raw_row = data.iloc[0].to_dict()
+        row = {str(k).strip().lower(): v for k, v in raw_row.items()}
+        if self._is_account_disabled(row):
+            raise RuntimeError("account_disabled: current account is disabled/restricted for order placement")
+
+        if side_upper == "BUY":
+            est_cost = float(max(est_price, 0.0)) * int(qty)
+            cash = float(row.get("cash", row.get("available_funds", row.get("power", 0.0))) or 0.0)
+            if est_cost > 0 and cash < est_cost:
+                raise RuntimeError(
+                    f"insufficient_cash: cash={cash:.2f} est_cost={est_cost:.2f} symbol={symbol} qty={qty}"
+                )
+
     def place_order(self, symbol: str, qty: int, side: str, price: Optional[float] = None) -> object:
         if self.trade_ctx is None or self.ft is None:
             raise RuntimeError("FutuConnector not connected")
@@ -312,6 +363,7 @@ class FutuConnector:
             raise ValueError("qty must be > 0")
         code = f"{self.config.market_prefix}.{symbol}"
         limit_price = float(price) if price is not None else self.get_order_reference_price(symbol, side, fallback_price=0.0)
+        self.validate_trading_ready(symbol=symbol, qty=qty, side=side, est_price=limit_price)
         ret, data = self.trade_ctx.place_order(
             price=limit_price,
             qty=qty,

@@ -303,6 +303,25 @@ class LiveTradingLoop:
         reference_price = self.futu_connector.get_order_reference_price(symbol, side, fallback_price=price)
         fill_price = reference_price if reference_price > 0 else price
 
+        if self.config.auto_trade:
+            try:
+                if self.config.paper_trading:
+                    self.logger.info("PAPER_ORDER %s %s qty=%d limit=%.4f type=NORMAL", symbol, side, qty, fill_price)
+                else:
+                    self.futu_connector.place_order(symbol, qty, side, fill_price)
+            except Exception as exc:
+                self.logger.error(
+                    "EXEC_FAIL %s %s qty=%d limit=%.4f reason=%s error=%s",
+                    symbol,
+                    side,
+                    qty,
+                    fill_price,
+                    reason,
+                    exc,
+                )
+                self._notify(f"[EXEC_FAIL] {symbol} {side} qty={qty} reason={reason} error={exc}")
+                return
+
         if side == "BUY":
             self.position_qty_by_symbol[symbol] += qty
             self.highest_price_since_entry_by_symbol[symbol] = fill_price
@@ -313,12 +332,6 @@ class LiveTradingLoop:
                 self.highest_price_since_entry_by_symbol[symbol] = 0.0
                 self.bars_held_by_symbol[symbol] = 0
                 self.cycles_since_buy_by_symbol[symbol] = 999999
-
-        if self.config.auto_trade:
-            if self.config.paper_trading:
-                self.logger.info("PAPER_ORDER %s %s qty=%d limit=%.4f type=NORMAL", symbol, side, qty, fill_price)
-            else:
-                self.futu_connector.place_order(symbol, qty, side, fill_price)
 
         self.logger.info("EXEC %s %s qty=%d fill=%.4f reason=%s", symbol, side, qty, fill_price, reason)
 
