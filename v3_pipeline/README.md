@@ -85,3 +85,11 @@
 - 會執行：資料完整性檢查 + HistoryPrimer 修補、CosineAnnealing LR、Gradient Clipping、Early Stopping
 - 輸出摘要：`v3_pipeline/reports/training_summary.json`
 - 輸出分佈圖：`v3_pipeline/reports/mse_distribution_111.svg`
+
+## Indicator Generation Caveats
+- When TA-Lib is unavailable, `TechnicalIndicatorGenerator` uses a pandas fallback implementation.
+- After fallback indicator computation, generated indicator columns are normalized by replacing `+/-inf` with `NaN`.
+- If a generated indicator is entirely `NaN` (for example, due to flat price action, zero volume, or denominator collapse), the fallback post-pass applies one of two policies:
+  - Fill with a documented neutral default when available (e.g., `RSI_14=50`, `MFI_14=50`, trend/volatility deltas as `0`, `WILLR_14=-50`).
+  - Drop the indicator column and emit a warning when no neutral default is defined.
+- Base OHLCV columns (`Date/Open/High/Low/Close/Volume`) are intentionally left untouched by this normalization pass.
