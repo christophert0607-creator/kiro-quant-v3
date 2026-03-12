@@ -25,7 +25,7 @@ from datetime import datetime, timedelta
 from config import (
     STOCK_LIST, KLINE_COUNT, RETRAIN_INTERVAL, LOOP_INTERVAL,
     RISK_CONFIG, OPEND_HOST, OPEND_PORT, TRADE_MODE, LOG_PATH,
-    print_config
+    KLINE_CACHE_TTL_SECONDS, print_config
 )
 from execution_engine import ExecutionEngine
 from massive_client import MassiveClient
@@ -189,6 +189,7 @@ class QuantV2:
         self.model_mgr = ModelManager()
         self.quote_ctx = None
         self.massive   = None
+        self.kline_cache = {}
 
     def boot(self):
         print_config()
@@ -212,7 +213,15 @@ class QuantV2:
         return True
 
     def fetch_kline(self, code: str) -> pd.DataFrame:
-        """取 K 線：先嘗試 Futu，失敗自動 fallback 至 Massive"""
+        """取 K 線：先嘗試快取與 Futu，失敗自動 fallback 至 Massive"""
+        now = time.time()
+        cached = self.kline_cache.get(code)
+        if cached:
+            cached_at, cached_df = cached
+            if now - cached_at <= KLINE_CACHE_TTL_SECONDS:
+                self.log.info(f"💾 [Kline cache] {code} 命中，沿用 {len(cached_df)} 條")
+                return cached_df.copy()
+
         # 1. Futu 優先
         if self.quote_ctx:
             try:
@@ -220,6 +229,8 @@ class QuantV2:
                     code, ktype=ft.KLType.K_DAY, max_count=KLINE_COUNT
                 )
                 if ret == ft.RET_OK and not data.empty:
+                    data = data.sort_values("time_key").reset_index(drop=True)
+                    self.kline_cache[code] = (now, data.copy())
                     self.log.info(f"📥 [Futu] {code} K線 {len(data)} 條")
                     return data
                 else:
@@ -239,6 +250,7 @@ class QuantV2:
                 df = pd.DataFrame(bars)
                 # Massive 返回最新在前，要反轉
                 df = df.sort_values("time_key").reset_index(drop=True)
+                self.kline_cache[code] = (now, df.copy())
                 self.log.info(f"📥 [Massive] {code} K線 {len(df)} 條")
                 return df
         except Exception as e:
