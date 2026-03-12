@@ -37,6 +37,7 @@ class FutuConfig:
         int(os.getenv("FUTU_TARGET_ACC_ID")) if os.getenv("FUTU_TARGET_ACC_ID") else None
     )
     opend_web_port: int = int(os.getenv("FUTU_OPEND_WEB_PORT", "18889"))
+    trade_password: str = os.getenv("FUTU_TRADE_PASSWORD", os.getenv("FUTU_TRADE_PWD", ""))
 
 
 class FutuConnector:
@@ -172,6 +173,8 @@ class FutuConnector:
             self.trade_ctx = ft.OpenUSTradeContext(host=self.config.host, port=self.config.port)
             self.logger.info("Connected to Futu OpenD at %s:%s", self.config.host, self.config.port)
             self.discover_accounts()
+            if self.config.trd_env.upper() == "REAL":
+                self.unlock_trading(self.config.trade_password)
         except Exception as exc:
             self._safe_close_contexts()
             raise RuntimeError(f"Failed to connect to Futu OpenD: {exc}") from exc
@@ -201,8 +204,34 @@ class FutuConnector:
         method = getattr(self.trade_ctx, method_name)
         ret, data = method(trd_env=self._resolved_trd_env(), **kwargs)
         if ret != self.ft.RET_OK:
-            raise RuntimeError(f"{method_name} failed: {data}")
+            raise RuntimeError(self._build_trade_error(f"{method_name} failed", data))
         return data
+
+    def _build_trade_error(self, prefix: str, data: object) -> str:
+        msg = f"{prefix}: {data}"
+        lowered = str(data).lower()
+        unlock_tokens = ("unlock", "未解锁", "未解鎖", "交易未解锁", "交易未解鎖")
+        if any(token in lowered for token in unlock_tokens):
+            msg = (
+                f"{msg}. Trading may be locked; set FUTU_TRADE_PASSWORD and reconnect "
+                "or call unlock_trading() before placing real orders."
+            )
+        return msg
+
+    def unlock_trading(self, password: str) -> None:
+        """Unlock trading capability before placing real orders."""
+        if self.trade_ctx is None or self.ft is None:
+            raise RuntimeError("FutuConnector not connected")
+        if self.config.trd_env.upper() != "REAL":
+            self.logger.info("Skip trading unlock because trd_env=%s", self.config.trd_env)
+            return
+        pwd = str(password or "").strip()
+        if not pwd:
+            raise RuntimeError("FUTU_TRADE_PASSWORD is required when FUTU_TRD_ENV=REAL")
+        ret, data = self.trade_ctx.unlock_trade(password=pwd)
+        if ret != self.ft.RET_OK:
+            raise RuntimeError(self._build_trade_error("Trade unlock failed", data))
+        self.logger.info("Trading unlocked successfully")
 
     def discover_accounts(self) -> pd.DataFrame:
         try:
@@ -374,5 +403,5 @@ class FutuConnector:
             **self._account_kwargs(),
         )
         if ret != self.ft.RET_OK:
-            raise RuntimeError(f"Order placement failed: {data}")
+            raise RuntimeError(self._build_trade_error("Order placement failed", data))
         return data
