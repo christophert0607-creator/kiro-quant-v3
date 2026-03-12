@@ -37,6 +37,7 @@ class FutuConfig:
         int(os.getenv("FUTU_TARGET_ACC_ID")) if os.getenv("FUTU_TARGET_ACC_ID") else None
     )
     opend_web_port: int = int(os.getenv("FUTU_OPEND_WEB_PORT", "18889"))
+    trade_password: str = os.getenv("FUTU_TRADE_PASSWORD", os.getenv("FUTU_TRADE_PWD", ""))
 
 
 class FutuConnector:
@@ -172,6 +173,8 @@ class FutuConnector:
             self.trade_ctx = ft.OpenUSTradeContext(host=self.config.host, port=self.config.port)
             self.logger.info("Connected to Futu OpenD at %s:%s", self.config.host, self.config.port)
             self.discover_accounts()
+            if self.config.trd_env.upper() == "REAL":
+                self.unlock_trading(self.config.trade_password)
         except Exception as exc:
             self._safe_close_contexts()
             raise RuntimeError(f"Failed to connect to Futu OpenD: {exc}") from exc
@@ -201,20 +204,72 @@ class FutuConnector:
         method = getattr(self.trade_ctx, method_name)
         ret, data = method(trd_env=self._resolved_trd_env(), **kwargs)
         if ret != self.ft.RET_OK:
-            raise RuntimeError(f"{method_name} failed: {data}")
+            raise RuntimeError(self._build_trade_error(f"{method_name} failed", data))
         return data
+
+    def _safe_trade_call_legacy(self, method_name: str, **kwargs):
+        """Fallback for SDK methods that do not accept `trd_env`."""
+        if self.trade_ctx is None or self.ft is None:
+            raise RuntimeError("FutuConnector not connected")
+        method = getattr(self.trade_ctx, method_name)
+        ret, data = method(**kwargs)
+        if ret != self.ft.RET_OK:
+            raise RuntimeError(self._build_trade_error(f"{method_name} failed", data))
+        return data
+
+    def _build_trade_error(self, prefix: str, data: object) -> str:
+        msg = f"{prefix}: {data}"
+        lowered = str(data).lower()
+        unlock_tokens = ("unlock", "未解锁", "未解鎖", "交易未解锁", "交易未解鎖")
+        if any(token in lowered for token in unlock_tokens):
+            msg = (
+                f"{msg}. Trading may be locked; set FUTU_TRADE_PASSWORD and reconnect "
+                "or call unlock_trading() before placing real orders."
+            )
+        return msg
+
+    def unlock_trading(self, password: str) -> None:
+        """Unlock trading capability before placing real orders."""
+        if self.trade_ctx is None or self.ft is None:
+            raise RuntimeError("FutuConnector not connected")
+        if self.config.trd_env.upper() != "REAL":
+            self.logger.info("Skip trading unlock because trd_env=%s", self.config.trd_env)
+            return
+        pwd = str(password or "").strip()
+        if not pwd:
+            raise RuntimeError("FUTU_TRADE_PASSWORD is required when FUTU_TRD_ENV=REAL")
+        ret, data = self.trade_ctx.unlock_trade(password=pwd)
+        if ret != self.ft.RET_OK:
+            raise RuntimeError(self._build_trade_error("Trade unlock failed", data))
+        self.logger.info("Trading unlocked successfully")
 
     def discover_accounts(self) -> pd.DataFrame:
         try:
             data = self._safe_trade_call("get_acc_list")
-            self.discovered_accounts = data.copy() if data is not None else pd.DataFrame()
-            if self.config.target_acc_id is None and not self.discovered_accounts.empty and "acc_id" in self.discovered_accounts.columns:
-                self.config.target_acc_id = int(self.discovered_accounts.iloc[0]["acc_id"])
-            return self.discovered_accounts
+        except TypeError as exc:
+            if "trd_env" not in str(exc):
+                self.logger.warning("Account discovery failed: %s", exc)
+                self.discovered_accounts = pd.DataFrame()
+                return self.discovered_accounts
+            try:
+                if self.trade_ctx is None or self.ft is None:
+                    raise RuntimeError("FutuConnector not connected")
+                ret, data = self.trade_ctx.get_acc_list(**self._account_kwargs())
+                if ret != self.ft.RET_OK:
+                    raise RuntimeError(self._build_trade_error("get_acc_list failed", data))
+            except Exception as fallback_exc:
+                self.logger.warning("Account discovery failed: %s", fallback_exc)
+                self.discovered_accounts = pd.DataFrame()
+                return self.discovered_accounts
         except Exception as exc:
             self.logger.warning("Account discovery failed: %s", exc)
             self.discovered_accounts = pd.DataFrame()
             return self.discovered_accounts
+
+        self.discovered_accounts = data.copy() if data is not None else pd.DataFrame()
+        if self.config.target_acc_id is None and not self.discovered_accounts.empty and "acc_id" in self.discovered_accounts.columns:
+            self.config.target_acc_id = int(self.discovered_accounts.iloc[0]["acc_id"])
+        return self.discovered_accounts
 
     def _account_kwargs(self) -> dict[str, Any]:
         if self.config.target_acc_id is None:
@@ -228,6 +283,24 @@ class FutuConnector:
         except Exception as exc:
             self.logger.warning("Futu heartbeat failed: %s", exc)
             return False
+
+    def reconnect(self, max_retries: int = 10, base_delay_seconds: int = 5) -> None:
+        last_exc: Optional[Exception] = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                self.logger.warning("Reconnect attempt %d/%d", attempt, max_retries)
+                self._safe_close_contexts()
+                self.connect()
+                self.logger.info("Reconnect succeeded on attempt %d", attempt)
+                return
+            except Exception as exc:  # pragma: no cover - defensive backoff logging
+                last_exc = exc
+                if attempt >= max_retries:
+                    break
+                delay = base_delay_seconds * (2 ** (attempt - 1))
+                self.logger.warning("Reconnect attempt %d failed: %s; retrying in %ss", attempt, exc, delay)
+                time.sleep(delay)
+        raise RuntimeError(f"Reconnect failed after {max_retries} attempts: {last_exc}")
 
     def get_latest_quote(self, symbol: str) -> dict:
         code = f"{self.config.market_prefix}.{symbol}"
@@ -305,6 +378,139 @@ class FutuConnector:
         data = self._safe_trade_call("position_list_query", **self._account_kwargs())
         return pd.DataFrame() if data is None else data.copy()
 
+    def get_order_status(self, order_id: str) -> dict[str, Any]:
+        """Poll single-order status from broker and normalize key fields."""
+        order_id_str = str(order_id).strip()
+        if not order_id_str:
+            raise ValueError("order_id is required")
+
+        kwargs = {"order_id": order_id_str, **self._account_kwargs()}
+        try:
+            data = self._safe_trade_call("order_list_query", **kwargs)
+        except TypeError as exc:
+            if "trd_env" not in str(exc):
+                raise
+            data = self._safe_trade_call_legacy("order_list_query", **kwargs)
+
+        if data is None or data.empty:
+            raise RuntimeError(f"order_list_query returned empty dataset for order_id={order_id_str}")
+        row = data.iloc[0].to_dict()
+        normalized = {str(k).strip().lower(): v for k, v in row.items()}
+        status_text = str(
+            normalized.get("order_status")
+            or normalized.get("status")
+            or normalized.get("orderstate")
+            or "UNKNOWN"
+        )
+        avg_price = float(
+            normalized.get("dealt_avg_price")
+            or normalized.get("avg_price")
+            or normalized.get("price")
+            or 0.0
+        )
+        dealt_qty = int(float(normalized.get("dealt_qty") or normalized.get("qty") or 0))
+        return {
+            "order_id": order_id_str,
+            "status": status_text,
+            "filled_avg_price": avg_price,
+            "dealt_qty": dealt_qty,
+            "raw": row,
+        }
+
+    def wait_for_fill(self, order_id: str, timeout_seconds: float = 60.0, poll_interval_seconds: float = 2.0) -> dict[str, Any]:
+        """Wait until an order is filled/cancelled and return the final fill summary."""
+        terminal_filled = ("filled", "all_filled", "已成交", "全部成交")
+        terminal_failed = ("cancel", "canceled", "cancelled", "failed", "rejected", "部分撤单", "拒绝")
+        started = time.time()
+        while True:
+            status = self.get_order_status(order_id)
+            lowered = str(status.get("status", "")).strip().lower()
+            if any(token in lowered for token in terminal_filled):
+                return status
+            if any(token in lowered for token in terminal_failed):
+                raise RuntimeError(f"order {order_id} ended without fill: {status}")
+            if (time.time() - started) >= timeout_seconds:
+                raise TimeoutError(f"wait_for_fill timeout for order {order_id}: last_status={status}")
+            time.sleep(max(0.1, float(poll_interval_seconds)))
+
+    def get_open_orders(self) -> pd.DataFrame:
+        """Retrieve current order list for reconnect-time reconciliation."""
+        kwargs = self._account_kwargs()
+        try:
+            data = self._safe_trade_call("order_list_query", **kwargs)
+        except TypeError as exc:
+            if "trd_env" not in str(exc):
+                raise
+            data = self._safe_trade_call_legacy("order_list_query", **kwargs)
+        return pd.DataFrame() if data is None else data.copy()
+
+    def extract_order_id(self, order_result: object) -> str:
+        if order_result is None:
+            raise RuntimeError("order_result is empty")
+        if isinstance(order_result, pd.DataFrame):
+            if order_result.empty:
+                raise RuntimeError("order_result dataframe is empty")
+            row = order_result.iloc[0].to_dict()
+            for key in ("order_id", "orderid"):
+                if key in row and str(row[key]).strip():
+                    return str(row[key]).strip()
+        if isinstance(order_result, dict):
+            for key in ("order_id", "orderid"):
+                if key in order_result and str(order_result[key]).strip():
+                    return str(order_result[key]).strip()
+        raise RuntimeError(f"unable to extract order_id from order result: {order_result}")
+
+    def _is_account_disabled(self, row: dict[str, Any]) -> bool:
+        status_keys = (
+            "status",
+            "trade_status",
+            "acc_status",
+            "account_status",
+            "trd_status",
+        )
+        disabled_tokens = (
+            "disable",
+            "disabled",
+            "suspend",
+            "inactive",
+            "停用",
+            "冻结",
+            "禁用",
+            "不支持下单",
+        )
+        for key in status_keys:
+            if key not in row:
+                continue
+            text = str(row.get(key, "")).strip().lower()
+            if any(token in text for token in disabled_tokens):
+                return True
+        return False
+
+    def validate_trading_ready(self, symbol: str, qty: int, side: str, est_price: float) -> None:
+        if self.trade_ctx is None or self.ft is None:
+            raise RuntimeError("FutuConnector not connected")
+
+        side_upper = side.upper()
+        if qty <= 0:
+            raise ValueError("qty must be > 0")
+
+        data = self._safe_trade_call("accinfo_query", **self._account_kwargs())
+        if data is None or data.empty:
+            raise RuntimeError("account_precheck_failed: accinfo_query returned empty dataset")
+
+        raw_row = data.iloc[0].to_dict()
+        row = {str(k).strip().lower(): v for k, v in raw_row.items()}
+        if self._is_account_disabled(row):
+            raise RuntimeError("account_disabled: current account is disabled/restricted for order placement")
+
+        if side_upper == "BUY":
+            est_cost = float(max(est_price, 0.0)) * int(qty)
+            cash = float(row.get("cash", row.get("available_funds", row.get("power", 0.0))) or 0.0)
+            if est_cost > 0 and cash < est_cost:
+                raise RuntimeError(
+                    f"insufficient_cash: cash={cash:.2f} est_cost={est_cost:.2f} symbol={symbol} qty={qty}"
+                )
+
     def place_order(self, symbol: str, qty: int, side: str, price: Optional[float] = None) -> object:
         if self.trade_ctx is None or self.ft is None:
             raise RuntimeError("FutuConnector not connected")
@@ -312,6 +518,7 @@ class FutuConnector:
             raise ValueError("qty must be > 0")
         code = f"{self.config.market_prefix}.{symbol}"
         limit_price = float(price) if price is not None else self.get_order_reference_price(symbol, side, fallback_price=0.0)
+        self.validate_trading_ready(symbol=symbol, qty=qty, side=side, est_price=limit_price)
         ret, data = self.trade_ctx.place_order(
             price=limit_price,
             qty=qty,
@@ -322,5 +529,5 @@ class FutuConnector:
             **self._account_kwargs(),
         )
         if ret != self.ft.RET_OK:
-            raise RuntimeError(f"Order placement failed: {data}")
+            raise RuntimeError(self._build_trade_error("Order placement failed", data))
         return data

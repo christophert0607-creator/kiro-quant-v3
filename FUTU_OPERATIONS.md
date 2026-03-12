@@ -12,6 +12,7 @@ export FUTU_OPEND_HOST=127.0.0.1
 export FUTU_OPEND_PORT=11111
 export FUTU_TRD_ENV=SIMULATE   # or REAL
 export FUTU_TARGET_ACC_ID=123456789
+export FUTU_TRADE_PASSWORD=******   # required when FUTU_TRD_ENV=REAL
 ```
 
 ## 2) Identity Mapping: Bull-ID vs Trade Account IDs
@@ -82,7 +83,7 @@ On heartbeat/sync failure:
 - retry next cycle.
 
 ## 8) Troubleshooting Checklist
-- **Cannot trade, can quote**: likely trade context auth/account mapping issue.
+- **Cannot trade, can quote**: likely trade context auth/account mapping issue. For REAL trading, confirm `FUTU_TRADE_PASSWORD` is set and trade unlock succeeds.
 - **Wrong account values**: verify `FUTU_TARGET_ACC_ID` and account discovery logs.
 - **Port conflict on web UI**: ensure OpenD web port is `18889`; free `18888` for Kiro bridge.
 - **Frequent disconnects in WSL2**: verify `FUTU_OPEND_HOST`, firewall, and OpenD process health.
