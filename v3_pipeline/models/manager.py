@@ -1,5 +1,6 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
+import io
 import logging
 import sys
 from dataclasses import dataclass
@@ -67,11 +68,45 @@ class DataPreparer:
         self.lookback = lookback
         self.target_col = target_col
         self.logger = _build_stderr_logger(self.__class__.__name__)
+        self._ensure_sanitization_logger()
         self.feature_columns: Optional[List[str]] = None
         self.feature_mins: Optional[pd.Series] = None
         self.feature_maxs: Optional[pd.Series] = None
         self.target_min: Optional[float] = None
         self.target_max: Optional[float] = None
+
+    def _ensure_sanitization_logger(self) -> None:
+        log_path = Path("v3_pipeline/logs/data_sanitization.log")
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        resolved = log_path.resolve()
+        for handler in self.logger.handlers:
+            if isinstance(handler, logging.FileHandler) and Path(handler.baseFilename).resolve() == resolved:
+                return
+        file_handler = logging.FileHandler(log_path, encoding="utf-8")
+        formatter = logging.Formatter(
+            "%(asctime)s | %(name)s | %(levelname)s | %(message)s",
+            "%Y-%m-%d %H:%M:%S",
+        )
+        file_handler.setFormatter(formatter)
+        self.logger.addHandler(file_handler)
+
+    def _log_sanitize_step(self, step: str, before_rows: int, after_rows: int, df: pd.DataFrame) -> None:
+        diff = after_rows - before_rows
+        self.logger.info(
+            "[Sanitize Log] %s: rows_before=%d, rows_after=%d, diff=%+d",
+            step,
+            before_rows,
+            after_rows,
+            diff,
+        )
+        if after_rows == 0:
+            self._dump_sanitize_snapshot(step, df)
+
+    def _dump_sanitize_snapshot(self, step: str, df: pd.DataFrame) -> None:
+        buffer = io.StringIO()
+        df.info(buf=buffer)
+        self.logger.error("[Sanitize Log] %s -> df.info():\n%s", step, buffer.getvalue())
+        self.logger.error("[Sanitize Log] %s -> isna().sum():\n%s", step, df.isna().sum().to_string())
 
     @property
     def is_fitted(self) -> bool:
@@ -85,7 +120,7 @@ class DataPreparer:
 
     def fit_transform(self, frame: pd.DataFrame) -> Tuple[torch.Tensor, torch.Tensor]:
         clean = self._sanitize(frame)
-        features = clean.drop(columns=["Date"]).copy()
+        features = clean.drop(columns=["Date", "data_source"], errors="ignore").copy()
 
         if self.target_col not in features.columns:
             raise ValueError(f"target_col '{self.target_col}' not in data columns")
@@ -156,14 +191,90 @@ class DataPreparer:
             raise ValueError(f"Input frame missing required OHLCV columns: {missing}")
 
         clean = frame.copy()
+        if clean.empty:
+            self._log_sanitize_step("input_empty", 0, 0, clean)
+            raise ValueError("Input frame is empty after initial load.")
+
         clean["Date"] = pd.to_datetime(clean["Date"], errors="coerce")
-        clean = clean.dropna(subset=["Date"]).sort_values("Date").drop_duplicates(subset=["Date"])
+
+        before = len(clean)
+        clean["Date"] = clean["Date"].ffill()
+        self._log_sanitize_step("ffill_date", before, len(clean), clean)
+
+        before = len(clean)
+        clean["Date"] = clean["Date"].bfill()
+        self._log_sanitize_step("bfill_date", before, len(clean), clean)
+
+        if clean["Date"].isna().all():
+            self._dump_sanitize_snapshot("date_all_nan", clean)
+            raise ValueError("Date column could not be parsed; all values are NaT.")
+
+        drop_cols: list[str] = []
+        for col in clean.columns:
+            if col == "Date":
+                continue
+            series = clean[col]
+            if pd.api.types.is_numeric_dtype(series):
+                continue
+            coerced = pd.to_numeric(series, errors="coerce")
+            if coerced.notna().sum() == 0:
+                drop_cols.append(col)
+            else:
+                clean[col] = coerced
+
+        if drop_cols:
+            before = len(clean)
+            clean = clean.drop(columns=drop_cols, errors="ignore")
+            self._log_sanitize_step(f"drop_non_numeric({','.join(drop_cols)})", before, len(clean), clean)
 
         numeric_cols = [c for c in clean.columns if c != "Date"]
         for col in numeric_cols:
             clean[col] = pd.to_numeric(clean[col], errors="coerce")
 
-        clean = clean.dropna().reset_index(drop=True)
+        before = len(clean)
+        clean = clean.sort_values("Date").drop_duplicates(subset=["Date"]).reset_index(drop=True)
+        if len(clean) != before:
+            self._log_sanitize_step("drop_duplicate_dates", before, len(clean), clean)
+
+        if self.feature_columns:
+            desired = ["Date"] + [c for c in self.feature_columns if c != "Date"]
+            missing_cols = [c for c in desired if c not in clean.columns and c != "Date"]
+            if missing_cols:
+                for col in missing_cols:
+                    clean[col] = 0.0
+                self._log_sanitize_step(
+                    f"add_missing_columns({','.join(missing_cols)})",
+                    len(clean),
+                    len(clean),
+                    clean,
+                )
+
+            extra_cols = [c for c in clean.columns if c not in desired]
+            if extra_cols:
+                before = len(clean)
+                clean = clean.drop(columns=extra_cols, errors="ignore")
+                self._log_sanitize_step(f"drop_extra_columns({','.join(extra_cols)})", before, len(clean), clean)
+
+            clean = clean[desired]
+        else:
+            clean = clean[["Date"] + [c for c in clean.columns if c != "Date"]]
+
+        numeric_cols = [c for c in clean.columns if c != "Date"]
+        if numeric_cols:
+            before = len(clean)
+            clean[numeric_cols] = clean[numeric_cols].ffill()
+            self._log_sanitize_step("ffill_numeric", before, len(clean), clean)
+
+            before = len(clean)
+            clean[numeric_cols] = clean[numeric_cols].bfill()
+            self._log_sanitize_step("bfill_numeric", before, len(clean), clean)
+
+            before = len(clean)
+            clean[numeric_cols] = clean[numeric_cols].fillna(0.0)
+            self._log_sanitize_step("fillna_numeric", before, len(clean), clean)
+
+        if clean.isna().any().any():
+            self._dump_sanitize_snapshot("post_fill_nan", clean)
 
         if len(clean) <= self.lookback:
             raise ValueError(
@@ -445,3 +556,4 @@ def train_symbol_pipeline(
     prediction = manager.predict(featured)
 
     return manager, losses, prediction
+

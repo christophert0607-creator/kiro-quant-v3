@@ -91,6 +91,9 @@ class RiskConfig:
     # 模型信號門檻
     signal_confidence_threshold: float = 0.60   # 低於 60% confidence → HOLD
 
+    # 日誌控制
+    suppress_no_position_logs: bool = False  # 抑制 "NoPosition" 拒絕日誌（減少噪音）
+
 RISK_CONFIG = RiskConfig()
 
 # ============================================================

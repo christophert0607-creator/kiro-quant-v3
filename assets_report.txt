@@ -1,0 +1,2 @@
+usage: futu_api.py [-h] [symbols ...]
+futu_api.py: error: unrecognized arguments: --env simulated

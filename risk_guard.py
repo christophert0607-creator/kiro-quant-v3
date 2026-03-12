@@ -129,7 +129,8 @@ class RiskGuard:
                     log.warning(f"🕒 {code} 買單剛成交 ({int(_time.time()-last_buy['time'])}s前)，API 持倉可能尚未同步，拒絕 SELL 以防空投")
                     return self._reject("PositionSyncing")
 
-                log.warning(f"⚠️ {code} 持倉檢查為 0，拒絕 SELL 信號。若此為異常，請檢查 API 同步。")
+                if not self.cfg.suppress_no_position_logs:
+                    log.warning(f"⚠️ {code} 持倉檢查為 0，拒絕 SELL 信號。若此為異常，請檢查 API 同步。")
                 return self._reject("NoPosition")
 
         else:
