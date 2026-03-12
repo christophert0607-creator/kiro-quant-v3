@@ -53,3 +53,9 @@ python futu_api.py assets --env simulated
 - 交付時需附：已執行命令、結果、後續建議
 - REAL 交易模式：需設定 `FUTU_TRADE_PASSWORD`（兼容 `FUTU_TRADE_PWD`），並在連線後完成 `unlock_trade` 驗證
 - 交易代碼調整：至少新增/更新對應單元測試，並執行 `python -m pytest tests/`
+
+## Issue #16-19 交易系統擴展（2026-03）
+- 訂單成交確認：`FutuConnector.get_order_status(order_id)` + `wait_for_fill()`，在更新本地倉位前先確認成交。
+- Paper Trading：新增 `PaperTradingSimulator`，模擬成交滑點、現金與持倉，輸出 `paper_trading_pnl.json`。
+- 自動重連：新增 `reconnect(max_retries=10)`，採指數退避（5s, 10s, 20s ...）並在重連後同步倉位與訂單。
+- P&L 追蹤：新增 `PnLTracker`，記錄成本價、成交時間、已實現/未實現盈虧，輸出 `pnl_report.json`。

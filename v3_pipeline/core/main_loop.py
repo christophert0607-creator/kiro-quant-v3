@@ -15,6 +15,7 @@ from v3_pipeline.core.futu_connector import FutuConnector
 from v3_pipeline.core.history_priming import HistoryPrimer, PrimingConfig
 from v3_pipeline.core.monte_carlo import MonteCarloSimulator
 from v3_pipeline.core.strategy_factory import StrategyFactory
+from v3_pipeline.core.trade_simulation import PaperTradingSimulator, PnLTracker
 from v3_pipeline.features.indicators import TechnicalIndicatorGenerator
 from v3_pipeline.models.manager import DataPreparer, ModelManager
 from v3_pipeline.risk.manager import RiskController
@@ -77,9 +78,11 @@ class LiveTradingLoop:
         self.cycles_since_buy_by_symbol: dict[str, int] = {s: 999999 for s in self.symbols}
         self.last_price_by_symbol: dict[str, float] = {}
         self.profile_timings: list[dict] = []
+        self.latest_prices: dict[str, float] = {}
 
         self.equity_peak = 0.0
         self.account_value = 100000.0
+        self.starting_equity = self.account_value
         self.strategy_factory = StrategyFactory()
         self.alpha_engine = KiroAlphaEngine()
         self.monte_carlo = MonteCarloSimulator()
@@ -98,6 +101,8 @@ class LiveTradingLoop:
             )
             for s in self.symbols
         }
+        self.pnl_tracker = PnLTracker()
+        self.paper_trading_simulator = PaperTradingSimulator(starting_cash=self.account_value)
 
     def start(self) -> None:
         self.futu_connector.connect()
@@ -179,6 +184,7 @@ class LiveTradingLoop:
                 return
 
         current_price = float(wfa_frame.iloc[-1]["Close"])
+        self.latest_prices[symbol] = current_price
         prediction = float(self.model_manager.predict(wfa_frame, data_preparer=symbol_preparer))
         confidence = min(1.0, abs(prediction - current_price) / max(current_price, 1e-9))
         vix_value = await asyncio.to_thread(self._get_vix)
@@ -276,8 +282,20 @@ class LiveTradingLoop:
             ok = self.futu_connector.heartbeat()
             if not ok:
                 self.logger.warning("Broker heartbeat unhealthy")
+                self._attempt_reconnect()
         except Exception as exc:
             self.logger.warning("Heartbeat check failed: %s", exc)
+            self._attempt_reconnect()
+
+    def _attempt_reconnect(self) -> None:
+        try:
+            self.futu_connector.reconnect(max_retries=10, base_delay_seconds=5)
+            self._sync_broker_state()
+            orders = self.futu_connector.get_open_orders()
+            self.logger.info("Reconnect sync completed: open_orders=%d", len(orders.index))
+        except Exception as exc:
+            self.logger.error("Reconnect failed: %s", exc)
+            self._notify(f"[RECONNECT_FAIL] {exc}")
 
     def _sync_broker_state(self) -> None:
         try:
@@ -306,9 +324,16 @@ class LiveTradingLoop:
         if self.config.auto_trade:
             try:
                 if self.config.paper_trading:
-                    self.logger.info("PAPER_ORDER %s %s qty=%d limit=%.4f type=NORMAL", symbol, side, qty, fill_price)
+                    paper_fill = self.paper_trading_simulator.execute_order(symbol=symbol, side=side, qty=qty, reference_price=fill_price)
+                    fill_price = float(paper_fill["fill_price"])
+                    paper_pnl = self.paper_trading_simulator.mark_to_market(self.latest_prices)
+                    self.account_value = float(paper_pnl.get("equity", self.account_value))
+                    self.logger.info("PAPER_ORDER %s %s qty=%d fill=%.4f type=NORMAL", symbol, side, qty, fill_price)
                 else:
-                    self.futu_connector.place_order(symbol, qty, side, fill_price)
+                    order_result = self.futu_connector.place_order(symbol, qty, side, fill_price)
+                    order_id = self.futu_connector.extract_order_id(order_result)
+                    status = self.futu_connector.wait_for_fill(order_id)
+                    fill_price = float(status.get("filled_avg_price") or fill_price)
             except Exception as exc:
                 self.logger.error(
                     "EXEC_FAIL %s %s qty=%d limit=%.4f reason=%s error=%s",
@@ -332,6 +357,10 @@ class LiveTradingLoop:
                 self.highest_price_since_entry_by_symbol[symbol] = 0.0
                 self.bars_held_by_symbol[symbol] = 0
                 self.cycles_since_buy_by_symbol[symbol] = 999999
+
+        self.pnl_tracker.record_fill(symbol=symbol, side=side, qty=qty, price=fill_price)
+        pnl_report = self.pnl_tracker.build_report(self.latest_prices)
+        self.account_value = self.starting_equity + float(pnl_report.get("net_pnl", 0.0))
 
         self.logger.info("EXEC %s %s qty=%d fill=%.4f reason=%s", symbol, side, qty, fill_price, reason)
 

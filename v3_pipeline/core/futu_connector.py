@@ -207,6 +207,16 @@ class FutuConnector:
             raise RuntimeError(self._build_trade_error(f"{method_name} failed", data))
         return data
 
+    def _safe_trade_call_legacy(self, method_name: str, **kwargs):
+        """Fallback for SDK methods that do not accept `trd_env`."""
+        if self.trade_ctx is None or self.ft is None:
+            raise RuntimeError("FutuConnector not connected")
+        method = getattr(self.trade_ctx, method_name)
+        ret, data = method(**kwargs)
+        if ret != self.ft.RET_OK:
+            raise RuntimeError(self._build_trade_error(f"{method_name} failed", data))
+        return data
+
     def _build_trade_error(self, prefix: str, data: object) -> str:
         msg = f"{prefix}: {data}"
         lowered = str(data).lower()
@@ -273,6 +283,24 @@ class FutuConnector:
         except Exception as exc:
             self.logger.warning("Futu heartbeat failed: %s", exc)
             return False
+
+    def reconnect(self, max_retries: int = 10, base_delay_seconds: int = 5) -> None:
+        last_exc: Optional[Exception] = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                self.logger.warning("Reconnect attempt %d/%d", attempt, max_retries)
+                self._safe_close_contexts()
+                self.connect()
+                self.logger.info("Reconnect succeeded on attempt %d", attempt)
+                return
+            except Exception as exc:  # pragma: no cover - defensive backoff logging
+                last_exc = exc
+                if attempt >= max_retries:
+                    break
+                delay = base_delay_seconds * (2 ** (attempt - 1))
+                self.logger.warning("Reconnect attempt %d failed: %s; retrying in %ss", attempt, exc, delay)
+                time.sleep(delay)
+        raise RuntimeError(f"Reconnect failed after {max_retries} attempts: {last_exc}")
 
     def get_latest_quote(self, symbol: str) -> dict:
         code = f"{self.config.market_prefix}.{symbol}"
@@ -349,6 +377,88 @@ class FutuConnector:
     def get_sync_positions(self) -> pd.DataFrame:
         data = self._safe_trade_call("position_list_query", **self._account_kwargs())
         return pd.DataFrame() if data is None else data.copy()
+
+    def get_order_status(self, order_id: str) -> dict[str, Any]:
+        """Poll single-order status from broker and normalize key fields."""
+        order_id_str = str(order_id).strip()
+        if not order_id_str:
+            raise ValueError("order_id is required")
+
+        kwargs = {"order_id": order_id_str, **self._account_kwargs()}
+        try:
+            data = self._safe_trade_call("order_list_query", **kwargs)
+        except TypeError as exc:
+            if "trd_env" not in str(exc):
+                raise
+            data = self._safe_trade_call_legacy("order_list_query", **kwargs)
+
+        if data is None or data.empty:
+            raise RuntimeError(f"order_list_query returned empty dataset for order_id={order_id_str}")
+        row = data.iloc[0].to_dict()
+        normalized = {str(k).strip().lower(): v for k, v in row.items()}
+        status_text = str(
+            normalized.get("order_status")
+            or normalized.get("status")
+            or normalized.get("orderstate")
+            or "UNKNOWN"
+        )
+        avg_price = float(
+            normalized.get("dealt_avg_price")
+            or normalized.get("avg_price")
+            or normalized.get("price")
+            or 0.0
+        )
+        dealt_qty = int(float(normalized.get("dealt_qty") or normalized.get("qty") or 0))
+        return {
+            "order_id": order_id_str,
+            "status": status_text,
+            "filled_avg_price": avg_price,
+            "dealt_qty": dealt_qty,
+            "raw": row,
+        }
+
+    def wait_for_fill(self, order_id: str, timeout_seconds: float = 60.0, poll_interval_seconds: float = 2.0) -> dict[str, Any]:
+        """Wait until an order is filled/cancelled and return the final fill summary."""
+        terminal_filled = ("filled", "all_filled", "已成交", "全部成交")
+        terminal_failed = ("cancel", "canceled", "cancelled", "failed", "rejected", "部分撤单", "拒绝")
+        started = time.time()
+        while True:
+            status = self.get_order_status(order_id)
+            lowered = str(status.get("status", "")).strip().lower()
+            if any(token in lowered for token in terminal_filled):
+                return status
+            if any(token in lowered for token in terminal_failed):
+                raise RuntimeError(f"order {order_id} ended without fill: {status}")
+            if (time.time() - started) >= timeout_seconds:
+                raise TimeoutError(f"wait_for_fill timeout for order {order_id}: last_status={status}")
+            time.sleep(max(0.1, float(poll_interval_seconds)))
+
+    def get_open_orders(self) -> pd.DataFrame:
+        """Retrieve current order list for reconnect-time reconciliation."""
+        kwargs = self._account_kwargs()
+        try:
+            data = self._safe_trade_call("order_list_query", **kwargs)
+        except TypeError as exc:
+            if "trd_env" not in str(exc):
+                raise
+            data = self._safe_trade_call_legacy("order_list_query", **kwargs)
+        return pd.DataFrame() if data is None else data.copy()
+
+    def extract_order_id(self, order_result: object) -> str:
+        if order_result is None:
+            raise RuntimeError("order_result is empty")
+        if isinstance(order_result, pd.DataFrame):
+            if order_result.empty:
+                raise RuntimeError("order_result dataframe is empty")
+            row = order_result.iloc[0].to_dict()
+            for key in ("order_id", "orderid"):
+                if key in row and str(row[key]).strip():
+                    return str(row[key]).strip()
+        if isinstance(order_result, dict):
+            for key in ("order_id", "orderid"):
+                if key in order_result and str(order_result[key]).strip():
+                    return str(order_result[key]).strip()
+        raise RuntimeError(f"unable to extract order_id from order result: {order_result}")
 
     def _is_account_disabled(self, row: dict[str, Any]) -> bool:
         status_keys = (
