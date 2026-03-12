@@ -88,23 +88,55 @@ class TrainerV41:
         self.config.reports_dir.mkdir(parents=True, exist_ok=True)
         self.feature_gen = TechnicalIndicatorGenerator()
 
+    @staticmethod
+    def _normalize_date_column(df: pd.DataFrame) -> pd.DataFrame:
+        normalized = df.copy()
+        if "Date" not in normalized.columns:
+            return normalized
+        normalized["Date"] = pd.to_datetime(normalized["Date"], errors="coerce", utc=True).dt.tz_convert(None)
+        normalized = normalized.dropna(subset=["Date"]).sort_values("Date").drop_duplicates("Date").reset_index(drop=True)
+        return normalized
+
+    def _read_symbol_frame(self, symbol: str) -> pd.DataFrame:
+        parquet_path = self.config.storage_dir / f"{symbol}_1d.parquet"
+        csv_path = self.config.storage_dir / f"{symbol}_1d.csv"
+
+        if parquet_path.exists():
+            try:
+                return self._normalize_date_column(pd.read_parquet(parquet_path))
+            except Exception as exc:
+                self.logger.warning("Failed to read parquet for %s (%s), trying csv fallback", symbol, exc)
+
+        if csv_path.exists():
+            try:
+                return self._normalize_date_column(pd.read_csv(csv_path))
+            except Exception as exc:
+                self.logger.warning("Failed to read csv for %s: %s", symbol, exc)
+
+        return pd.DataFrame()
+
+    def _write_symbol_frame(self, symbol: str, df: pd.DataFrame) -> Path:
+        normalized = self._normalize_date_column(df)
+        parquet_path = self.config.storage_dir / f"{symbol}_1d.parquet"
+        csv_path = self.config.storage_dir / f"{symbol}_1d.csv"
+        try:
+            normalized.to_parquet(parquet_path, index=False)
+            return parquet_path
+        except Exception as exc:
+            self.logger.warning("Parquet unavailable for %s (%s), writing csv fallback", symbol, exc)
+            normalized.to_csv(csv_path, index=False)
+            return csv_path
+
     async def _integrity_check_and_repair(self) -> None:
         primer = HistoryPrimer(self.logger, PrimingConfig(days=7, interval="1m", retries=2, backoff_seconds=1.0))
         missing = []
         for s in self.config.symbols:
-            p = self.config.storage_dir / f"{s}_1d.parquet"
-            if not p.exists():
-                missing.append(s)
-                continue
-            try:
-                df = pd.read_parquet(p)
-                if df.empty:
-                    missing.append(s)
-            except Exception:
+            df = self._read_symbol_frame(s)
+            if df.empty:
                 missing.append(s)
 
         if not missing:
-            self.logger.info("Integrity check OK: no missing parquet in base_10y")
+            self.logger.info("Integrity check OK: no missing symbol files in base_10y")
             return
 
         self.logger.warning("Integrity check found %d missing symbols, triggering HistoryPrimer", len(missing))
@@ -112,22 +144,14 @@ class TrainerV41:
         for sym, df in repaired.items():
             if df.empty:
                 continue
-            # Store as emergency repaired daily-like base file name to unblock pipeline.
-            out = self.config.storage_dir / f"{sym}_1d.parquet"
-            normalized = df.copy()
-            normalized["Date"] = pd.to_datetime(normalized["Date"], errors="coerce")
-            normalized = normalized.dropna(subset=["Date"]).sort_values("Date").drop_duplicates("Date").reset_index(drop=True)
-            normalized.to_parquet(out, index=False)
-            self.logger.info("Repaired and wrote %s rows for %s", len(normalized), sym)
+            out = self._write_symbol_frame(sym, df)
+            self.logger.info("Repaired and wrote %s rows for %s to %s", len(df), sym, out.name)
 
     def _load_featured(self) -> dict[str, pd.DataFrame]:
         featured = {}
         for sym in self.config.symbols:
-            p = self.config.storage_dir / f"{sym}_1d.parquet"
-            if not p.exists():
-                continue
             try:
-                df = pd.read_parquet(p)
+                df = self._read_symbol_frame(sym)
                 if df.empty:
                     continue
                 f = self.feature_gen.generate(df).ffill().bfill().dropna().reset_index(drop=True)
@@ -193,7 +217,7 @@ class TrainerV41:
             _write_histogram_svg([], self.config.reports_dir / "mse_distribution_111.svg", "111 Symbols Avg MSE Distribution")
             return summary
 
-        combined = pd.concat(featured.values(), ignore_index=True).sort_values("Date").reset_index(drop=True)
+        combined = self._normalize_date_column(pd.concat(featured.values(), ignore_index=True))
         split = int(len(combined) * 0.85)
         train_df, val_df = combined.iloc[:split], combined.iloc[split:]
 
