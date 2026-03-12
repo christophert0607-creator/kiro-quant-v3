@@ -7,6 +7,30 @@ import pandas as pd
 
 REQUIRED_COLUMNS = ["Date", "Open", "High", "Low", "Close", "Volume"]
 
+# Neutral fallback defaults used when an indicator column is entirely NaN in the
+# pandas-only path (e.g. flat prices, no volume, short warm-up windows).
+FALLBACK_ALL_NAN_DEFAULTS = {
+    "SMA_5": 0.0,
+    "SMA_10": 0.0,
+    "SMA_20": 0.0,
+    "EMA_12": 0.0,
+    "EMA_26": 0.0,
+    "RSI_14": 50.0,
+    "MACD": 0.0,
+    "MACD_SIGNAL": 0.0,
+    "MACD_HIST": 0.0,
+    "BB_UPPER": 0.0,
+    "BB_MIDDLE": 0.0,
+    "BB_LOWER": 0.0,
+    "ATR_14": 0.0,
+    "ADX_14": 0.0,
+    "CCI_14": 0.0,
+    "MFI_14": 50.0,
+    "OBV": 0.0,
+    "ROC_10": 0.0,
+    "WILLR_14": -50.0,
+}
+
 
 def _build_stderr_logger(name: str) -> logging.Logger:
     logger = logging.getLogger(name)
@@ -158,7 +182,35 @@ class TechnicalIndicatorGenerator:
         highest = high.rolling(14).max()
         lowest = low.rolling(14).min()
         df["WILLR_14"] = -100 * (highest - close) / (highest - lowest).replace(0, np.nan)
+        self._normalize_fallback_indicators(df)
         return df
+
+    def _normalize_fallback_indicators(self, df: pd.DataFrame) -> None:
+        indicator_columns = [column for column in df.columns if column not in REQUIRED_COLUMNS]
+
+        # Risk boundary: normalize only generated indicator features so raw OHLCV
+        # columns keep their original values for downstream risk/execution logic.
+        if indicator_columns:
+            df.loc[:, indicator_columns] = df[indicator_columns].replace([np.inf, -np.inf], np.nan)
+
+        for column in indicator_columns:
+            if not df[column].isna().all():
+                continue
+
+            if column in FALLBACK_ALL_NAN_DEFAULTS:
+                default_value = FALLBACK_ALL_NAN_DEFAULTS[column]
+                df[column] = default_value
+                self.logger.warning(
+                    "Fallback indicator '%s' was all-NaN; filled with neutral default %s",
+                    column,
+                    default_value,
+                )
+            else:
+                df.drop(columns=[column], inplace=True)
+                self.logger.warning(
+                    "Fallback indicator '%s' was all-NaN and has no neutral default; dropping column",
+                    column,
+                )
 
     def indicator_columns(self, data: pd.DataFrame) -> List[str]:
         return [col for col in data.columns if col not in REQUIRED_COLUMNS]
