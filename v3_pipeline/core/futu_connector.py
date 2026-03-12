@@ -177,7 +177,31 @@ class FutuConnector:
                 self.unlock_trading(self.config.trade_password)
         except Exception as exc:
             self._safe_close_contexts()
-            raise RuntimeError(f"Failed to connect to Futu OpenD: {exc}") from exc
+            raise RuntimeError(self._build_connect_error(exc)) from exc
+
+    def _is_wsl2(self) -> bool:
+        if os.getenv("WSL_DISTRO_NAME"):
+            return True
+        try:
+            return "microsoft" in Path("/proc/version").read_text(encoding="utf-8").lower()
+        except Exception:
+            return False
+
+    def _build_connect_error(self, exc: Exception) -> str:
+        base_msg = f"Failed to connect to Futu OpenD: {exc}"
+        if not self._is_wsl2():
+            return base_msg
+
+        hint = (
+            "\nWSL2 network hint: localhost in WSL2 cannot directly access Windows 127.0.0.1 when "
+            "FutuOpenD only listens on loopback. Try either:\n"
+            "1) Windows portproxy (Admin PowerShell):\n"
+            "   netsh interface portproxy add v4tov4 listenport=11111 listenaddress=0.0.0.0 "
+            "connectport=11111 connectaddress=127.0.0.1\n"
+            "2) Configure FutuOpenD to listen on 0.0.0.0\n"
+            "3) Set FUTU_OPEND_HOST to Windows host IP in WSL2 (for example 192.168.x.x)."
+        )
+        return f"{base_msg}{hint}"
 
     def close(self) -> None:
         self._safe_close_contexts()

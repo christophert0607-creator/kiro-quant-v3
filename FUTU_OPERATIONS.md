@@ -88,5 +88,22 @@ On heartbeat/sync failure:
 - **Port conflict on web UI**: ensure OpenD web port is `18889`; free `18888` for Kiro bridge.
 - **Frequent disconnects in WSL2**: verify `FUTU_OPEND_HOST`, firewall, and OpenD process health.
 
+## 9) WSL2 Deployment Notes (Windows host + Linux runtime)
+When FutuOpenD runs on Windows and strategy runs in WSL2:
+- WSL2 `127.0.0.1` is the Linux VM loopback, **not** Windows loopback.
+- If FutuOpenD only listens on `127.0.0.1`, WSL2 cannot connect directly.
+
+Recommended options:
+1. **Port forwarding on Windows (recommended)**
+   - Run in elevated PowerShell:
+   - `netsh interface portproxy add v4tov4 listenport=11111 listenaddress=0.0.0.0 connectport=11111 connectaddress=127.0.0.1`
+2. **Change FutuOpenD bind address**
+   - Configure FutuOpenD to listen on `0.0.0.0` instead of `127.0.0.1`.
+
+Deployment checklist:
+- Confirm FutuOpenD is running on Windows host and account is logged in.
+- For WSL2, configure Windows `portproxy` (or OpenD `0.0.0.0`).
+- Set `.env` / runtime env `FUTU_OPEND_HOST=<Windows host IP>` (for example `192.168.x.x`).
+
 ---
 This document is the canonical operational baseline for Kiro Quant V3 Futu integration.

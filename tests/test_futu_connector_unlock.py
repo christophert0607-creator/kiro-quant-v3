@@ -116,3 +116,49 @@ def test_connect_does_not_unlock_in_simulate_mode(monkeypatch):
 
     assert connector.trade_ctx is not None
     assert connector.trade_ctx.unlock_calls == []
+
+
+def test_connect_error_in_wsl2_includes_network_hints(monkeypatch):
+    cfg = FutuConfig(host="127.0.0.1", port=11111)
+    connector = FutuConnector(config=cfg)
+
+    class FailingFT:
+        RET_OK = 0
+
+        class TrdEnv:
+            REAL = "REAL"
+            SIMULATE = "SIMULATE"
+
+        class TrdSide:
+            BUY = "BUY"
+            SELL = "SELL"
+
+        class OrderType:
+            NORMAL = "NORMAL"
+
+        @staticmethod
+        def OpenQuoteContext(host, port):
+            raise ConnectionError("dial tcp 127.0.0.1:11111: connect: connection refused")
+
+        @staticmethod
+        def OpenUSTradeContext(host, port):
+            return DummyTradeContext()
+
+    monkeypatch.setattr(FutuConnector, "_is_wsl2", lambda self: True)
+    fake_module = types.SimpleNamespace(
+        RET_OK=FailingFT.RET_OK,
+        TrdEnv=FailingFT.TrdEnv,
+        TrdSide=FailingFT.TrdSide,
+        OrderType=FailingFT.OrderType,
+        OpenQuoteContext=FailingFT.OpenQuoteContext,
+        OpenUSTradeContext=FailingFT.OpenUSTradeContext,
+    )
+    monkeypatch.setitem(__import__("sys").modules, "futu", fake_module)
+
+    with pytest.raises(RuntimeError, match="WSL2 network hint") as exc_info:
+        connector.connect()
+
+    msg = str(exc_info.value)
+    assert "netsh interface portproxy add v4tov4" in msg
+    assert "Configure FutuOpenD to listen on 0.0.0.0" in msg
+    assert "FUTU_OPEND_HOST" in msg
