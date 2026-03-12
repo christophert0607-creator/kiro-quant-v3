@@ -51,3 +51,5 @@ python futu_api.py assets --env simulated
 - 配置改動：同步更新 `config.example.json`
 - 執行狀態：同步更新 `PROGRESS.md`
 - 交付時需附：已執行命令、結果、後續建議
+- REAL 交易模式：需設定 `FUTU_TRADE_PASSWORD`（兼容 `FUTU_TRADE_PWD`），並在連線後完成 `unlock_trade` 驗證
+- 交易代碼調整：至少新增/更新對應單元測試，並執行 `python -m pytest tests/`

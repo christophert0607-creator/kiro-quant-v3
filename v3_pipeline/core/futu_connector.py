@@ -236,14 +236,30 @@ class FutuConnector:
     def discover_accounts(self) -> pd.DataFrame:
         try:
             data = self._safe_trade_call("get_acc_list")
-            self.discovered_accounts = data.copy() if data is not None else pd.DataFrame()
-            if self.config.target_acc_id is None and not self.discovered_accounts.empty and "acc_id" in self.discovered_accounts.columns:
-                self.config.target_acc_id = int(self.discovered_accounts.iloc[0]["acc_id"])
-            return self.discovered_accounts
+        except TypeError as exc:
+            if "trd_env" not in str(exc):
+                self.logger.warning("Account discovery failed: %s", exc)
+                self.discovered_accounts = pd.DataFrame()
+                return self.discovered_accounts
+            try:
+                if self.trade_ctx is None or self.ft is None:
+                    raise RuntimeError("FutuConnector not connected")
+                ret, data = self.trade_ctx.get_acc_list(**self._account_kwargs())
+                if ret != self.ft.RET_OK:
+                    raise RuntimeError(self._build_trade_error("get_acc_list failed", data))
+            except Exception as fallback_exc:
+                self.logger.warning("Account discovery failed: %s", fallback_exc)
+                self.discovered_accounts = pd.DataFrame()
+                return self.discovered_accounts
         except Exception as exc:
             self.logger.warning("Account discovery failed: %s", exc)
             self.discovered_accounts = pd.DataFrame()
             return self.discovered_accounts
+
+        self.discovered_accounts = data.copy() if data is not None else pd.DataFrame()
+        if self.config.target_acc_id is None and not self.discovered_accounts.empty and "acc_id" in self.discovered_accounts.columns:
+            self.config.target_acc_id = int(self.discovered_accounts.iloc[0]["acc_id"])
+        return self.discovered_accounts
 
     def _account_kwargs(self) -> dict[str, Any]:
         if self.config.target_acc_id is None:

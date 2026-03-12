@@ -29,3 +29,11 @@
 - 加入 `micro` profile（超低資源巡檢模式）
 - 針對 `lite` profile 建立基準延遲與記憶體監控報表
 - 將 profile 選擇接入 dashboard 以便運維切換
+
+
+## 🆕 2026-03-12 交易解鎖補強（PR follow-up）
+- [x] 新增 `FUTU_TRADE_PASSWORD` REAL 交易解鎖流程補強與錯誤提示
+- [x] 修正 `get_acc_list` 在部分 SDK 版本不支援 `trd_env` 參數時的回退邏輯
+- [x] 補齊交易連接器單元測試（`tests/test_futu_connector_unlock.py`）
+- [x] 執行 `python -m pytest tests/` 全部通過
+- [x] 執行模擬盤（Paper Trading）連線驗證日誌：`unlock_calls=0`
