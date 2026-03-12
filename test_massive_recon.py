@@ -1,10 +1,19 @@
-import requests
 import json
+
+try:
+    import requests
+except ModuleNotFoundError:  # pragma: no cover - optional dependency for manual script
+    requests = None
+
 
 API_KEY = "hHfrJP26kgrRpr_9rS3ykzexUCppb0wQ"
 SYMBOL = "TSLA"
 
 def try_url(url, description):
+    if requests is None:
+        print("⚠️ requests not installed; skipping endpoint probe.")
+        return False
+
     print(f"Testing {description}: {url}")
     try:
         response = requests.get(url, timeout=5)
