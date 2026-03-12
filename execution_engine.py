@@ -15,7 +15,8 @@ import time
 import state_store as ss
 from risk_guard import RiskGuard
 from config import (
-    OPEND_HOST, OPEND_PORT, TRADE_PWD, TRADE_MODE, MARKET, ORDER_COOLDOWN_HOURS
+    OPEND_HOST, OPEND_PORT, TRADE_PWD, TRADE_MODE, MARKET, ORDER_COOLDOWN_HOURS,
+    EMERGENCY_DAILY_LOSS_PCT, MIN_TOTAL_ASSETS_ALERT
 )
 
 
@@ -131,6 +132,69 @@ class ExecutionEngine:
         except Exception as e:
             log.error(f"❌ 持倉查詢例外: {e}")
         return {}
+
+
+    def emergency_liquidate_all(self) -> dict:
+        """緊急賣出所有多頭持倉（市價單）。"""
+        positions = self.get_positions()
+        if not positions:
+            return {"status": "SKIP", "reason": "NoPositions", "orders": []}
+
+        results = []
+        failed = []
+        for code, pos in positions.items():
+            qty = int(pos.get("qty", 0) or 0)
+            if qty <= 0:
+                continue
+            result = self._place_sell_market_order(code=code, qty=qty)
+            results.append(result)
+            if result.get("status") != "OK":
+                failed.append(code)
+
+        if not results:
+            return {"status": "SKIP", "reason": "NoLongPositions", "orders": []}
+
+        if failed:
+            return {"status": "PARTIAL", "reason": "SomeOrdersFailed", "orders": results, "failed": failed}
+        return {"status": "OK", "orders": results}
+
+    def check_emergency_triggers(self, state: dict | None = None) -> dict:
+        """檢查並執行緊急條件（單日虧損、總資產閾值）。"""
+        state = state or ss.load()
+        account = self.get_account_info()
+        total_assets = float(account.get("total_assets", 0) or 0)
+
+        net_assets = max(total_assets, 1.0)
+        daily_pnl = ss.get_daily_pnl(state)
+        daily_loss_ratio = daily_pnl / net_assets
+
+        alerts = []
+        if total_assets and total_assets < MIN_TOTAL_ASSETS_ALERT:
+            msg = f"⚠️ 總資產低於警戒線: ${total_assets:.2f} < ${MIN_TOTAL_ASSETS_ALERT:.2f}"
+            log.warning(msg)
+            alerts.append(msg)
+
+        if daily_loss_ratio <= -EMERGENCY_DAILY_LOSS_PCT:
+            log.critical(
+                f"🛑 緊急平倉觸發: 單日虧損比率 {daily_loss_ratio:.2%} <= -{EMERGENCY_DAILY_LOSS_PCT:.2%}"
+            )
+            liquidate_result = self.emergency_liquidate_all()
+            ss.set_circuit_break(state, True)
+            ss.save(state)
+            return {
+                "triggered": True,
+                "reason": "MaxDailyLossEmergency",
+                "daily_loss_ratio": daily_loss_ratio,
+                "alerts": alerts,
+                "liquidation": liquidate_result,
+            }
+
+        return {
+            "triggered": False,
+            "daily_loss_ratio": daily_loss_ratio,
+            "alerts": alerts,
+            "total_assets": total_assets,
+        }
 
     def execute(self, code: str, signal: str, price: float) -> dict:
         """
@@ -266,6 +330,29 @@ class ExecutionEngine:
                     time.sleep(2 ** attempt)
 
         return {"status": "FAIL", "reason": "MaxRetriesExceeded"}
+
+
+    def _place_sell_market_order(self, code: str, qty: int) -> dict:
+        env = ft.TrdEnv.SIMULATE if TRADE_MODE == "SIMULATE" else ft.TrdEnv.REAL
+        if not self.trade_ctx:
+            return {"status": "FAIL", "code": code, "reason": "NoTradeContext"}
+
+        try:
+            ret, data = self.trade_ctx.place_order(
+                price=0,
+                qty=qty,
+                code=code,
+                trd_side=ft.TrdSide.SELL,
+                order_type=ft.OrderType.MARKET,
+                trd_env=env,
+            )
+            if ret == ft.RET_OK:
+                order_id = data["order_id"].values[0]
+                log.warning(f"🚨 緊急平倉下單成功: SELL {qty} {code} -> #{order_id}")
+                return {"status": "OK", "code": code, "qty": qty, "order_id": order_id}
+            return {"status": "FAIL", "code": code, "qty": qty, "reason": str(data)[:120]}
+        except Exception as e:
+            return {"status": "FAIL", "code": code, "qty": qty, "reason": str(e)}
 
     def close_short_if_needed(self, code: str, positions: dict) -> bool:
         """如果持有空頭，先平倉"""
