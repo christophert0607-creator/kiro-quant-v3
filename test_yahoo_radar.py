@@ -1,11 +1,19 @@
-import yfinance as yf
 import json
+
+try:
+    import yfinance as yf
+except ModuleNotFoundError:  # pragma: no cover - optional dependency for manual script
+    yf = None
+
 from datetime import datetime
 
 symbol = "TSLA"
 
 def get_realtime_vibe(ticker):
     print(f"📡 Scanning {ticker} via Yahoo Radar...")
+    if yf is None:
+        return {"error": "yfinance not installed"}
+
     try:
         t = yf.Ticker(ticker)
         # 獲取最近一天的 1 分鐘線 (這是最接近即時的免費數據)

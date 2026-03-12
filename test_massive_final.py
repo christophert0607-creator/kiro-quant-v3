@@ -1,6 +1,10 @@
-import requests
 import json
 import time
+
+try:
+    import requests
+except ModuleNotFoundError:  # pragma: no cover - optional dependency for manual script
+    requests = None
 
 # 🔑 哥哥大人賜予的神聖鑰匙
 API_KEY = "hHfrJP26kgrRpr_9rS3ykzexUCppb0wQ"
@@ -13,6 +17,10 @@ headers = {
 }
 
 def try_endpoint(path, description):
+    if requests is None:
+        print("⚠️ requests not installed; skipping endpoint probe.")
+        return False, None
+
     url = f"https://api.massive.com{path}"
     print(f"\n📡 Testing {description}...\nURL: {url}")
     try:
