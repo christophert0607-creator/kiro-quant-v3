@@ -10,7 +10,8 @@ logger = logging.getLogger(__name__)
 class InfowayClient:
     def __init__(self, api_key, symbols):
         self.api_key = api_key
-        self.symbols = symbols
+        # Limit to top 10 as per user requirement to maximize activity monitoring
+        self.symbols = symbols[:10] 
         self.ws_url = f"wss://data.infoway.io/ws?business=stock&apikey={api_key}"
         self.cache = {}
         self.is_running = False
@@ -21,23 +22,27 @@ class InfowayClient:
         while self.is_running:
             try:
                 async with websockets.connect(self.ws_url) as websocket:
-                    logger.info("Connected to Infoway WebSocket")
+                    logger.info(f"Connected to Infoway WebSocket (Monitoring: {self.symbols})")
                     
                     # Subscribe to latest trades (Code 10000)
                     for symbol in self.symbols:
+                        # Ensure symbol format matches Infoway (e.g., TSLA instead of US.TSLA if needed)
+                        # We'll strip prefixes like 'US.' or 'HK.' assuming Infoway raw codes
+                        clean_symbol = symbol.split('.')[-1]
                         sub_data = {
                             "code": 10000,
                             "trace": f"kiro-{datetime.now().timestamp()}",
-                            "data": {"codes": symbol}
+                            "data": {"codes": clean_symbol}
                         }
                         await websocket.send(json.dumps(sub_data))
                         await asyncio.sleep(0.5)
 
-                    # Heartbeat task
                     async def heartbeat():
                         while True:
                             ping = {"code": 10010, "trace": "ping"}
-                            await websocket.send(json.dumps(ping))
+                            try:
+                                await websocket.send(json.dumps(ping))
+                            except: break
                             await asyncio.sleep(30)
 
                     asyncio.create_task(heartbeat())
@@ -45,15 +50,17 @@ class InfowayClient:
                     async for message in websocket:
                         data = json.loads(message)
                         if "data" in data and "price" in data["data"]:
-                            sym = data["data"].get("codes", "unknown")
-                            self.cache[sym] = {
+                            raw_sym = data["data"].get("codes", "unknown")
+                            # Map back to full symbol format
+                            match = next((s for s in self.symbols if s.endswith(raw_sym)), raw_sym)
+                            self.cache[match] = {
                                 "price": float(data["data"]["price"]),
                                 "timestamp": datetime.now(),
                                 "source": "INFOWAY"
                             }
             except Exception as e:
                 logger.error(f"Infoway WS Error: {e}")
-                await asyncio.sleep(5) # Reconnect delay
+                await asyncio.sleep(5)
 
     def _start_loop(self):
         self._loop = asyncio.new_event_loop()
@@ -68,7 +75,6 @@ class InfowayClient:
     def get_price(self, symbol):
         data = self.cache.get(symbol)
         if data:
-            # Check if stale (e.g., > 10 seconds)
             if (datetime.now() - data["timestamp"]).total_seconds() < 10:
                 return data
         return None
