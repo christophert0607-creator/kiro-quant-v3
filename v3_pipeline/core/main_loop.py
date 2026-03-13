@@ -51,6 +51,13 @@ class LiveConfig:
     quote_timeout_seconds: float = 10.0
     buy_cooldown_cycles: int = 3
     log_trade_decisions: bool = True
+    swing_strategy_enabled: bool = True
+    swing_rsi_oversold: float = 30.0
+    swing_rsi_overbought: float = 70.0
+    swing_sr_window: int = 20
+    swing_sr_tolerance: float = 0.003
+    bypass_ror_gate: bool = False
+    diagnostics_verbose: bool = True
 
 
 class LiveTradingLoop:
@@ -192,22 +199,49 @@ class LiveTradingLoop:
         profile = self.strategy_factory.choose_profile(vix_value)
 
         self._detect_critical_move(symbol, current_price)
-        self.check_and_trade(symbol, current_price, prediction, confidence, profile.allow_long)
+        predicted_move = (prediction - current_price) / max(current_price, 1e-9)
+        self.logger.info(
+            "[%s] Prediction (inverse=%.4f, current=%.4f, change=%.2f%%)",
+            symbol,
+            prediction,
+            current_price,
+            predicted_move * 100,
+        )
+        self.check_and_trade(symbol, current_price, prediction, confidence, profile.allow_long, latest_frame=wfa_frame)
 
         elapsed_ms = (time.perf_counter() - started) * 1000
         self.profile_timings.append({"symbol": symbol, "elapsed_ms": elapsed_ms, "ts": datetime.now(timezone.utc).isoformat()})
 
-    def check_and_trade(self, symbol: str, current_price: float, prediction: float, confidence: float, allow_long: bool) -> None:
+    def check_and_trade(
+        self,
+        symbol: str,
+        current_price: float,
+        prediction: float,
+        confidence: float,
+        allow_long: bool,
+        latest_frame: Optional[pd.DataFrame] = None,
+    ) -> None:
         """Bridge model prediction to executable trading decisions."""
-        self._run_trading_logic(symbol, current_price, prediction, confidence, allow_long)
+        self._run_trading_logic(symbol, current_price, prediction, confidence, allow_long, latest_frame=latest_frame)
 
-    def _run_trading_logic(self, symbol: str, current_price: float, prediction: float, confidence: float, allow_long: bool) -> None:
+    def _run_trading_logic(
+        self,
+        symbol: str,
+        current_price: float,
+        prediction: float,
+        confidence: float,
+        allow_long: bool,
+        latest_frame: Optional[pd.DataFrame] = None,
+    ) -> None:
         self.equity_peak = max(self.equity_peak, self.account_value)
         if self.risk_controller.circuit_breaker_triggered(self.equity_peak, self.account_value):
             self._notify(f"🚨 Circuit breaker hit. Equity={self.account_value:.2f}")
             return
 
-        qty = self.position_qty_by_symbol.get(symbol, 0)
+        qty_raw = int(self.position_qty_by_symbol.get(symbol, 0))
+        qty = max(0, qty_raw)
+        if qty_raw < 0:
+            self.logger.warning("DIAG_QTY[%s] invalid negative qty=%d; clamped to 0", symbol, qty_raw)
         self.bars_held_by_symbol[symbol] = self.bars_held_by_symbol.get(symbol, 0) + (1 if qty > 0 else 0)
         if qty > 0:
             self.cycles_since_buy_by_symbol[symbol] = self.cycles_since_buy_by_symbol.get(symbol, 0) + 1
@@ -225,6 +259,9 @@ class LiveTradingLoop:
         threshold_up = current_price * (1 + symbol_threshold)
         threshold_down = current_price * (1 - symbol_threshold)
         predicted_move = (prediction - current_price) / max(current_price, 1e-9)
+        model_buy_signal = predicted_move > symbol_threshold
+        model_sell_signal = predicted_move < -symbol_threshold
+        swing = self._evaluate_swing_signal(symbol, current_price, latest_frame)
 
         if self.config.log_trade_decisions:
             self.logger.info(
@@ -239,8 +276,32 @@ class LiveTradingLoop:
                 threshold_down,
                 confidence,
             )
+            if self.config.swing_strategy_enabled:
+                self.logger.info(
+                    "SWING_CHECK[%s] rsi=%.2f buy=%s sell=%s support=%.4f resistance=%.4f near_support=%s near_resistance=%s",
+                    symbol,
+                    swing["rsi"],
+                    swing["buy_signal"],
+                    swing["sell_signal"],
+                    swing["support"],
+                    swing["resistance"],
+                    swing["near_support"],
+                    swing["near_resistance"],
+                )
+            if self.config.diagnostics_verbose:
+                self.logger.info(
+                    "DIAG_GATE[%s] allow_long=%s qty=%d swing_buy=%s swing_sell=%s model_buy=%s model_sell=%s bypass_ror=%s",
+                    symbol,
+                    allow_long,
+                    qty,
+                    swing["buy_signal"],
+                    swing["sell_signal"],
+                    model_buy_signal,
+                    model_sell_signal,
+                    self.config.bypass_ror_gate,
+                )
 
-        if not allow_long and prediction > threshold_up and qty == 0:
+        if not allow_long and model_buy_signal and qty == 0:
             self.logger.info(
                 "PROFILE_GATE[%s] blocked BUY because profile disallows long exposure (pred_move=%.2f%%)",
                 symbol,
@@ -248,12 +309,29 @@ class LiveTradingLoop:
             )
             return
 
-        if allow_long and prediction > threshold_up and qty == 0:
+        if self.config.swing_strategy_enabled:
+            if qty == 0 and allow_long and swing["buy_signal"]:
+                # RISK BOUNDARY: swing entries still use existing confidence-based risk sizing.
+                risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
+                alloc = self.account_value * risk_pct
+                buy_qty = max(0, int(alloc / max(current_price, 1e-9)))
+                if buy_qty > 0:
+                    self._execute(symbol, "BUY", buy_qty, current_price, f"swing_signal_conf={confidence:.3f}")
+                    return
+            elif qty > 0 and swing["sell_signal"]:
+                # RISK BOUNDARY: swing exits flatten full position to cap reversal exposure.
+                self._execute(symbol, "SELL", qty, current_price, "swing_signal")
+                return
+
+        if allow_long and model_buy_signal and qty == 0:
             returns = self.market_buffers[symbol]["Close"].pct_change().dropna()
             mc = self.monte_carlo.stress_test(returns)
             risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
             rr = max(0.5, abs(prediction - current_price) / max(current_price * symbol_threshold, 1e-6))
-            if not self.risk_controller.allow_trade_with_ror(
+            if self.config.bypass_ror_gate:
+                # RISK BOUNDARY: bypass is diagnostic-only and should not be enabled in production by default.
+                self.logger.warning("[ROR_GATE][%s] bypass enabled for diagnostics", symbol)
+            elif not self.risk_controller.allow_trade_with_ror(
                 win_rate=mc["win_rate"],
                 reward_risk_ratio=rr,
                 risk_fraction=risk_pct,
@@ -271,7 +349,7 @@ class LiveTradingLoop:
             buy_qty = max(0, int(alloc / max(current_price, 1e-9)))
             if buy_qty > 0:
                 self._execute(symbol, "BUY", buy_qty, current_price, f"model_signal_conf={confidence:.3f}")
-        elif prediction < threshold_down and qty > 0:
+        elif model_sell_signal and qty > 0:
             if self.cycles_since_buy_by_symbol.get(symbol, 0) >= self.config.buy_cooldown_cycles:
                 self._execute(symbol, "SELL", qty, current_price, "model_signal")
             else:
@@ -284,6 +362,58 @@ class LiveTradingLoop:
                 symbol_threshold * 100,
                 qty,
             )
+
+    def _evaluate_swing_signal(self, symbol: str, current_price: float, latest_frame: Optional[pd.DataFrame]) -> dict[str, float | bool]:
+        frame = latest_frame if latest_frame is not None and not latest_frame.empty else self.market_buffers.get(symbol, pd.DataFrame())
+        if frame.empty:
+            return {
+                "buy_signal": False,
+                "sell_signal": False,
+                "rsi": 50.0,
+                "support": current_price,
+                "resistance": current_price,
+                "near_support": False,
+                "near_resistance": False,
+            }
+
+        rsi_col = "RSI_14" if "RSI_14" in frame.columns else ("RSI" if "RSI" in frame.columns else None)
+        rsi_value = float(frame.iloc[-1][rsi_col]) if rsi_col else 50.0
+        if pd.isna(rsi_value):
+            rsi_value = 50.0
+
+        macd_col = "MACD" if "MACD" in frame.columns else None
+        macd_signal_col = "MACD_SIGNAL" if "MACD_SIGNAL" in frame.columns else ("MACD_sig" if "MACD_sig" in frame.columns else None)
+        macd_cross_up = False
+        macd_cross_down = False
+        if macd_col and macd_signal_col and len(frame) >= 2:
+            prev_macd = float(frame.iloc[-2][macd_col])
+            prev_signal = float(frame.iloc[-2][macd_signal_col])
+            curr_macd = float(frame.iloc[-1][macd_col])
+            curr_signal = float(frame.iloc[-1][macd_signal_col])
+            macd_cross_up = prev_macd <= prev_signal and curr_macd > curr_signal
+            macd_cross_down = prev_macd >= prev_signal and curr_macd < curr_signal
+
+        window = max(2, int(self.config.swing_sr_window))
+        lows = pd.to_numeric(frame.get("Low"), errors="coerce")
+        highs = pd.to_numeric(frame.get("High"), errors="coerce")
+        support = float(lows.tail(window).min()) if not lows.empty and lows.tail(window).notna().any() else current_price
+        resistance = float(highs.tail(window).max()) if not highs.empty and highs.tail(window).notna().any() else current_price
+        tolerance = max(0.0, float(self.config.swing_sr_tolerance))
+        near_support = current_price <= support * (1 + tolerance)
+        near_resistance = current_price >= resistance * (1 - tolerance)
+
+        buy_signal = (rsi_value < float(self.config.swing_rsi_oversold)) or macd_cross_up or near_support
+        sell_signal = (rsi_value > float(self.config.swing_rsi_overbought)) or macd_cross_down or near_resistance
+
+        return {
+            "buy_signal": buy_signal,
+            "sell_signal": sell_signal,
+            "rsi": rsi_value,
+            "support": support,
+            "resistance": resistance,
+            "near_support": near_support,
+            "near_resistance": near_resistance,
+        }
 
     def _normalize_market_buffer(self, df: pd.DataFrame) -> pd.DataFrame:
         out = df.copy()
