@@ -14,22 +14,20 @@ class DataManager:
         self.infoway.start()
 
     def get_market_data(self, symbol, market="US"):
-        # Layer 1: Infoway
+        """
+        4-Tier Data Strategy:
+        1. Infoway: Real-time active monitoring (Top 10).
+        2. Massive: Reliable secondary real-time source.
+        3. Futu: ONLY for Hong Kong (HK) stocks.
+        4. yfinance: Long-term main player (Backup & Base reference).
+        """
+        
+        # Layer 1: Infoway (Real-time Focus)
         data = self.infoway.get_price(symbol)
         if data:
             return data
 
-        # Layer 2: Futu
-        if self.futu:
-            try:
-                # Assuming FutuTrader has a method like get_market_data
-                futu_data = self.futu.get_market_data(symbol, market)
-                if futu_data and "price" in futu_data:
-                    return futu_data
-            except Exception as e:
-                logger.warning(f"Futu fallback failed for {symbol}: {e}")
-
-        # Layer 3: Massive
+        # Layer 2: Massive (Usable Real-time Backup)
         if self.massive:
             try:
                 massive_data = self.massive.get_quote(symbol)
@@ -40,11 +38,22 @@ class DataManager:
                         "timestamp": datetime.now()
                     }
             except Exception as e:
-                logger.warning(f"Massive fallback failed for {symbol}: {e}")
+                logger.debug(f"Massive fallback skipped for {symbol}: {e}")
 
-        # Layer 4: yfinance
+        # Layer 3: Futu (Restricted to HK stocks as per user request)
+        if self.futu and (symbol.startswith("HK.") or symbol.startswith("HKG.")):
+            try:
+                futu_data = self.futu.get_market_data(symbol, "HK")
+                if futu_data and "price" in futu_data:
+                    return futu_data
+            except Exception as e:
+                logger.warning(f"Futu HK fallback failed for {symbol}: {e}")
+
+        # Layer 4: yfinance (Long-term Main Player & Global Fallback)
         try:
-            ticker = yf.Ticker(symbol)
+            # Using yfinance as a stable reference as it supports almost all markets
+            ticker = yf.Ticker(symbol.split('.')[-1] if '.' in symbol else symbol)
+            # Fetching fast_info which is generally quicker than history for a single point
             price = ticker.fast_info.last_price
             if price:
                 return {
@@ -53,6 +62,6 @@ class DataManager:
                     "timestamp": datetime.now()
                 }
         except Exception as e:
-            logger.error(f"yfinance final fallback failed for {symbol}: {e}")
+            logger.error(f"yfinance (Main Player) failed for {symbol}: {e}")
 
         return None
