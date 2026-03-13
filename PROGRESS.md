@@ -112,3 +112,12 @@
 - [x] 執行 `python -m pytest tests/` 全部通過。
 - [x] 執行 paper trading 驗證：`PAPER_ORDER` 日誌可觸發。
 - [x] 執行 profiling（2,000 次 `check_and_trade`）。
+
+## 🆕 2026-03-13 Issue #43 小 bug 修復（payload + dashboard 兼容）
+- [x] `predict_pattern` payload 正規化：confidence 非數值/NaN/超界時改為容錯 + clamp 到 `[0,1]`。
+- [x] 新增 `RISK BOUNDARY` 註釋：防止 malformed confidence 放大風險倉位。
+- [x] dashboard 兼容舊版 pattern CSV（缺 `predicted_move` 欄位時動態降級顯示）。
+- [x] 新增回歸測試：覆蓋 invalid confidence payload 場景。
+- [x] 執行 `python -m pytest tests/` 全部通過。
+- [x] 執行 paper trading 驗證：`PAPER_ORDER` 日誌可觸發。
+- [x] 執行 profiling（2,000 次 `check_and_trade`）。

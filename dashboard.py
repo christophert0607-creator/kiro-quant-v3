@@ -145,7 +145,9 @@ if not df_pattern.empty and {'symbol', 'pattern', 'confidence'}.issubset(df_patt
     )
     st.dataframe(heatmap.style.background_gradient(cmap='YlOrRd', axis=None), use_container_width=True)
     latest = df_pattern.sort_values('timestamp').tail(10)
-    st.dataframe(latest[['timestamp', 'symbol', 'pattern', 'confidence', 'predicted_move']], use_container_width=True)
+    preferred_cols = ['timestamp', 'symbol', 'pattern', 'confidence', 'predicted_move']
+    visible_cols = [c for c in preferred_cols if c in latest.columns]
+    st.dataframe(latest[visible_cols], use_container_width=True)
 else:
     st.info("尚未有 pattern 訊號資料。")
 

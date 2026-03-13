@@ -100,3 +100,8 @@ python futu_api.py assets --env simulated
 - 強化 `predict_pattern` payload 驗證：非 dict 輸出不再觸發屬性錯誤，改記錄 warning 並 fallback。
 - 補齊回歸測試：無 `predict_pattern` 與 malformed payload 均可穩定執行 `_run_symbol_cycle`。
 - 再次驗證：pytest / paper trading log / profiling 全部重跑。
+
+## Issue #43 extra bugfix（2026-03-13）
+- payload 健壯性：`predict_pattern` 的 `confidence` 做型別/NaN/區間正規化，避免異常 payload 污染交易決策。
+- UI 兼容性：Pattern Heatmap 區塊對舊 CSV 欄位做動態欄位選擇，避免 KeyError。
+- 回歸覆蓋：新增 invalid confidence payload 測試，並重跑 pytest + paper log + profiling。

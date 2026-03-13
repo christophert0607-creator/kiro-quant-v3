@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 
 from notifier import send_tg_msg
@@ -148,6 +149,28 @@ class LiveTradingLoop:
 
         await asyncio.gather(*(guarded(symbol) for symbol in self.symbols))
 
+    def _normalize_pattern_meta(self, symbol: str, raw_meta: object) -> tuple[str, float]:
+        if not isinstance(raw_meta, dict):
+            self.logger.warning("[%s] predict_pattern returned non-dict payload", symbol)
+            return "Unknown", 0.0
+
+        raw_label = raw_meta.get("pattern", "Unknown")
+        label = raw_label if isinstance(raw_label, str) and raw_label.strip() else "Unknown"
+
+        raw_conf = raw_meta.get("confidence", 0.0)
+        try:
+            conf = float(raw_conf)
+        except (TypeError, ValueError):
+            self.logger.warning("[%s] predict_pattern confidence is invalid: %r", symbol, raw_conf)
+            conf = 0.0
+
+        if not np.isfinite(conf):
+            conf = 0.0
+
+        # RISK BOUNDARY: cap pattern confidence to [0, 1] to avoid malformed payloads over-amplifying risk sizing.
+        conf = min(1.0, max(0.0, conf))
+        return label, conf
+
     async def _run_symbol_cycle(self, symbol: str) -> None:
         started = time.perf_counter()
         lookback = int(self.model_manager.data_preparer.lookback)
@@ -205,14 +228,10 @@ class LiveTradingLoop:
         if callable(predict_pattern_fn):
             try:
                 candidate = predict_pattern_fn(wfa_frame, data_preparer=symbol_preparer)
-                if isinstance(candidate, dict):
-                    pattern_meta = candidate
-                else:
-                    self.logger.warning("[%s] predict_pattern returned non-dict payload", symbol)
+                pattern_meta = candidate
             except Exception as exc:
                 self.logger.warning("[%s] predict_pattern failed: %s", symbol, exc)
-        pattern_label = str(pattern_meta.get("pattern", "Unknown"))
-        pattern_confidence = float(pattern_meta.get("confidence", 0.0))
+        pattern_label, pattern_confidence = self._normalize_pattern_meta(symbol, pattern_meta)
         confidence = min(1.0, 0.7 * base_confidence + 0.3 * pattern_confidence)
         self.logger.info("Detected Pattern: %s, Prob=%.2f", pattern_label, pattern_confidence)
         self._append_pattern_snapshot(symbol, pattern_label, pattern_confidence, prediction, current_price)
