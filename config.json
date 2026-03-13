@@ -1,12 +1,4 @@
 {
-  "TSLA": {
-    "buy_price": 380.0,
-    "sell_price": 410.0
-  },
-  "TSLL": {
-    "buy_price": 13.5,
-    "sell_price": 15.0
-  },
   "auto_trade": true,
   "paper_trading": true,
   "v3_live": {
