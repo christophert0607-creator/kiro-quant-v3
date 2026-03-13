@@ -8,7 +8,7 @@ with lower memory/CPU overhead when full model capacity is not required.
 import argparse
 import json
 import os
-from dataclasses import dataclass, fields
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
@@ -125,13 +125,16 @@ def build_live_config(config_path: str = "config.json") -> dict:
         "max_hold_bars": _parse_int(v3_live.get("max_hold_bars", 5), 5),
         "max_positions": _parse_int(v3_live.get("max_positions", 5), 5),
         "max_position_fraction_per_symbol": float(v3_live.get("max_position_fraction_per_symbol", 0.30)),
-        "ruin_threshold": float(v3_live.get("ruin_threshold", 0.15)),
     }
 
 
-def _filter_live_config_kwargs(live_cfg_cls: type, raw_cfg: dict[str, Any]) -> dict[str, Any]:
-    allowed_fields = {f.name for f in fields(live_cfg_cls)}
-    return {key: value for key, value in raw_cfg.items() if key in allowed_fields}
+def build_risk_config(config_path: str = "config.json") -> dict[str, float]:
+    cfg = _load_cfg(config_path)
+    v3_live = cfg.get("v3_live", {}) if isinstance(cfg, dict) else {}
+    return {
+        "ruin_threshold": float(v3_live.get("ruin_threshold", 0.15)),
+        "max_position_fraction": min(1.0, max(0.0, float(v3_live.get("max_position_fraction_per_symbol", 0.30)))),
+    }
 
 
 def resolve_runtime_profile(config_path: str = "config.json", override: Optional[str] = None) -> RuntimeProfile:
@@ -151,6 +154,7 @@ def resolve_runtime_profile(config_path: str = "config.json", override: Optional
 
 def run_kiro_v35(config_path: str = "config.json", profile_override: Optional[str] = None, dry_run: bool = False) -> None:
     live_cfg_data = build_live_config(config_path)
+    risk_cfg_data = build_risk_config(config_path)
     profile = resolve_runtime_profile(config_path=config_path, override=profile_override)
 
     if dry_run:
@@ -177,11 +181,11 @@ def run_kiro_v35(config_path: str = "config.json", profile_override: Optional[st
     )
     manager = ModelManager(model=model, data_preparer=preparer)
 
-    live_cfg = LiveConfig(**_filter_live_config_kwargs(LiveConfig, live_cfg_data))
+    live_cfg = LiveConfig(**live_cfg_data)
 
     risk_cfg = RiskConfig(
-        ruin_threshold=float(live_cfg_data.get("ruin_threshold", 0.15)),
-        max_position_fraction=min(1.0, max(0.0, float(live_cfg_data.get("max_position_fraction_per_symbol", 0.30)))),
+        ruin_threshold=risk_cfg_data["ruin_threshold"],
+        max_position_fraction=risk_cfg_data["max_position_fraction"],
     )
 
     loop = LiveTradingLoop(

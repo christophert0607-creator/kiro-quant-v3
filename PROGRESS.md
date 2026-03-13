@@ -137,3 +137,13 @@
 - [x] 新增回歸測試：`tests/test_v3_launcher_live_config_filter.py`（驗證 unknown key 會被濾除）
 - [x] 執行驗證：`python -m py_compile v3_launcher.py`
 - [x] 執行測試：`python -m pytest tests/test_v3_launcher_live_config_filter.py -q`
+
+
+## 🆕 2026-03-13 Review #46 follow-up（LiveConfig/RiskConfig 拆分）
+- [x] 處理 #46 comment：移除 launcher 內以反射過濾 `LiveConfig` 欄位的 workaround，改為資料來源分流
+- [x] `build_live_config()` 只回傳 `LiveConfig` 需要欄位（不再包含 `ruin_threshold`）
+- [x] 新增 `build_risk_config()`，集中輸出 `ruin_threshold` / `max_position_fraction` 供 `RiskConfig`
+- [x] `run_kiro_v35()` 改為 `LiveConfig(**live_cfg_data)` + `RiskConfig(**risk_cfg_data)`，避免參數責任混雜
+- [x] 更新回歸測試：`tests/test_v3_launcher_live_config_filter.py` 驗證 live/risk 設定拆分邏輯
+- [x] 執行驗證：`python -m py_compile v3_launcher.py`
+- [x] 執行測試：`python -m pytest tests/test_v3_launcher_live_config_filter.py -q`
