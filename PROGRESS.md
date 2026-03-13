@@ -37,3 +37,11 @@
 - [x] 補齊交易連接器單元測試（`tests/test_futu_connector_unlock.py`）
 - [x] 執行 `python -m pytest tests/` 全部通過
 - [x] 執行模擬盤（Paper Trading）連線驗證日誌：`unlock_calls=0`
+
+## 🆕 2026-03-13 Issue #35 交易橋接修復（CRITICAL）
+- [x] 明確建立 `check_and_trade()` 橋接函數，將預測到交易決策路徑顯性化（`_run_symbol_cycle -> check_and_trade -> _run_trading_logic`）
+- [x] 新增交易決策可觀測日誌：`TRADE_CHECK` / `PROFILE_GATE` / `HOLD`，避免「有預測但無交易日誌」盲區
+- [x] 新增回歸測試（`tests/test_main_loop_trade_bridge.py`）覆蓋：交易橋接調用與 `allow_long=False` 攔截記錄
+- [x] 執行完整測試：`python -m pytest tests/` 全部通過
+- [x] 執行 Paper Trading 驗證日誌：`PAPER_ORDER TSLA BUY qty=81 ...`（確認交易路徑可觸發）
+- [x] 執行簡易 profiling（5,000 次 `check_and_trade`）確認新增日誌邏輯未造成異常性回歸
