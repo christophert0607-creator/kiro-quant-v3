@@ -23,10 +23,10 @@ def _build_stderr_logger(name: str) -> logging.Logger:
 @dataclass
 class RiskConfig:
     max_drawdown: float = 0.20
-    max_position_fraction: float = 0.05
+    max_position_fraction: float = 0.25
     trailing_stop_pct: float = 0.05
-    ruin_threshold: float = 0.35
-    max_trade_var_95: float = 0.03
+    ruin_threshold: float = 0.85
+    max_trade_var_95: float = 0.10
 
 
 class RiskController:

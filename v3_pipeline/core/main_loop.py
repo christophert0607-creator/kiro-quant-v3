@@ -75,6 +75,7 @@ class LiveTradingLoop:
         self.highest_price_since_entry_by_symbol: dict[str, float] = {s: 0.0 for s in self.symbols}
         self.bars_held_by_symbol: dict[str, int] = {s: 0 for s in self.symbols}
         self.cycles_since_buy_by_symbol: dict[str, int] = {s: 999999 for s in self.symbols}
+        self.entry_price_by_symbol: dict[str, float] = {s: 0.0 for s in self.symbols}
         self.last_price_by_symbol: dict[str, float] = {}
         self.profile_timings: list[dict] = []
 
@@ -204,6 +205,18 @@ class LiveTradingLoop:
         stop_pct = self.strategy_factory.trailing_stop_by_volatility(float(volatility) if pd.notna(volatility) else 0.0, self.bars_held_by_symbol[symbol])
 
         if qty > 0:
+            entry_price = self.entry_price_by_symbol.get(symbol, current_price)
+            if entry_price > 0:
+                profit_pct = (current_price - entry_price) / entry_price
+                if profit_pct >= 0.01:
+                    self.logger.info("[%s] Take profit triggered! profit=%.2f%%", symbol, profit_pct * 100)
+                    self._execute(symbol, "SELL", qty, current_price, "take_profit_1pct")
+                    return
+                elif profit_pct <= -0.02:
+                    self.logger.info("[%s] Stop loss triggered! loss=%.2f%%", symbol, profit_pct * 100)
+                    self._execute(symbol, "SELL", qty, current_price, "stop_loss_2pct")
+                    return
+
             self.highest_price_since_entry_by_symbol[symbol] = max(self.highest_price_since_entry_by_symbol.get(symbol, 0.0), current_price)
             stop_price = self.highest_price_since_entry_by_symbol[symbol] * (1 - stop_pct)
             if current_price < stop_price:
@@ -233,7 +246,13 @@ class LiveTradingLoop:
                 )
                 return
 
-            alloc = self.account_value * risk_pct
+            active_positions = sum(1 for q in self.position_qty_by_symbol.values() if q > 0)
+            if active_positions >= 5:
+                self.logger.info("[%s] Max portfolio positions (5) reached, skipping buy", symbol)
+                return
+
+            max_alloc = self.account_value * 0.25
+            alloc = min(self.account_value * risk_pct, max_alloc)
             buy_qty = max(0, int(alloc / max(current_price, 1e-9)))
             if buy_qty > 0:
                 self._execute(symbol, "BUY", buy_qty, current_price, f"model_signal_conf={confidence:.3f}")
@@ -306,6 +325,7 @@ class LiveTradingLoop:
         if side == "BUY":
             self.position_qty_by_symbol[symbol] += qty
             self.highest_price_since_entry_by_symbol[symbol] = fill_price
+            self.entry_price_by_symbol[symbol] = fill_price
             self.cycles_since_buy_by_symbol[symbol] = 0
         else:
             self.position_qty_by_symbol[symbol] = max(0, self.position_qty_by_symbol[symbol] - qty)
