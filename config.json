@@ -13,7 +13,9 @@
     "symbols_list": [
       "TSLA",
       "TSLL",
-      "NVDA"
+      "NVDA",
+      "AAPL",
+      "MSFT"
     ],
     "prediction_thresholds": {
       "TSLA": 0.01,
@@ -23,6 +25,11 @@
     "buy_cooldown_cycles": 3,
     "polling_seconds": 15,
     "auto_trade": true,
-    "paper_trading": true
+    "paper_trading": true,
+    "quick_take_profit_pct": 0.01,
+    "stop_loss_pct": 0.02,
+    "max_positions": 5,
+    "max_position_fraction_per_symbol": 0.3,
+    "ruin_threshold": 0.15
   }
 }

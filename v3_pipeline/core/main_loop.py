@@ -60,7 +60,10 @@ class LiveConfig:
     bypass_ror_gate: bool = False
     diagnostics_verbose: bool = True
     quick_take_profit_pct: float = 0.01
+    stop_loss_pct: float = 0.02
     max_hold_bars: int = 5
+    max_positions: int = 5
+    max_position_fraction_per_symbol: float = 0.30
     pattern_confidence_threshold: float = 0.65
     pattern_threshold_relaxation: float = 0.25
 
@@ -328,6 +331,12 @@ class LiveTradingLoop:
                 self._execute(symbol, "SELL", qty, current_price, f"quick_take_profit_{self.config.quick_take_profit_pct:.4f}")
                 return
 
+            # RISK BOUNDARY: hard stop-loss clips downside when momentum regime flips.
+            stop_loss_price = entry_price * (1 - max(0.0, float(self.config.stop_loss_pct)))
+            if current_price <= stop_loss_price:
+                self._execute(symbol, "SELL", qty, current_price, f"stop_loss_{self.config.stop_loss_pct:.4f}")
+                return
+
             # RISK BOUNDARY: time-based exit caps exposure duration and fee drag from over-holding.
             max_hold_bars = max(1, int(self.config.max_hold_bars))
             if self.bars_held_by_symbol.get(symbol, 0) >= max_hold_bars:
@@ -395,9 +404,20 @@ class LiveTradingLoop:
 
         if self.config.swing_strategy_enabled:
             if qty == 0 and allow_long and swing["buy_signal"]:
+                open_positions = sum(1 for held_qty in self.position_qty_by_symbol.values() if held_qty > 0)
+                if open_positions >= max(1, int(self.config.max_positions)):
+                    self.logger.info(
+                        "POSITION_CAP[%s] blocked SWING BUY: open_positions=%d cap=%d",
+                        symbol,
+                        open_positions,
+                        int(self.config.max_positions),
+                    )
+                    return
                 # RISK BOUNDARY: swing entries still use existing confidence-based risk sizing.
                 risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
                 alloc = self.account_value * risk_pct
+                diversification_cap = self.account_value * max(0.0, float(self.config.max_position_fraction_per_symbol))
+                alloc = min(alloc, diversification_cap)
                 buy_qty = max(0, int(alloc / max(current_price, 1e-9)))
                 if buy_qty > 0:
                     self._execute(symbol, "BUY", buy_qty, current_price, f"swing_signal_conf={confidence:.3f}")
@@ -408,6 +428,16 @@ class LiveTradingLoop:
                 return
 
         if allow_long and model_buy_signal and qty == 0:
+            open_positions = sum(1 for held_qty in self.position_qty_by_symbol.values() if held_qty > 0)
+            if open_positions >= max(1, int(self.config.max_positions)):
+                self.logger.info(
+                    "POSITION_CAP[%s] blocked BUY: open_positions=%d cap=%d",
+                    symbol,
+                    open_positions,
+                    int(self.config.max_positions),
+                )
+                return
+
             returns = self.market_buffers[symbol]["Close"].pct_change().dropna()
             mc = self.monte_carlo.stress_test(returns)
             risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
@@ -430,6 +460,8 @@ class LiveTradingLoop:
                 return
 
             alloc = self.account_value * risk_pct
+            diversification_cap = self.account_value * max(0.0, float(self.config.max_position_fraction_per_symbol))
+            alloc = min(alloc, diversification_cap)
             buy_qty = max(0, int(alloc / max(current_price, 1e-9)))
             if buy_qty > 0:
                 self._execute(symbol, "BUY", buy_qty, current_price, f"model_signal_conf={confidence:.3f}")
