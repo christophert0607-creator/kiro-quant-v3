@@ -1,0 +1,236 @@
+/home/tsukii0607/.openclaw/workspace/skills/kiro-quant/train_custom.py:78: UserWarning: The given NumPy array is not writable, and PyTorch does not support non-writable tensors. This means writing to this tensor will result in undefined behavior. You may want to copy the array to protect its data or make it writable before converting it to a tensor. This type of warning will be suppressed for the rest of this program. (Triggered internally at /pytorch/torch/csrc/utils/tensor_numpy.cpp:213.)
+  y_tensor = torch.LongTensor(y)
+開始訓練 33 隻股票的模型...
+
+=== 訓練 OKLO ===
+  Epoch 0: loss=0.6979
+  Epoch 5: loss=0.6900
+  Epoch 10: loss=0.6897
+  Epoch 15: loss=0.6868
+  ✅ 已保存: models/OKLO_model.pt
+
+=== 訓練 NET ===
+  Epoch 0: loss=0.7183
+  Epoch 5: loss=0.7019
+  Epoch 10: loss=0.6946
+  Epoch 15: loss=0.6886
+  ✅ 已保存: models/NET_model.pt
+
+=== 訓練 SNOW ===
+  Epoch 0: loss=0.6932
+  Epoch 5: loss=0.6852
+  Epoch 10: loss=0.6847
+  Epoch 15: loss=0.6831
+  ✅ 已保存: models/SNOW_model.pt
+
+=== 訓練 UPST ===
+  Epoch 0: loss=0.6922
+  Epoch 5: loss=0.6883
+  Epoch 10: loss=0.6859
+  Epoch 15: loss=0.6864
+  ✅ 已保存: models/UPST_model.pt
+
+=== 訓練 NEE ===
+  Epoch 0: loss=0.6899
+  Epoch 5: loss=0.6861
+  Epoch 10: loss=0.6869
+  Epoch 15: loss=0.6852
+  ✅ 已保存: models/NEE_model.pt
+
+=== 訓練 TSLL ===
+  Epoch 0: loss=0.7011
+  Epoch 5: loss=0.6903
+  Epoch 10: loss=0.6865
+  Epoch 15: loss=0.6865
+  ✅ 已保存: models/TSLL_model.pt
+
+=== 訓練 AFRM ===
+  Epoch 0: loss=0.6984
+  Epoch 5: loss=0.6907
+  Epoch 10: loss=0.6904
+  Epoch 15: loss=0.6879
+  ✅ 已保存: models/AFRM_model.pt
+
+=== 訓練 BBAI ===
+  Epoch 0: loss=0.6880
+  Epoch 5: loss=0.6843
+  Epoch 10: loss=0.6854
+  Epoch 15: loss=0.6824
+  ✅ 已保存: models/BBAI_model.pt
+
+=== 訓練 NNE ===
+  Epoch 0: loss=0.6928
+  Epoch 5: loss=0.6853
+  Epoch 10: loss=0.6838
+  Epoch 15: loss=0.6790
+  ✅ 已保存: models/NNE_model.pt
+
+=== 訓練 COIN ===
+  Epoch 0: loss=0.7020
+  Epoch 5: loss=0.6903
+  Epoch 10: loss=0.6910
+  Epoch 15: loss=0.6855
+  ✅ 已保存: models/COIN_model.pt
+
+=== 訓練 PLTR ===
+  Epoch 0: loss=0.6998
+  Epoch 5: loss=0.6941
+  Epoch 10: loss=0.6867
+  Epoch 15: loss=0.6908
+  ✅ 已保存: models/PLTR_model.pt
+
+=== 訓練 AMZN ===
+  Epoch 0: loss=0.6939
+  Epoch 5: loss=0.6925
+  Epoch 10: loss=0.6900
+  Epoch 15: loss=0.6887
+  ✅ 已保存: models/AMZN_model.pt
+
+=== 訓練 SOUN ===
+  Epoch 0: loss=0.7018
+  Epoch 5: loss=0.6872
+  Epoch 10: loss=0.6830
+  Epoch 15: loss=0.6807
+  ✅ 已保存: models/SOUN_model.pt
+
+=== 訓練 MSFT ===
+  Epoch 0: loss=0.6958
+  Epoch 5: loss=0.6911
+  Epoch 10: loss=0.6886
+  Epoch 15: loss=0.6895
+  ✅ 已保存: models/MSFT_model.pt
+
+=== 訓練 TSLA ===
+  Epoch 0: loss=0.7004
+  Epoch 5: loss=0.6931
+  Epoch 10: loss=0.6912
+  Epoch 15: loss=0.6885
+  ✅ 已保存: models/TSLA_model.pt
+
+=== 訓練 AAPL ===
+  Epoch 0: loss=0.6939
+  Epoch 5: loss=0.6874
+  Epoch 10: loss=0.6807
+  Epoch 15: loss=0.6827
+  ✅ 已保存: models/AAPL_model.pt
+
+=== 訓練 SMCI ===
+  Epoch 0: loss=0.7140
+  Epoch 5: loss=0.6951
+  Epoch 10: loss=0.6903
+  Epoch 15: loss=0.6850
+  ✅ 已保存: models/SMCI_model.pt
+
+=== 訓練 GOOGL ===
+  Epoch 0: loss=0.7047
+  Epoch 5: loss=0.6936
+  Epoch 10: loss=0.6905
+  Epoch 15: loss=0.6879
+  ✅ 已保存: models/GOOGL_model.pt
+
+=== 訓練 NVDA ===
+  Epoch 0: loss=0.7324
+  Epoch 5: loss=0.7062
+  Epoch 10: loss=0.6917
+  Epoch 15: loss=0.6869
+  ✅ 已保存: models/NVDA_model.pt
+
+=== 訓練 DELL ===
+  Epoch 0: loss=0.7087
+  Epoch 5: loss=0.6981
+  Epoch 10: loss=0.6908
+  Epoch 15: loss=0.6874
+  ✅ 已保存: models/DELL_model.pt
+
+=== 訓練 AI ===
+  Epoch 0: loss=0.7124
+  Epoch 5: loss=0.6975
+  Epoch 10: loss=0.6912
+  Epoch 15: loss=0.6915
+  ✅ 已保存: models/AI_model.pt
+
+=== 訓練 AMD ===
+  Epoch 0: loss=0.7047
+  Epoch 5: loss=0.6947
+  Epoch 10: loss=0.6922
+  Epoch 15: loss=0.6894
+  ✅ 已保存: models/AMD_model.pt
+
+=== 訓練 CCJ ===
+  Epoch 0: loss=0.6917
+  Epoch 5: loss=0.6901
+  Epoch 10: loss=0.6889
+  Epoch 15: loss=0.6902
+  ✅ 已保存: models/CCJ_model.pt
+
+=== 訓練 CRM ===
+  Epoch 0: loss=0.6963
+  Epoch 5: loss=0.6916
+  Epoch 10: loss=0.6899
+  Epoch 15: loss=0.6907
+  ✅ 已保存: models/CRM_model.pt
+
+=== 訓練 ORCL ===
+  Epoch 0: loss=0.7117
+  Epoch 5: loss=0.6973
+  Epoch 10: loss=0.6938
+  Epoch 15: loss=0.6866
+  ✅ 已保存: models/ORCL_model.pt
+
+=== 訓練 META ===
+  Epoch 0: loss=0.6969
+  Epoch 5: loss=0.6903
+  Epoch 10: loss=0.6905
+  Epoch 15: loss=0.6853
+  ✅ 已保存: models/META_model.pt
+
+=== 訓練 BWXT ===
+  Epoch 0: loss=0.6913
+  Epoch 5: loss=0.6887
+  Epoch 10: loss=0.6851
+  Epoch 15: loss=0.6856
+  ✅ 已保存: models/BWXT_model.pt
+
+=== 訓練 IBM ===
+  Epoch 0: loss=0.6980
+  Epoch 5: loss=0.6926
+  Epoch 10: loss=0.6873
+  Epoch 15: loss=0.6859
+  ✅ 已保存: models/IBM_model.pt
+
+=== 訓練 INTC ===
+  Epoch 0: loss=0.7080
+  Epoch 5: loss=0.6966
+  Epoch 10: loss=0.6977
+  Epoch 15: loss=0.6902
+  ✅ 已保存: models/INTC_model.pt
+
+=== 訓練 HOOD ===
+  Epoch 0: loss=0.6943
+  Epoch 5: loss=0.6884
+  Epoch 10: loss=0.6843
+  Epoch 15: loss=0.6887
+  ✅ 已保存: models/HOOD_model.pt
+
+=== 訓練 HPQ ===
+  Epoch 0: loss=0.6987
+  Epoch 5: loss=0.6924
+  Epoch 10: loss=0.6899
+  Epoch 15: loss=0.6937
+  ✅ 已保存: models/HPQ_model.pt
+
+=== 訓練 DDOG ===
+  Epoch 0: loss=0.7002
+  Epoch 5: loss=0.6887
+  Epoch 10: loss=0.6841
+  Epoch 15: loss=0.6787
+  ✅ 已保存: models/DDOG_model.pt
+
+=== 訓練 MDB ===
+  Epoch 0: loss=0.6911
+  Epoch 5: loss=0.6895
+  Epoch 10: loss=0.6856
+  Epoch 15: loss=0.6859
+  ✅ 已保存: models/MDB_model.pt
+
+=== 訓練完成 ===

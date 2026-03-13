@@ -92,12 +92,12 @@ class TrainerV41:
         primer = HistoryPrimer(self.logger, PrimingConfig(days=7, interval="1m", retries=2, backoff_seconds=1.0))
         missing = []
         for s in self.config.symbols:
-            p = self.config.storage_dir / f"{s}_1d.parquet"
+            p = self.config.storage_dir / f"{s}_1d.csv"
             if not p.exists():
                 missing.append(s)
                 continue
             try:
-                df = pd.read_parquet(p)
+                df = pd.read_csv(p)
                 if df.empty:
                     missing.append(s)
             except Exception:
@@ -113,21 +113,21 @@ class TrainerV41:
             if df.empty:
                 continue
             # Store as emergency repaired daily-like base file name to unblock pipeline.
-            out = self.config.storage_dir / f"{sym}_1d.parquet"
+            out = self.config.storage_dir / f"{sym}_1d.csv"
             normalized = df.copy()
             normalized["Date"] = pd.to_datetime(normalized["Date"], errors="coerce")
             normalized = normalized.dropna(subset=["Date"]).sort_values("Date").drop_duplicates("Date").reset_index(drop=True)
-            normalized.to_parquet(out, index=False)
+            normalized.to_csv(out, index=False)
             self.logger.info("Repaired and wrote %s rows for %s", len(normalized), sym)
 
     def _load_featured(self) -> dict[str, pd.DataFrame]:
         featured = {}
         for sym in self.config.symbols:
-            p = self.config.storage_dir / f"{sym}_1d.parquet"
+            p = self.config.storage_dir / f"{sym}_1d.csv"
             if not p.exists():
                 continue
             try:
-                df = pd.read_parquet(p)
+                df = pd.read_csv(p)
                 if df.empty:
                     continue
                 f = self.feature_gen.generate(df).ffill().bfill().dropna().reset_index(drop=True)

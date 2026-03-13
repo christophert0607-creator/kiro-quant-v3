@@ -1,1 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="960" height="420"><rect width="100%" height="100%" fill="#0d1117"/><text x="50%" y="50%" fill="#c9d1d9" text-anchor="middle">No data</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="420">
+  <rect width="100%" height="100%" fill="#0d1117"/>
+  <line x1="50" y1="370" x2="910" y2="370" stroke="#8b949e"/>
+  <line x1="50" y1="50" x2="50" y2="370" stroke="#8b949e"/>
+  <rect x="50.00" y="210.00" width="154.80" height="160.00" fill="#58a6ff"/><rect x="222.00" y="370.00" width="154.80" height="0.00" fill="#58a6ff"/><rect x="394.00" y="370.00" width="154.80" height="0.00" fill="#58a6ff"/><rect x="566.00" y="370.00" width="154.80" height="0.00" fill="#58a6ff"/><rect x="738.00" y="50.00" width="154.80" height="320.00" fill="#58a6ff"/>
+  <text x="480.0" y="26" text-anchor="middle" fill="#c9d1d9">111 Symbols Avg MSE Distribution</text>
+  <text x="50" y="406" fill="#8b949e" font-size="12">min=0.024840</text>
+  <text x="910" y="406" fill="#8b949e" font-size="12" text-anchor="end">max=0.062808</text>
+</svg>

@@ -1,0 +1,95 @@
+2026-03-12 20:28:52 | TechnicalIndicatorGenerator | WARNING | TA-Lib unavailable, using pandas fallback indicators: No module named 'talib'
+2026-03-12 20:28:52 | TrainerV41 | WARNING | Integrity check found 30 missing symbols, triggering HistoryPrimer
+2026-03-12 20:28:53 | TrainerV41 | INFO | HistoryPriming[OKLO]: downloaded 2729 bars
+2026-03-12 20:28:53 | TrainerV41 | INFO | HistoryPriming[NEE]: downloaded 2730 bars
+2026-03-12 20:28:53 | TrainerV41 | INFO | HistoryPriming[AFRM]: downloaded 2724 bars
+2026-03-12 20:28:53 | TrainerV41 | INFO | HistoryPriming[NET]: downloaded 2715 bars
+2026-03-12 20:28:53 | TrainerV41 | INFO | HistoryPriming[CCJ]: downloaded 2728 bars
+2026-03-12 20:28:53 | TrainerV41 | INFO | HistoryPriming[COIN]: downloaded 2730 bars
+2026-03-12 20:28:53 | TrainerV41 | INFO | HistoryPriming[HOOD]: downloaded 2729 bars
+2026-03-12 20:28:53 | TrainerV41 | INFO | HistoryPriming[BBAI]: downloaded 2730 bars
+2026-03-12 20:28:53 | TrainerV41 | INFO | HistoryPriming[AMD]: downloaded 2730 bars
+2026-03-12 20:28:53 | TrainerV41 | INFO | HistoryPriming[DELL]: downloaded 2729 bars
+2026-03-12 20:28:53 | TrainerV41 | INFO | HistoryPriming[SMCI]: downloaded 2730 bars
+2026-03-12 20:28:53 | TrainerV41 | INFO | HistoryPriming[SNOW]: downloaded 2730 bars
+2026-03-12 20:28:53 | TrainerV41 | INFO | HistoryPriming[IBM]: downloaded 2730 bars
+2026-03-12 20:28:53 | TrainerV41 | INFO | HistoryPriming[META]: downloaded 2729 bars
+2026-03-12 20:28:53 | TrainerV41 | INFO | HistoryPriming[HPQ]: downloaded 2730 bars
+2026-03-12 20:28:53 | TrainerV41 | INFO | HistoryPriming[AMZN]: downloaded 2730 bars
+2026-03-12 20:28:53 | TrainerV41 | INFO | HistoryPriming[AI]: downloaded 2730 bars
+2026-03-12 20:28:53 | TrainerV41 | INFO | HistoryPriming[SOUN]: downloaded 2730 bars
+2026-03-12 20:28:54 | TrainerV41 | INFO | HistoryPriming[CRM]: downloaded 2730 bars
+2026-03-12 20:28:54 | TrainerV41 | INFO | HistoryPriming[AAPL]: downloaded 2729 bars
+2026-03-12 20:28:54 | TrainerV41 | INFO | HistoryPriming[TSLL]: downloaded 2730 bars
+2026-03-12 20:28:54 | TrainerV41 | INFO | HistoryPriming[GOOGL]: downloaded 2729 bars
+2026-03-12 20:28:54 | TrainerV41 | INFO | HistoryPriming[ORCL]: downloaded 2730 bars
+2026-03-12 20:28:54 | TrainerV41 | INFO | HistoryPriming[BWXT]: downloaded 2229 bars
+2026-03-12 20:28:54 | TrainerV41 | INFO | HistoryPriming[UPST]: downloaded 2724 bars
+2026-03-12 20:28:54 | TrainerV41 | INFO | HistoryPriming[PLTR]: downloaded 2729 bars
+2026-03-12 20:28:54 | TrainerV41 | INFO | HistoryPriming[NNE]: downloaded 2487 bars
+2026-03-12 20:28:54 | TrainerV41 | INFO | HistoryPriming[DDOG]: downloaded 2720 bars
+2026-03-12 20:28:54 | TrainerV41 | INFO | HistoryPriming[MDB]: downloaded 2718 bars
+2026-03-12 20:28:54 | TrainerV41 | INFO | HistoryPriming[INTC]: downloaded 2729 bars
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2729 rows for OKLO
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2715 rows for NET
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2730 rows for SNOW
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2724 rows for UPST
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2730 rows for NEE
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2730 rows for TSLL
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2724 rows for AFRM
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2730 rows for BBAI
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2487 rows for NNE
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2730 rows for COIN
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2729 rows for PLTR
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2730 rows for AMZN
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2730 rows for SOUN
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2729 rows for AAPL
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2730 rows for SMCI
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2729 rows for GOOGL
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2729 rows for DELL
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2730 rows for AI
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2730 rows for AMD
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2728 rows for CCJ
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2730 rows for CRM
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2730 rows for ORCL
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2729 rows for META
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2229 rows for BWXT
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2730 rows for IBM
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2729 rows for INTC
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2729 rows for HOOD
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2730 rows for HPQ
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2720 rows for DDOG
+2026-03-12 20:28:54 | TrainerV41 | INFO | Repaired and wrote 2718 rows for MDB
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for OKLO: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for NET: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for SNOW: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for UPST: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for NEE: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for TSLL: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for AFRM: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for BBAI: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for NNE: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for COIN: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for PLTR: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for AMZN: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for SOUN: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for MSFT: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for TSLA: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for AAPL: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for SMCI: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for GOOGL: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for NVDA: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for DELL: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for AI: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for AMD: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for CCJ: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for CRM: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for ORCL: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for META: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for BWXT: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for IBM: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for INTC: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for HOOD: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for HPQ: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for DDOG: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.
+2026-03-12 20:28:55 | TrainerV41 | WARNING | Load/feature failed for MDB: Mixed timezones detected. Pass utc=True in to_datetime or tz='UTC' in DatetimeIndex to convert to a common timezone.

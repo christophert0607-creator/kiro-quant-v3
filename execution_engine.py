@@ -174,9 +174,19 @@ class ExecutionEngine:
             import time as _time
             # 同一交易日內已有 BUY 紀錄 → 跳過（冷卻時間可配置，默認 1 小時）
             cooldown_secs = ORDER_COOLDOWN_HOURS * 3600
-            if last_signal == "BUY" and (_time.time() - last_time) < cooldown_secs:
-                log.info(f"⏸ {code} 今日已下 BUY（{int((_time.time()-last_time)/60)} 分鐘前），等待成交確認")
-                return {"status": "SKIP", "reason": "OrderPending"}
+            time_since_last = _time.time() - last_time
+            if last_signal == "BUY" and time_since_last < cooldown_secs:
+                # 檢查持倉是否已更新，如果已持有多頭，不應再下單
+                current_pos = positions.get(code, {}).get("qty", 0)
+                if current_pos > 0:
+                    log.info(f"⏸ {code} 已持有 {current_pos} 股多頭，跳過重複 BUY")
+                    return {"status": "SKIP", "reason": "AlreadyLongPosition"}
+                # 如果還沒持倉但下單未超過冷卻時間，檢查是否超過 10 分鐘
+                if time_since_last < 600:  # 10 分鐘內
+                    log.info(f"⏸ {code} 今日已下 BUY（{int(time_since_last/60)} 分鐘前），等待成交確認")
+                    return {"status": "SKIP", "reason": "OrderPending"}
+                # 超過 10 分鐘但未成交，可能是之前訂單有問題，重置並允許重新下單
+                log.warning(f"⚠️ {code} 先前 BUY 訂單 {int(time_since_last/60)} 分鐘未成交，清除狀態並重試")
 
         # 3. 風控檢查
         risk_result = self.risk.check(
@@ -268,43 +278,67 @@ class ExecutionEngine:
         return {"status": "FAIL", "reason": "MaxRetriesExceeded"}
 
     def close_short_if_needed(self, code: str, positions: dict) -> bool:
-        """如果持有空頭，先平倉"""
+        """如果持有空頭，先平倉 - 改進版：增加重試和狀態確認"""
         pos = positions.get(code, {})
         qty = pos.get("qty", 0)
         if qty < 0:  # 空頭持倉
             abs_qty = abs(int(qty))
             log.warning(f"⚠️ {code} 有空頭 {qty} 股，先平倉...")
             env = ft.TrdEnv.SIMULATE if TRADE_MODE == "SIMULATE" else ft.TrdEnv.REAL
-            try:
-                ret, data = self.trade_ctx.place_order(
-                    price=0,
-                    qty=abs_qty,
-                    code=code,
-                    trd_side=ft.TrdSide.BUY,
-                    order_type=ft.OrderType.MARKET,
-                    trd_env=env,
-                )
-                if ret == ft.RET_OK:
-                    log.info(f"✅ 空頭平倉下單成功: {code} {abs_qty}股，等待撮合...")
-                    time.sleep(3)  # 等待成交與狀態更新
-                    return True
-                else:
-                    log.error(f"❌ 空頭平倉失敗: {data}")
-                    return False
-            except Exception as e:
-                log.error(f"❌ 平倉例外: {e}")
-                return False
+            
+            # 最多重試 3 次
+            for attempt in range(1, 4):
+                try:
+                    # 使用限價單而非市價單，價格設為0讓系統自動處理
+                    ret, data = self.trade_ctx.place_order(
+                        price=0,
+                        qty=abs_qty,
+                        code=code,
+                        trd_side=ft.TrdSide.BUY,
+                        order_type=ft.OrderType.MARKET,
+                        trd_env=env,
+                    )
+                    if ret == ft.RET_OK:
+                        log.info(f"✅ 空頭平倉下單成功: {code} {abs_qty}股，等待撮合...")
+                        # 等待成交與狀態更新，逐步增加等待時間
+                        wait_time = 3 * attempt
+                        time.sleep(wait_time)
+                        
+                        # 重新查詢持倉確認是否平倉成功
+                        new_positions = self.get_positions()
+                        new_qty = new_positions.get(code, {}).get("qty", 0)
+                        if new_qty >= 0:
+                            log.info(f"✅ 空頭平倉確認成功: {code} 當前持倉 {new_qty}")
+                            return True
+                        else:
+                            log.warning(f"⚠️ 空頭平倉後仍為空頭: {code} {new_qty}股，重試...")
+                    else:
+                        err_msg = str(data)
+                        log.error(f"❌ 空頭平倉失敗 (嘗試{attempt}): {err_msg[:80]}")
+                        # 如果是永久性錯誤，不再重試
+                        if "持有空头" in err_msg or "InsufficientQty" in err_msg:
+                            log.warning(f"🚫 空頭平倉遇到永久性錯誤，跳過: {err_msg[:60]}")
+                            return False
+                        time.sleep(2 ** attempt)
+                except Exception as e:
+                    log.error(f"❌ 平倉例外 (嘗試{attempt}): {e}")
+                    if attempt < 3:
+                        time.sleep(2 ** attempt)
+            
+            log.error(f"❌ 空頭平倉最終失敗: {code} 經過3次嘗試")
+            return False
         return True  # 無空頭，直接返回 OK
 
     @staticmethod
     def _classify_error(error_msg: str) -> str:
-        """分類錯誤類型"""
+        """分類錯誤類型 - 增強版"""
         permanent_keywords = [
             "InsufficientQty", "InvalidCode", "TradingHalted",
             "MarketClosed", "InvalidPrice", "InvalidQty",
-            "持有空头", "空头", "购买力不足", "资金不足"
+            "持有空头", "空头", "购买力不足", "资金不足", "购买力"
         ]
+        error_lower = error_msg.lower()
         for kw in permanent_keywords:
-            if kw.lower() in error_msg.lower():
+            if kw.lower() in error_lower:
                 return "PERMANENT"
         return "RETRYABLE"

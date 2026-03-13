@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiro Quant v3 - 專業量化分析終端</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- TradingView Lightweight Charts -->
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="ph-fill ph-chart-polar"></i>
+                <span>Kiro Quant <span class="badge">v3</span></span>
+            </div>
+            
+            <nav class="nav-menu">
+                <div class="nav-group">
+                    <span class="nav-label">核心功能</span>
+                    <a href="#" class="nav-item active"><i class="ph ph-squares-four"></i> 行情看板</a>
+                    <a href="#" class="nav-item"><i class="ph ph-chart-line-up"></i> K線分析</a>
+                    <a href="#" class="nav-item"><i class="ph ph-trend-up"></i> 技術指標</a>
+                    <a href="#" class="nav-item"><i class="ph ph-list-dashes"></i> 板塊數據</a>
+                </div>
+                
+                <div class="nav-group">
+                    <span class="nav-label">系統監控</span>
+                    <a href="#" class="nav-item"><i class="ph ph-cpu"></i> 運行狀態</a>
+                    <a href="#" class="nav-item"><i class="ph ph-gear"></i> 系統設置</a>
+                </div>
+            </nav>
+
+            <div class="connection-status">
+                <div class="status-indicator"></div>
+                <div class="status-info">
+                    <span class="status-title">FutuOpenD</span>
+                    <span class="status-text">已連接 (127.0.0.1:11111)</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="top-bar">
+                <div class="search-bar">
+                    <i class="ph ph-magnifying-glass"></i>
+                    <input type="text" placeholder="輸入股票代碼，例如: 00700, AAPL...">
+                    <select class="market-select">
+                        <option value="HK">港股 HK</option>
+                        <option value="US">美股 US</option>
+                        <option value="CN">A股 CN</option>
+                    </select>
+                </div>
+                <div class="header-actions">
+                    <div class="datetime" id="current-time">--:--:--</div>
+                    <button class="icon-btn"><i class="ph ph-bell"></i></button>
+                    <div class="user-profile">
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Kiro" alt="User">
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dashboard Grid -->
+            <div class="dashboard-grid">
+                <!-- Market Overview Cards -->
+                <div class="market-cards">
+                    <div class="market-card up">
+                        <div class="card-header">
+                            <span class="symbol">00700.HK <span class="name">騰訊控股</span></span>
+                            <i class="ph-fill ph-trend-up"></i>
+                        </div>
+                        <div class="price-info">
+                            <h3 class="price">288.40</h3>
+                            <span class="change">+4.20 (+1.48%)</span>
+                        </div>
+                        <div class="mini-chart" id="mini-chart-1"></div>
+                    </div>
+                    
+                    <div class="market-card down">
+                        <div class="card-header">
+                            <span class="symbol">AAPL.US <span class="name">Apple Inc.</span></span>
+                            <i class="ph-fill ph-trend-down"></i>
+                        </div>
+                        <div class="price-info">
+                            <h3 class="price">173.50</h3>
+                            <span class="change">-2.10 (-1.20%)</span>
+                        </div>
+                        <div class="mini-chart" id="mini-chart-2"></div>
+                    </div>
+
+                    <div class="market-card up">
+                        <div class="card-header">
+                            <span class="symbol">TSLA.US <span class="name">Tesla</span></span>
+                            <i class="ph-fill ph-trend-up"></i>
+                        </div>
+                        <div class="price-info">
+                            <h3 class="price">198.85</h3>
+                            <span class="change">+5.35 (+2.76%)</span>
+                        </div>
+                        <div class="mini-chart" id="mini-chart-3"></div>
+                    </div>
+                </div>
+
+                <!-- Main Chart Area -->
+                <div class="chart-container glass-panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <h2>00700.HK - 騰訊控股</h2>
+                            <div class="timeframes">
+                                <button class="tf-btn">1m</button>
+                                <button class="tf-btn">5m</button>
+                                <button class="tf-btn active">1D</button>
+                                <button class="tf-btn">1W</button>
+                            </div>
+                        </div>
+                        <div class="panel-actions">
+                            <button class="action-btn"><i class="ph ph-chart-line"></i> 指標</button>
+                            <button class="action-btn"><i class="ph ph-arrows-out-simple"></i></button>
+                        </div>
+                    </div>
+                    <div id="main-chart" class="tv-chart"></div>
+                </div>
+
+                <!-- Technical Indicators Panel -->
+                <div class="indicators-panel glass-panel">
+                    <div class="panel-header">
+                        <h2>技術指標分析</h2>
+                        <span class="update-time">最後更新: 剛剛</span>
+                    </div>
+                    <div class="indicators-grid">
+                        <div class="indicator-box rsi overbought">
+                            <div class="ind-head">
+                                <span>RSI (14)</span>
+                                <span class="signal">超買</span>
+                            </div>
+                            <div class="ind-value">75.4</div>
+                            <div class="progress-bar"><div class="fill" style="width: 75.4%"></div></div>
+                        </div>
+                        <div class="indicator-box macd bullish">
+                            <div class="ind-head">
+                                <span>MACD (12,26,9)</span>
+                                <span class="signal">金叉</span>
+                            </div>
+                            <div class="ind-value">+2.45</div>
+                            <div class="histogram-mini">
+                                <!-- CSS bars -->
+                                <div class="bar up h-30"></div>
+                                <div class="bar up h-50"></div>
+                                <div class="bar up h-80"></div>
+                                <div class="bar up h-100"></div>
+                            </div>
+                        </div>
+                        <div class="indicator-box bb neutral">
+                            <div class="ind-head">
+                                <span>布林帶 (20,2)</span>
+                                <span class="signal">中軌之上</span>
+                            </div>
+                            <div class="ind-value">280.5</div>
+                            <div class="bb-bands">
+                                <span>UP: 295.2</span>
+                                <span>DN: 265.8</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="terminal-output mt-4">
+                        <div class="term-header">
+                            <span>> futu_api.py indicators 00700 --type day --count 30</span>
+                        </div>
+                        <div class="term-body" id="terminal-content">
+                            [INFO] 連接到 FutuOpenD 127.0.0.1:11111 成功<br>
+                            [INFO] 獲取 00700.HK 日線數據 30 條...<br>
+                            [INFO] 計算 RSI, MACD, BOLL 指標完成<br>
+                            <span class="text-warning">🔴 RSI超買，注意回調風險 (當前: 75.4)</span><br>
+                            <span class="text-success">🟢 MACD動能強勁，延續上升趨勢</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

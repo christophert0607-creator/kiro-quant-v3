@@ -1,0 +1,36 @@
+開始下載 33 隻股票的歷史數據...
+下載 OKLO... ✅ 501 rows
+下載 NET... ✅ 501 rows
+下載 SNOW... ✅ 501 rows
+下載 UPST... ✅ 501 rows
+下載 NEE... ✅ 501 rows
+下載 TSLL... ✅ 501 rows
+下載 AFRM... ✅ 501 rows
+下載 BBAI... ✅ 501 rows
+下載 NNE... ✅ 461 rows
+下載 COIN... ✅ 501 rows
+下載 PLTR... ✅ 501 rows
+下載 AMZN... ✅ 501 rows
+下載 SOUN... ✅ 501 rows
+下載 MSFT... ✅ 501 rows
+下載 TSLA... ✅ 501 rows
+下載 AAPL... ✅ 501 rows
+下載 SMCI... ✅ 501 rows
+下載 GOOGL... ✅ 501 rows
+下載 NVDA... ✅ 501 rows
+下載 DELL... ✅ 501 rows
+下載 AI... ✅ 501 rows
+下載 AMD... ✅ 501 rows
+下載 CCJ... ✅ 501 rows
+下載 CRM... ✅ 501 rows
+下載 ORCL... ✅ 501 rows
+下載 META... ✅ 501 rows
+下載 BWXT... ✅ 501 rows
+下載 IBM... ✅ 501 rows
+下載 INTC... ✅ 501 rows
+下載 HOOD... ✅ 501 rows
+下載 HPQ... ✅ 501 rows
+下載 DDOG... ✅ 501 rows
+下載 MDB... ✅ 501 rows
+
+完成！數據保存在 stocks/

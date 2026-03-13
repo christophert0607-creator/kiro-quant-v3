@@ -1,0 +1,53 @@
+//@version=5
+// Kiro Quant V3 - TradingView 整合腳本
+// 連接 Kiro Quant 系統，實現信號同步
+
+strategy("Kiro Quant V3 信號策略", 
+     overlay=true, 
+     default_qty_type=strategy.percent_of_equity,
+     default_qty_value=10,
+     commission_type=strategy.commission.percent,
+     commission_value=0.1)
+
+// ==================== 配置 ==================== //
+var string group_config = "📡 Kiro Quant 連接"
+WebHookURL = input.string("", title="WebHook URL", group=group_config)
+EnableSignal = input.bool(true, title="啟用信號發送", group=group_config)
+
+// ==================== 信號檢測 ==================== //
+rsiVal = ta.rsi(close, 14)
+macd = ta.macd(close, 12, 26, 9)
+[_, _, signalLine] = macd
+
+// 買入信號: RSI < 30 + MACD 金叉
+bullishSignal = rsiVal < 30 and ta.crossover(macd[0], signalLine[0])
+
+// 賣出信號: RSI > 70 + MACD 死叉
+bearishSignal = rsiVal > 70 and ta.crossunder(macd[0], signalLine[0])
+
+// ==================== 執行交易 ==================== //
+if (bullishSignal)
+    strategy.entry("Kiro_BUY", strategy.long)
+    if (EnableSignal and WebHookURL != "")
+        alert(WebHookURL + "?signal=BUY&symbol=" + syminfo.ticker + "&price=" + str.tostring(close), alert.freq_once_per_bar)
+
+if (bearishSignal)
+    strategy.entry("Kiro_SELL", strategy.short)
+    if (EnableSignal and WebHookURL != "")
+        alert(WebHookURL + "?signal=SELL&symbol=" + syminfo.ticker + "&price=" + str.tostring(close), alert.freq_once_per_bar)
+
+// ==================== 圖表標記 ==================== //
+plotshape(bullishSignal, title="買入", location=location.belowbar, color=color.green, style=shape.labelup, text="Kiro\nBUY")
+plotshape(bearishSignal, title="賣出", location=location.abovebar, color=color.red, style=shape.labeldown, text="Kiro\nSELL")
+
+// ==================== 數據面板 ==================== //
+var table dataTable = table.new(position.top_right, 2, 3, bgcolor=color.new(color.black, 90))
+table.cell(dataTable, 0, 0, "RSI (14)", text_color=color.white)
+table.cell(dataTable, 1, 0, str.tostring(rsiVal, "#.00"), text_color=rsiVal < 30 ? color.green : rsiVal > 70 ? color.red : color.white)
+table.cell(dataTable, 0, 1, "MACD Signal", text_color=color.white)
+table.cell(dataTable, 1, 1, bullishSignal ? "BUY" : bearishSignal ? "SELL" : "WAIT", 
+     text_color=bullishSignal ? color.green : bearishSignal ? color.red : color.gray)
+
+plot(rsiVal, title="RSI", color=rsiVal > 70 ? color.red : rsiVal < 30 ? color.green : color.purple, linewidth=2)
+hline(30, "oversold", color=color.green, linestyle=hline.style_dashed)
+hline(70, "overbought", color=color.red, linestyle=hline.style_dashed)
