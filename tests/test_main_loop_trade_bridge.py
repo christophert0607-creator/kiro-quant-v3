@@ -51,6 +51,19 @@ class _DummyModelManagerNoPattern:
     def predict(self, *_args, **_kwargs):
         return self._prediction
 
+
+
+class _DummyModelManagerBadPatternPayload:
+    def __init__(self, prediction: float):
+        self.data_preparer = _ImportStubPreparer()
+        self._prediction = prediction
+
+    def predict(self, *_args, **_kwargs):
+        return self._prediction
+
+    def predict_pattern(self, *_args, **_kwargs):
+        return "not_a_dict"
+
 class _DummyRiskController:
     def __init__(self, allow_ror: bool = True):
         self.allow_ror = allow_ror
@@ -481,6 +494,36 @@ def test_high_confidence_bullish_pattern_relaxes_buy_threshold():
 
 def test_run_symbol_cycle_backwards_compatible_without_predict_pattern():
     model_manager = _DummyModelManagerNoPattern(prediction=102.0)
+    cfg = LiveConfig(
+        symbol="TSLA",
+        symbols_list=["TSLA"],
+        prediction_threshold=0.01,
+        prediction_thresholds={"TSLA": 0.01},
+        auto_trade=False,
+        paper_trading=True,
+        log_trade_decisions=True,
+        polling_seconds=1,
+    )
+    loop = LiveTradingLoop(
+        model_manager=model_manager,
+        risk_controller=_DummyRiskController(allow_ror=True),
+        futu_connector=_DummyConnector(),
+        feature_generator=_PassFeatureGenerator(),
+        config=cfg,
+    )
+    loop.alpha_engine = _PassAlphaEngine()
+    loop.market_buffers["TSLA"] = pd.DataFrame([
+        {"Date": pd.Timestamp("2026-03-13T09:59:00Z"), "Open": 99.0, "High": 100.0, "Low": 98.0, "Close": 99.5, "Volume": 9000, "data_source": "seed"},
+        {"Date": pd.Timestamp("2026-03-13T09:59:30Z"), "Open": 99.5, "High": 100.1, "Low": 99.1, "Close": 100.0, "Volume": 9200, "data_source": "seed"},
+    ])
+
+    asyncio.run(loop._run_symbol_cycle("TSLA"))
+
+    assert "TSLA" in loop.latest_prices
+
+
+def test_run_symbol_cycle_handles_non_dict_pattern_payload():
+    model_manager = _DummyModelManagerBadPatternPayload(prediction=102.0)
     cfg = LiveConfig(
         symbol="TSLA",
         symbols_list=["TSLA"],

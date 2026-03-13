@@ -95,3 +95,8 @@ python futu_api.py assets --env simulated
 - 修復可用性：pattern snapshot CSV 寫入加入例外保護，確保主迴圈穩定。
 - 修復訓練邊界：`trainer_pattern_v1` 小樣本 split 風險防護。
 - 回歸覆蓋：新增無 `predict_pattern` 相容測試，並再次跑全量 pytest + paper log + profiling。
+
+## Issue #43 comment follow-up（2026-03-13）
+- 強化 `predict_pattern` payload 驗證：非 dict 輸出不再觸發屬性錯誤，改記錄 warning 並 fallback。
+- 補齊回歸測試：無 `predict_pattern` 與 malformed payload 均可穩定執行 `_run_symbol_cycle`。
+- 再次驗證：pytest / paper trading log / profiling 全部重跑。

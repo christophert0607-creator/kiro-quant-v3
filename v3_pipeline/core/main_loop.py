@@ -204,7 +204,11 @@ class LiveTradingLoop:
         predict_pattern_fn = getattr(self.model_manager, "predict_pattern", None)
         if callable(predict_pattern_fn):
             try:
-                pattern_meta = predict_pattern_fn(wfa_frame, data_preparer=symbol_preparer)
+                candidate = predict_pattern_fn(wfa_frame, data_preparer=symbol_preparer)
+                if isinstance(candidate, dict):
+                    pattern_meta = candidate
+                else:
+                    self.logger.warning("[%s] predict_pattern returned non-dict payload", symbol)
             except Exception as exc:
                 self.logger.warning("[%s] predict_pattern failed: %s", symbol, exc)
         pattern_label = str(pattern_meta.get("pattern", "Unknown"))

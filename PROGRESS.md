@@ -105,3 +105,10 @@
 - [x] 執行 `python -m pytest tests/` 全部通過。
 - [x] 執行 paper trading 驗證：輸出 `PAPER_ORDER TSLA BUY ...`。
 - [x] 執行 profiling（2,000 次 `check_and_trade`）。
+
+## 🆕 2026-03-13 Issue #43 follow-up（comment 修復）
+- [x] 強化相容防護：`predict_pattern` 回傳非 dict payload 時改為 warning + fallback，不中斷交易循環。
+- [x] 新增回歸測試：覆蓋 malformed pattern payload 場景（string payload）。
+- [x] 執行 `python -m pytest tests/` 全部通過。
+- [x] 執行 paper trading 驗證：`PAPER_ORDER` 日誌可觸發。
+- [x] 執行 profiling（2,000 次 `check_and_trade`）。
