@@ -121,3 +121,11 @@
 - [x] 執行 `python -m pytest tests/` 全部通過。
 - [x] 執行 paper trading 驗證：`PAPER_ORDER` 日誌可觸發。
 - [x] 執行 profiling（2,000 次 `check_and_trade`）。
+
+
+## 🆕 2026-03-13 Review #47 follow-up（main_loop 精簡優化）
+- [x] 處理 #47 comment：避免買入路徑重覆計算風險比例，改為在呼叫點先算 `risk_pct` 再傳入 `_compute_buy_quantity`
+- [x] 調整 `_compute_buy_quantity` 介面為可接收 `risk_pct`（保留 `confidence` fallback）
+- [x] Swing BUY / Model BUY 兩條路徑統一使用同一買量計算 helper，減少冗長並保持行為一致
+- [x] 執行驗證：`python -m py_compile v3_pipeline/core/main_loop.py`
+- [x] 執行回歸：`python -m pytest tests/test_main_loop_trade_bridge.py -q`（18 passed）

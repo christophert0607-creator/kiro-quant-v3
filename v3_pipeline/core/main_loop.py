@@ -406,7 +406,8 @@ class LiveTradingLoop:
             if qty == 0 and allow_long and swing["buy_signal"]:
                 if self._position_cap_reached(symbol, "SWING BUY"):
                     return
-                buy_qty = self._compute_buy_quantity(confidence, current_price)
+                swing_risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
+                buy_qty = self._compute_buy_quantity(current_price, risk_pct=swing_risk_pct)
                 if buy_qty > 0:
                     self._execute(symbol, "BUY", buy_qty, current_price, f"swing_signal_conf={confidence:.3f}")
                     return
@@ -440,7 +441,7 @@ class LiveTradingLoop:
                 )
                 return
 
-            buy_qty = self._compute_buy_quantity(confidence, current_price)
+            buy_qty = self._compute_buy_quantity(current_price, risk_pct=risk_pct)
             if buy_qty > 0:
                 self._execute(symbol, "BUY", buy_qty, current_price, f"model_signal_conf={confidence:.3f}")
         elif model_sell_signal and qty > 0:
@@ -474,9 +475,9 @@ class LiveTradingLoop:
         )
         return True
 
-    def _compute_buy_quantity(self, confidence: float, current_price: float) -> int:
-        risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
-        allocation = self.account_value * risk_pct
+    def _compute_buy_quantity(self, current_price: float, risk_pct: Optional[float] = None, confidence: float = 0.0) -> int:
+        effective_risk_pct = risk_pct if risk_pct is not None else self.strategy_factory.confidence_to_risk_pct(confidence)
+        allocation = self.account_value * effective_risk_pct
         diversification_cap = self.account_value * max(0.0, float(self.config.max_position_fraction_per_symbol))
         effective_allocation = min(allocation, diversification_cap)
         return max(0, int(effective_allocation / max(current_price, 1e-9)))
