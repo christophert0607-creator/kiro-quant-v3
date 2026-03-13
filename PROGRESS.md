@@ -45,3 +45,33 @@
 - [x] 執行完整測試：`python -m pytest tests/` 全部通過
 - [x] 執行 Paper Trading 驗證日誌：`PAPER_ORDER TSLA BUY qty=81 ...`（確認交易路徑可觸發）
 - [x] 執行簡易 profiling（5,000 次 `check_and_trade`）確認新增日誌邏輯未造成異常性回歸
+
+## 🆕 2026-03-13 Issue 狀態同步（#32 / #28 / #25 / #24 / #23）
+- [x] 同步多實例模擬架構（#32）狀態為「🟡 諮詢中」
+- [x] 同步 Codex 執行任務（#28）狀態為「🟡 進行中」
+- [x] 同步 GPU 長期訓練（#25）狀態為「🟡 進行中」
+- [x] 同步 安全隱患 + Dashboard（#24）狀態為「🟡 部分完成」
+- [x] 同步 pyarrow 依賴（#23）狀態為「🟡 已修復」
+
+
+## 🆕 2026-03-13 Issue #29 + #38/#39 波段策略與日誌修復
+- [x] 修復主循環預測日誌缺少股票代碼：新增 `[{SYMBOL}] Prediction (inverse/current/change%)`
+- [x] 交易邏輯升級為波段訊號優先：RSI 超買/超賣、MACD 金叉/死叉、支撐/阻力觸發
+- [x] 保留原預測閾值策略作為 fallback，維持向後兼容
+- [x] 新增單元測試覆蓋波段買入、波段賣出、symbol 預測日誌
+- [x] 執行 `python -m pytest tests/` 全部通過
+- [x] 執行 Paper Trading 驗證：可產生 `PAPER_ORDER` 日誌
+- [x] 執行 `check_and_trade` profiling（5,000 次）確認新增判斷邏輯可接受
+
+
+## 🆕 2026-03-13 Issue #35/#29 交易診斷與門檻修復（follow-up）
+- [x] 新增 `DIAG_GATE` 診斷日誌，顯示 swing/model 訊號與 `allow_long` / `qty` / ROR bypass 狀態
+- [x] 新增 `bypass_ror_gate` 開關（預設關閉）供問題定位時臨時繞過 ROR gate
+- [x] 修正模型進出場觸發判斷為「相對變化」(`predicted_move` 對 `prediction_threshold`)
+- [x] 強化參數防護：負倉位 qty 記錄 `DIAG_QTY` 並自動 clamp 至 0
+- [x] 補齊單元測試：relative threshold、ROR bypass、allow_long/qty 診斷上下文
+- [x] 執行 `python -m pytest tests/` 全部通過
+- [x] 執行 Paper Trading 驗證：`PAPER_ORDER` 日誌可觸發
+- [x] 執行 `check_and_trade` profiling（5,000 次）
+
+- [x] 回應 review comment：新增 `DIAG_QTY` / `bypass_ror_gate` 日誌測試，確保診斷行為可驗證

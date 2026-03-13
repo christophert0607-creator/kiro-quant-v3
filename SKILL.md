@@ -59,3 +59,19 @@ python futu_api.py assets --env simulated
 - Paper Trading：新增 `PaperTradingSimulator`，模擬成交滑點、現金與持倉，輸出 `paper_trading_pnl.json`。
 - 自動重連：新增 `reconnect(max_retries=10)`，採指數退避（5s, 10s, 20s ...）並在重連後同步倉位與訂單。
 - P&L 追蹤：新增 `PnLTracker`，記錄成本價、成交時間、已實現/未實現盈虧，輸出 `pnl_report.json`。
+
+
+## Issue #29 + #38/#39 交易邏輯更新（2026-03-13）
+- 日誌可觀測性：在主循環輸出 `[{SYMBOL}] Prediction (inverse, current, change%)`，避免多標的時無法識別來源。
+- 波段策略：交易決策加入 RSI / MACD 交叉 / 支撐阻力觸發條件（可由 `LiveConfig` 開關與參數調整）。
+- 風險邊界：波段進場沿用 confidence 風險倉位；波段出場為全平倉以降低反轉風險。
+- 回歸測試：`tests/test_main_loop_trade_bridge.py` 新增波段買賣訊號與 symbol 預測日誌測試。
+
+
+## Issue #35/#29 診斷策略補充（2026-03-13）
+- 交易診斷：使用 `DIAG_GATE` 檢查 `allow_long`、`qty`、swing/model 訊號與 `bypass_ror_gate` 狀態。
+- 臨時繞過：`LiveConfig.bypass_ror_gate=True` 可在定位階段跳過 ROR gate（預設 `False`）。
+- 門檻判斷：模型路徑以 `predicted_move`（相對變化）對比 `prediction_threshold`。
+- 防呆：若倉位為負，記錄 `DIAG_QTY` 並 clamp 為 0，避免後續決策污染。
+
+- 診斷回歸：針對 `DIAG_QTY` 與 ROR bypass warning 需有單元測試覆蓋，避免診斷開關失效。
