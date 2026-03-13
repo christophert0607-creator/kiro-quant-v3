@@ -44,10 +44,19 @@ def _detect_opend_host() -> str:
 
     return "192.168.128.1"
 
+
+# ============================================================
+# Infoway & Data Priority Config
+# ============================================================
+INFOWAY_CONFIG = {
+    "API_KEY": "9d122d7ab6fd4965bb45e28e9cf00435",
+    "WS_URL": "wss://data.infoway.io/ws?business=stock",
+}
+DATA_PRIORITY = ["INFOWAY", "FUTU", "MASSIVE", "YFINANCE"]
 # ============================================================
 # ⚠️  TRADE MODE - 唯一控制開關
 # ============================================================
-TRADE_MODE = "SIMULATE"   # 只改呢一行就可以切換 "SIMULATE" / "LIVE"
+TRADE_MODE = "SIMULATE" # Keep SIMULATE but use Real Data   # 只改呢一行就可以切換 "SIMULATE" / "LIVE"
 
 # ============================================================
 # Futu OpenD 連線參數
