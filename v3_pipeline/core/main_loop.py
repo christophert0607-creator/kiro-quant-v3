@@ -404,21 +404,9 @@ class LiveTradingLoop:
 
         if self.config.swing_strategy_enabled:
             if qty == 0 and allow_long and swing["buy_signal"]:
-                open_positions = sum(1 for held_qty in self.position_qty_by_symbol.values() if held_qty > 0)
-                if open_positions >= max(1, int(self.config.max_positions)):
-                    self.logger.info(
-                        "POSITION_CAP[%s] blocked SWING BUY: open_positions=%d cap=%d",
-                        symbol,
-                        open_positions,
-                        int(self.config.max_positions),
-                    )
+                if self._position_cap_reached(symbol, "SWING BUY"):
                     return
-                # RISK BOUNDARY: swing entries still use existing confidence-based risk sizing.
-                risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
-                alloc = self.account_value * risk_pct
-                diversification_cap = self.account_value * max(0.0, float(self.config.max_position_fraction_per_symbol))
-                alloc = min(alloc, diversification_cap)
-                buy_qty = max(0, int(alloc / max(current_price, 1e-9)))
+                buy_qty = self._compute_buy_quantity(confidence, current_price)
                 if buy_qty > 0:
                     self._execute(symbol, "BUY", buy_qty, current_price, f"swing_signal_conf={confidence:.3f}")
                     return
@@ -428,14 +416,7 @@ class LiveTradingLoop:
                 return
 
         if allow_long and model_buy_signal and qty == 0:
-            open_positions = sum(1 for held_qty in self.position_qty_by_symbol.values() if held_qty > 0)
-            if open_positions >= max(1, int(self.config.max_positions)):
-                self.logger.info(
-                    "POSITION_CAP[%s] blocked BUY: open_positions=%d cap=%d",
-                    symbol,
-                    open_positions,
-                    int(self.config.max_positions),
-                )
+            if self._position_cap_reached(symbol, "BUY"):
                 return
 
             returns = self.market_buffers[symbol]["Close"].pct_change().dropna()
@@ -459,10 +440,7 @@ class LiveTradingLoop:
                 )
                 return
 
-            alloc = self.account_value * risk_pct
-            diversification_cap = self.account_value * max(0.0, float(self.config.max_position_fraction_per_symbol))
-            alloc = min(alloc, diversification_cap)
-            buy_qty = max(0, int(alloc / max(current_price, 1e-9)))
+            buy_qty = self._compute_buy_quantity(confidence, current_price)
             if buy_qty > 0:
                 self._execute(symbol, "BUY", buy_qty, current_price, f"model_signal_conf={confidence:.3f}")
         elif model_sell_signal and qty > 0:
@@ -478,6 +456,30 @@ class LiveTradingLoop:
                 symbol_threshold * 100,
                 qty,
             )
+
+    def _open_positions_count(self) -> int:
+        return sum(1 for held_qty in self.position_qty_by_symbol.values() if held_qty > 0)
+
+    def _position_cap_reached(self, symbol: str, action_label: str) -> bool:
+        open_positions = self._open_positions_count()
+        position_cap = max(1, int(self.config.max_positions))
+        if open_positions < position_cap:
+            return False
+        self.logger.info(
+            "POSITION_CAP[%s] blocked %s: open_positions=%d cap=%d",
+            symbol,
+            action_label,
+            open_positions,
+            position_cap,
+        )
+        return True
+
+    def _compute_buy_quantity(self, confidence: float, current_price: float) -> int:
+        risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
+        allocation = self.account_value * risk_pct
+        diversification_cap = self.account_value * max(0.0, float(self.config.max_position_fraction_per_symbol))
+        effective_allocation = min(allocation, diversification_cap)
+        return max(0, int(effective_allocation / max(current_price, 1e-9)))
 
     def _evaluate_swing_signal(self, symbol: str, current_price: float, latest_frame: Optional[pd.DataFrame]) -> dict[str, float | bool]:
         frame = latest_frame if latest_frame is not None and not latest_frame.empty else self.market_buffers.get(symbol, pd.DataFrame())
