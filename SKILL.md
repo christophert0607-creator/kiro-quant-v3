@@ -17,6 +17,7 @@ description: |
 2. 要 Agent 自行接手執行整套量化流程
 3. 更新任務進度（TASK LIST / PROGRESS）
 4. Futu API 行情、資金流、持倉、模擬交易排查
+5. 匯報 Kiro Quant 系統狀態
 
 ## 最小執行流程（Agent Runbook）
 1. **讀配置**：先讀 `config.json`（無則參考 `config.example.json`）
@@ -54,54 +55,41 @@ python futu_api.py assets --env simulated
 - REAL 交易模式：需設定 `FUTU_TRADE_PASSWORD`（兼容 `FUTU_TRADE_PWD`），並在連線後完成 `unlock_trade` 驗證
 - 交易代碼調整：至少新增/更新對應單元測試，並執行 `python -m pytest tests/`
 
-## Issue #16-19 交易系統擴展（2026-03）
-- 訂單成交確認：`FutuConnector.get_order_status(order_id)` + `wait_for_fill()`，在更新本地倉位前先確認成交。
-- Paper Trading：新增 `PaperTradingSimulator`，模擬成交滑點、現金與持倉，輸出 `paper_trading_pnl.json`。
-- 自動重連：新增 `reconnect(max_retries=10)`，採指數退避（5s, 10s, 20s ...）並在重連後同步倉位與訂單。
-- P&L 追蹤：新增 `PnLTracker`，記錄成本價、成交時間、已實現/未實現盈虧，輸出 `pnl_report.json`。
+---
 
+# 2026-03-13 系統更新日誌
 
-## Issue #29 + #38/#39 交易邏輯更新（2026-03-13）
-- 日誌可觀測性：在主循環輸出 `[{SYMBOL}] Prediction (inverse, current, change%)`，避免多標的時無法識別來源。
-- 波段策略：交易決策加入 RSI / MACD 交叉 / 支撐阻力觸發條件（可由 `LiveConfig` 開關與參數調整）。
-- 風險邊界：波段進場沿用 confidence 風險倉位；波段出場為全平倉以降低反轉風險。
-- 回歸測試：`tests/test_main_loop_trade_bridge.py` 新增波段買賣訊號與 symbol 預測日誌測試。
+## ✅ 已完成
 
+### PR #40 - Swing 信號 + 診斷日誌
+- 添加 RSI/MACD Swing 交易信號
+- 添加診斷日誌 (DIAG_GATE, DIAG_QTY)
+- 添加 ROR bypass 控制
 
-## Issue #35/#29 診斷策略補充（2026-03-13）
-- 交易診斷：使用 `DIAG_GATE` 檢查 `allow_long`、`qty`、swing/model 訊號與 `bypass_ror_gate` 狀態。
-- 臨時繞過：`LiveConfig.bypass_ror_gate=True` 可在定位階段跳過 ROR gate（預設 `False`）。
-- 門檻判斷：模型路徑以 `predicted_move`（相對變化）對比 `prediction_threshold`。
-- 防呆：若倉位為負，記錄 `DIAG_QTY` 並 clamp 為 0，避免後續決策污染。
+### PR #42 - 快速止盈/止損
+- 添加 1% 快速止盈
+- 添加 max_hold_bars 持倉上限
 
-- 診斷回歸：針對 `DIAG_QTY` 與 ROR bypass warning 需有單元測試覆蓋，避免診斷開關失效。
+### PR #44 - 多任務形態識別 + Bug 修復
+- 添加 Pattern Trainer
+- 修復 Issue #43：重複買入同一隻股票
+- 添加持倉檢查：`qty == 0` 先可以買入
 
-## Issue #41 快速止盈與持倉時限（2026-03-13）
-- 快速止盈：`LiveConfig.quick_take_profit_pct` 預設 `1%`，當現價達入場價 +1% 時優先全平倉。
-- 持倉時限：`LiveConfig.max_hold_bars` 預設 `5`，持倉超過上限 K 線後強制平倉，避免長時間 hold 侵蝕手續費。
-- 風險邊界：止盈與時限退出均加註 `RISK BOUNDARY` 註釋，明確其風險控制目的。
-- 測試覆蓋：`tests/test_main_loop_trade_bridge.py` 新增 1% 止盈與 5 根 K 線強制退出回歸測試。
+### 系統功能
+1. **Telegram 自動彙報** - 每30分鐘
+2. **模擬倉重置** - 每天 16:00，按實時現價平倉
+3. **交易分析** - 記錄買入時間、成本、現價
 
+---
 
-## Issue #42 多任務 Pattern Recognition（2026-03-13）
-- 新增 `StockPatternModel`（CNN-LSTM + temporal attention）雙頭輸出：價格變化回歸 + pattern 分類。
-- 新增 `trainer_pattern_v1.py`：支援 parquet sliding window、rule-based pseudo label、`0.7*MSE + 0.3*CE` 多任務 loss。
-- 主循環新增 `predict_pattern()` 輸出：`Detected Pattern: <label>, Prob=<p>`，並於高信心 bullish pattern 下放寬入場閾值。
-- Dashboard 新增 Pattern Heatmap（symbol x pattern 平均 confidence）與最新 pattern 訊號列表。
-- 回歸要求：執行 `python -m pytest tests/`，並跑 `check_and_trade` profiling 確認性能可接受。
+## ⚠️ 待優化問題
+- ROR_GATE 太嚴格
+- 無賣出觸發
+- 分散投資
 
-## Issue #42 follow-up（2026-03-13）
-- 修復向後兼容：`LiveTradingLoop` 對舊版 `ModelManager`（無 `predict_pattern`）改為安全 fallback，避免部署時因介面落差中斷。
-- 修復可用性：pattern snapshot CSV 寫入加入例外保護，確保主迴圈穩定。
-- 修復訓練邊界：`trainer_pattern_v1` 小樣本 split 風險防護。
-- 回歸覆蓋：新增無 `predict_pattern` 相容測試，並再次跑全量 pytest + paper log + profiling。
+---
 
-## Issue #43 comment follow-up（2026-03-13）
-- 強化 `predict_pattern` payload 驗證：非 dict 輸出不再觸發屬性錯誤，改記錄 warning 並 fallback。
-- 補齊回歸測試：無 `predict_pattern` 與 malformed payload 均可穩定執行 `_run_symbol_cycle`。
-- 再次驗證：pytest / paper trading log / profiling 全部重跑。
-
-## Issue #43 extra bugfix（2026-03-13）
-- payload 健壯性：`predict_pattern` 的 `confidence` 做型別/NaN/區間正規化，避免異常 payload 污染交易決策。
-- UI 兼容性：Pattern Heatmap 區塊對舊 CSV 欄位做動態欄位選擇，避免 KeyError。
-- 回歸覆蓋：新增 invalid confidence payload 測試，並重跑 pytest + paper log + profiling。
+## 📊 當前系統狀態
+- V3.5: 運行中
+- 模擬倉: $100,000
+- 持倉: 0
