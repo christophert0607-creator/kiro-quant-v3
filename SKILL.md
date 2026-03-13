@@ -82,3 +82,26 @@ python futu_api.py assets --env simulated
 - 風險邊界：止盈與時限退出均加註 `RISK BOUNDARY` 註釋，明確其風險控制目的。
 - 測試覆蓋：`tests/test_main_loop_trade_bridge.py` 新增 1% 止盈與 5 根 K 線強制退出回歸測試。
 
+
+## Issue #42 多任務 Pattern Recognition（2026-03-13）
+- 新增 `StockPatternModel`（CNN-LSTM + temporal attention）雙頭輸出：價格變化回歸 + pattern 分類。
+- 新增 `trainer_pattern_v1.py`：支援 parquet sliding window、rule-based pseudo label、`0.7*MSE + 0.3*CE` 多任務 loss。
+- 主循環新增 `predict_pattern()` 輸出：`Detected Pattern: <label>, Prob=<p>`，並於高信心 bullish pattern 下放寬入場閾值。
+- Dashboard 新增 Pattern Heatmap（symbol x pattern 平均 confidence）與最新 pattern 訊號列表。
+- 回歸要求：執行 `python -m pytest tests/`，並跑 `check_and_trade` profiling 確認性能可接受。
+
+## Issue #42 follow-up（2026-03-13）
+- 修復向後兼容：`LiveTradingLoop` 對舊版 `ModelManager`（無 `predict_pattern`）改為安全 fallback，避免部署時因介面落差中斷。
+- 修復可用性：pattern snapshot CSV 寫入加入例外保護，確保主迴圈穩定。
+- 修復訓練邊界：`trainer_pattern_v1` 小樣本 split 風險防護。
+- 回歸覆蓋：新增無 `predict_pattern` 相容測試，並再次跑全量 pytest + paper log + profiling。
+
+## Issue #43 comment follow-up（2026-03-13）
+- 強化 `predict_pattern` payload 驗證：非 dict 輸出不再觸發屬性錯誤，改記錄 warning 並 fallback。
+- 補齊回歸測試：無 `predict_pattern` 與 malformed payload 均可穩定執行 `_run_symbol_cycle`。
+- 再次驗證：pytest / paper trading log / profiling 全部重跑。
+
+## Issue #43 extra bugfix（2026-03-13）
+- payload 健壯性：`predict_pattern` 的 `confidence` 做型別/NaN/區間正規化，避免異常 payload 污染交易決策。
+- UI 兼容性：Pattern Heatmap 區塊對舊 CSV 欄位做動態欄位選擇，避免 KeyError。
+- 回歸覆蓋：新增 invalid confidence payload 測試，並重跑 pytest + paper log + profiling。

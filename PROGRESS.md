@@ -85,3 +85,39 @@
 - [x] 執行 Paper Trading 驗證：`PAPER_ORDER ... type=NORMAL` 日誌可觸發
 - [x] 執行 `cProfile`（5,000 次 `check_and_trade`）確認新增判斷可接受
 
+
+## 🆕 2026-03-13 Multi-task Pattern Recognition 升級（CNN-LSTM + Temporal Attention）
+- [x] 新增 `StockPatternModel`（CNN-LSTM + Attention）支援雙頭輸出：價格回歸 + 型態分類
+- [x] 新增 `trainer_pattern_v1.py`：從 `base_10y` parquet 建立 sliding window，採 `0.7*MSE + 0.3*CE` 訓練
+- [x] 新增 rule-based pattern 自動標註邏輯（HeadShoulderTop/DoubleBottom/UpTrend/Reversal/VolumePulse/Triangle）
+- [x] 主循環整合 pattern 推論：輸出 `Detected Pattern` log，並用高信心 bullish pattern 放寬入場閾值
+- [x] dashboard 新增 Pattern Heatmap 區塊，顯示 symbol x pattern 平均信心與最新訊號
+- [x] 補齊單元測試：pattern model/dataset + 交易閾值 pattern gate
+- [x] 執行 `python -m pytest tests/` 全部通過
+- [x] 執行 profiling（3,000 次 `check_and_trade`）
+
+## 🆕 2026-03-13 Pattern Recognition 修正回合（review follow-up）
+- [x] 回復向後兼容：`LiveTradingLoop` 在 `model_manager` 無 `predict_pattern()` 時自動 fallback `Unknown`，不阻斷既有模型。
+- [x] 強化穩定性：pattern snapshot CSV 寫入改為容錯路徑，避免 I/O 例外中斷主交易循環。
+- [x] 訓練器邊界修正：`trainer_pattern_v1` 對小樣本 window 增加 split 防護（避免 0-size train/val）。
+- [x] 風險邊界註釋：pattern 閾值放寬加入 cap 說明（最低維持 baseline 50%）。
+- [x] 新增單元測試：覆蓋「無 `predict_pattern` 的舊 manager」相容場景。
+- [x] 執行 `python -m pytest tests/` 全部通過。
+- [x] 執行 paper trading 驗證：輸出 `PAPER_ORDER TSLA BUY ...`。
+- [x] 執行 profiling（2,000 次 `check_and_trade`）。
+
+## 🆕 2026-03-13 Issue #43 follow-up（comment 修復）
+- [x] 強化相容防護：`predict_pattern` 回傳非 dict payload 時改為 warning + fallback，不中斷交易循環。
+- [x] 新增回歸測試：覆蓋 malformed pattern payload 場景（string payload）。
+- [x] 執行 `python -m pytest tests/` 全部通過。
+- [x] 執行 paper trading 驗證：`PAPER_ORDER` 日誌可觸發。
+- [x] 執行 profiling（2,000 次 `check_and_trade`）。
+
+## 🆕 2026-03-13 Issue #43 小 bug 修復（payload + dashboard 兼容）
+- [x] `predict_pattern` payload 正規化：confidence 非數值/NaN/超界時改為容錯 + clamp 到 `[0,1]`。
+- [x] 新增 `RISK BOUNDARY` 註釋：防止 malformed confidence 放大風險倉位。
+- [x] dashboard 兼容舊版 pattern CSV（缺 `predicted_move` 欄位時動態降級顯示）。
+- [x] 新增回歸測試：覆蓋 invalid confidence payload 場景。
+- [x] 執行 `python -m pytest tests/` 全部通過。
+- [x] 執行 paper trading 驗證：`PAPER_ORDER` 日誌可觸發。
+- [x] 執行 profiling（2,000 次 `check_and_trade`）。

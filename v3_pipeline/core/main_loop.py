@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 
 from notifier import send_tg_msg
@@ -60,6 +61,8 @@ class LiveConfig:
     diagnostics_verbose: bool = True
     quick_take_profit_pct: float = 0.01
     max_hold_bars: int = 5
+    pattern_confidence_threshold: float = 0.65
+    pattern_threshold_relaxation: float = 0.25
 
 
 class LiveTradingLoop:
@@ -146,6 +149,28 @@ class LiveTradingLoop:
 
         await asyncio.gather(*(guarded(symbol) for symbol in self.symbols))
 
+    def _normalize_pattern_meta(self, symbol: str, raw_meta: object) -> tuple[str, float]:
+        if not isinstance(raw_meta, dict):
+            self.logger.warning("[%s] predict_pattern returned non-dict payload", symbol)
+            return "Unknown", 0.0
+
+        raw_label = raw_meta.get("pattern", "Unknown")
+        label = raw_label if isinstance(raw_label, str) and raw_label.strip() else "Unknown"
+
+        raw_conf = raw_meta.get("confidence", 0.0)
+        try:
+            conf = float(raw_conf)
+        except (TypeError, ValueError):
+            self.logger.warning("[%s] predict_pattern confidence is invalid: %r", symbol, raw_conf)
+            conf = 0.0
+
+        if not np.isfinite(conf):
+            conf = 0.0
+
+        # RISK BOUNDARY: cap pattern confidence to [0, 1] to avoid malformed payloads over-amplifying risk sizing.
+        conf = min(1.0, max(0.0, conf))
+        return label, conf
+
     async def _run_symbol_cycle(self, symbol: str) -> None:
         started = time.perf_counter()
         lookback = int(self.model_manager.data_preparer.lookback)
@@ -197,7 +222,19 @@ class LiveTradingLoop:
         current_price = float(wfa_frame.iloc[-1]["Close"])
         self.latest_prices[symbol] = current_price
         prediction = float(self.model_manager.predict(wfa_frame, data_preparer=symbol_preparer))
-        confidence = min(1.0, abs(prediction - current_price) / max(current_price, 1e-9))
+        base_confidence = min(1.0, abs(prediction - current_price) / max(current_price, 1e-9))
+        pattern_meta = {"pattern": "Unknown", "confidence": 0.0}
+        predict_pattern_fn = getattr(self.model_manager, "predict_pattern", None)
+        if callable(predict_pattern_fn):
+            try:
+                candidate = predict_pattern_fn(wfa_frame, data_preparer=symbol_preparer)
+                pattern_meta = candidate
+            except Exception as exc:
+                self.logger.warning("[%s] predict_pattern failed: %s", symbol, exc)
+        pattern_label, pattern_confidence = self._normalize_pattern_meta(symbol, pattern_meta)
+        confidence = min(1.0, 0.7 * base_confidence + 0.3 * pattern_confidence)
+        self.logger.info("Detected Pattern: %s, Prob=%.2f", pattern_label, pattern_confidence)
+        self._append_pattern_snapshot(symbol, pattern_label, pattern_confidence, prediction, current_price)
         vix_value = await asyncio.to_thread(self._get_vix)
         profile = self.strategy_factory.choose_profile(vix_value)
 
@@ -210,7 +247,16 @@ class LiveTradingLoop:
             current_price,
             predicted_move * 100,
         )
-        self.check_and_trade(symbol, current_price, prediction, confidence, profile.allow_long, latest_frame=wfa_frame)
+        self.check_and_trade(
+            symbol,
+            current_price,
+            prediction,
+            confidence,
+            profile.allow_long,
+            latest_frame=wfa_frame,
+            pattern_label=pattern_label,
+            pattern_confidence=pattern_confidence,
+        )
 
         elapsed_ms = (time.perf_counter() - started) * 1000
         self.profile_timings.append({"symbol": symbol, "elapsed_ms": elapsed_ms, "ts": datetime.now(timezone.utc).isoformat()})
@@ -223,9 +269,20 @@ class LiveTradingLoop:
         confidence: float,
         allow_long: bool,
         latest_frame: Optional[pd.DataFrame] = None,
+        pattern_label: str = "Unknown",
+        pattern_confidence: float = 0.0,
     ) -> None:
         """Bridge model prediction to executable trading decisions."""
-        self._run_trading_logic(symbol, current_price, prediction, confidence, allow_long, latest_frame=latest_frame)
+        self._run_trading_logic(
+            symbol,
+            current_price,
+            prediction,
+            confidence,
+            allow_long,
+            latest_frame=latest_frame,
+            pattern_label=pattern_label,
+            pattern_confidence=pattern_confidence,
+        )
 
     def _run_trading_logic(
         self,
@@ -235,6 +292,8 @@ class LiveTradingLoop:
         confidence: float,
         allow_long: bool,
         latest_frame: Optional[pd.DataFrame] = None,
+        pattern_label: str = "Unknown",
+        pattern_confidence: float = 0.0,
     ) -> None:
         self.equity_peak = max(self.equity_peak, self.account_value)
         if self.risk_controller.circuit_breaker_triggered(self.equity_peak, self.account_value):
@@ -276,6 +335,9 @@ class LiveTradingLoop:
                 return
 
         symbol_threshold = float(self.config.prediction_thresholds.get(symbol, self.config.prediction_threshold))
+        if pattern_confidence >= self.config.pattern_confidence_threshold and pattern_label in {"DoubleBottom", "UpTrend", "Reversal"}:
+            # RISK BOUNDARY: threshold relaxation is capped (floor=50% of baseline) to avoid over-aggressive entries.
+            symbol_threshold = symbol_threshold * max(0.5, 1.0 - self.config.pattern_threshold_relaxation)
         threshold_up = current_price * (1 + symbol_threshold)
         threshold_down = current_price * (1 - symbol_threshold)
         predicted_move = (prediction - current_price) / max(current_price, 1e-9)
@@ -285,7 +347,7 @@ class LiveTradingLoop:
 
         if self.config.log_trade_decisions:
             self.logger.info(
-                "TRADE_CHECK[%s] allow_long=%s qty=%d pred=%.4f px=%.4f move=%.2f%% up=%.4f down=%.4f conf=%.3f",
+                "TRADE_CHECK[%s] allow_long=%s qty=%d pred=%.4f px=%.4f move=%.2f%% up=%.4f down=%.4f conf=%.3f pattern=%s p_conf=%.2f",
                 symbol,
                 allow_long,
                 qty,
@@ -295,6 +357,8 @@ class LiveTradingLoop:
                 threshold_up,
                 threshold_down,
                 confidence,
+                pattern_label,
+                pattern_confidence,
             )
             if self.config.swing_strategy_enabled:
                 self.logger.info(
@@ -568,3 +632,25 @@ class LiveTradingLoop:
             send_tg_msg(message)
         except Exception as exc:
             self.logger.warning("Telegram failed: %s", exc)
+
+    def _append_pattern_snapshot(self, symbol: str, pattern: str, confidence: float, prediction: float, current_price: float) -> None:
+        out = Path("v3_pipeline/logs/pattern_signals_latest.csv")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        row = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "symbol": symbol,
+            "pattern": pattern,
+            "confidence": confidence,
+            "prediction": prediction,
+            "current_price": current_price,
+            "predicted_move": (prediction - current_price) / max(current_price, 1e-9),
+        }
+        try:
+            if out.exists():
+                hist = pd.read_csv(out)
+                hist = pd.concat([hist, pd.DataFrame([row])], ignore_index=True).tail(1000)
+            else:
+                hist = pd.DataFrame([row])
+            hist.to_csv(out, index=False)
+        except Exception as exc:
+            self.logger.warning("Pattern snapshot write failed: %s", exc)

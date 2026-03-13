@@ -25,6 +25,7 @@ MARKET_DATA_PATH = os.path.join(BASE_DIR, "market_data.csv")
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 # 假設 sentiment 資料可能也存儲在某處，若無則模擬展示
 SENTIMENT_DATA_PATH = os.path.join(BASE_DIR, "sentiment_history.csv") 
+PATTERN_SIGNALS_PATH = os.path.join(BASE_DIR, "v3_pipeline", "logs", "pattern_signals_latest.csv")
 
 # 初始化 config.json 如果不存在
 if not os.path.exists(CONFIG_PATH):
@@ -63,6 +64,15 @@ def load_sentiment_data():
             'timestamp': dates,
             'sentiment_score': np.random.uniform(0.3, 0.8, size=20)
         })
+
+
+def load_pattern_signals():
+    if os.path.exists(PATTERN_SIGNALS_PATH):
+        pdf = pd.read_csv(PATTERN_SIGNALS_PATH)
+        if not pdf.empty and 'timestamp' in pdf.columns:
+            pdf['timestamp'] = pd.to_datetime(pdf['timestamp'], errors='coerce')
+        return pdf
+    return pd.DataFrame()
 
 # --- UI 介面 ---
 st.title("📊 Futu API 交易控制面板")
@@ -121,6 +131,25 @@ if not df_sent.empty:
     st.line_chart(df_sent.set_index('timestamp'))
 else:
     st.write("暫無 Sentiment 資料。")
+
+st.divider()
+st.subheader("🧩 Pattern Heatmap")
+df_pattern = load_pattern_signals()
+if not df_pattern.empty and {'symbol', 'pattern', 'confidence'}.issubset(df_pattern.columns):
+    heatmap = (
+        df_pattern.sort_values('timestamp')
+        .groupby(['symbol', 'pattern'], as_index=False)['confidence']
+        .mean()
+        .pivot(index='symbol', columns='pattern', values='confidence')
+        .fillna(0.0)
+    )
+    st.dataframe(heatmap.style.background_gradient(cmap='YlOrRd', axis=None), use_container_width=True)
+    latest = df_pattern.sort_values('timestamp').tail(10)
+    preferred_cols = ['timestamp', 'symbol', 'pattern', 'confidence', 'predicted_move']
+    visible_cols = [c for c in preferred_cols if c in latest.columns]
+    st.dataframe(latest[visible_cols], use_container_width=True)
+else:
+    st.info("尚未有 pattern 訊號資料。")
 
 
 # 緊急控制區
