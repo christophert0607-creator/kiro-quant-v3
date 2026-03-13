@@ -121,3 +121,10 @@
 - [x] 執行 `python -m pytest tests/` 全部通過。
 - [x] 執行 paper trading 驗證：`PAPER_ORDER` 日誌可觸發。
 - [x] 執行 profiling（2,000 次 `check_and_trade`）。
+
+## 🆕 2026-03-13 Issue #48 Data fallback 穩定性修復
+- [x] `DataManager` 啟動流程改為 API key 缺失時停用 Infoway，避免無效 websocket 啟動。
+- [x] `DataManager` 支援 yfinance 可選依賴，缺包環境改為 warning + 回傳 `None`，不在匯入階段中斷。
+- [x] yfinance 價格讀取強化：`fast_info` 不可用時回退 `history(1d/1m)` 最新收盤價。
+- [x] 新增測試 `tests/test_data_manager.py` 覆蓋 API key 缺失、`fast_info` dict、history 回退、缺 yfinance 場景。
+- [x] 執行 `python -m pytest tests/` 全部通過。
