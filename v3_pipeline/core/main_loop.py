@@ -50,6 +50,7 @@ class LiveConfig:
     crit_move_threshold: float = 0.035
     quote_timeout_seconds: float = 10.0
     buy_cooldown_cycles: int = 3
+    log_trade_decisions: bool = True
 
 
 class LiveTradingLoop:
@@ -191,10 +192,14 @@ class LiveTradingLoop:
         profile = self.strategy_factory.choose_profile(vix_value)
 
         self._detect_critical_move(symbol, current_price)
-        self._run_trading_logic(symbol, current_price, prediction, confidence, profile.allow_long)
+        self.check_and_trade(symbol, current_price, prediction, confidence, profile.allow_long)
 
         elapsed_ms = (time.perf_counter() - started) * 1000
         self.profile_timings.append({"symbol": symbol, "elapsed_ms": elapsed_ms, "ts": datetime.now(timezone.utc).isoformat()})
+
+    def check_and_trade(self, symbol: str, current_price: float, prediction: float, confidence: float, allow_long: bool) -> None:
+        """Bridge model prediction to executable trading decisions."""
+        self._run_trading_logic(symbol, current_price, prediction, confidence, allow_long)
 
     def _run_trading_logic(self, symbol: str, current_price: float, prediction: float, confidence: float, allow_long: bool) -> None:
         self.equity_peak = max(self.equity_peak, self.account_value)
@@ -219,6 +224,29 @@ class LiveTradingLoop:
         symbol_threshold = float(self.config.prediction_thresholds.get(symbol, self.config.prediction_threshold))
         threshold_up = current_price * (1 + symbol_threshold)
         threshold_down = current_price * (1 - symbol_threshold)
+        predicted_move = (prediction - current_price) / max(current_price, 1e-9)
+
+        if self.config.log_trade_decisions:
+            self.logger.info(
+                "TRADE_CHECK[%s] allow_long=%s qty=%d pred=%.4f px=%.4f move=%.2f%% up=%.4f down=%.4f conf=%.3f",
+                symbol,
+                allow_long,
+                qty,
+                prediction,
+                current_price,
+                predicted_move * 100,
+                threshold_up,
+                threshold_down,
+                confidence,
+            )
+
+        if not allow_long and prediction > threshold_up and qty == 0:
+            self.logger.info(
+                "PROFILE_GATE[%s] blocked BUY because profile disallows long exposure (pred_move=%.2f%%)",
+                symbol,
+                predicted_move * 100,
+            )
+            return
 
         if allow_long and prediction > threshold_up and qty == 0:
             returns = self.market_buffers[symbol]["Close"].pct_change().dropna()
@@ -248,6 +276,14 @@ class LiveTradingLoop:
                 self._execute(symbol, "SELL", qty, current_price, "model_signal")
             else:
                 self.logger.info("Cooldown[%s]: hold position (%d/%d cycles)", symbol, self.cycles_since_buy_by_symbol.get(symbol, 0), self.config.buy_cooldown_cycles)
+        elif self.config.log_trade_decisions:
+            self.logger.info(
+                "HOLD[%s] no trade signal (pred_move=%.2f%% threshold=%.2f%% qty=%d)",
+                symbol,
+                predicted_move * 100,
+                symbol_threshold * 100,
+                qty,
+            )
 
     def _normalize_market_buffer(self, df: pd.DataFrame) -> pd.DataFrame:
         out = df.copy()
