@@ -156,6 +156,8 @@ def run_kiro_v35(config_path: str = "config.json", profile_override: Optional[st
         print(f"[dry-run] symbols={','.join(live_cfg_data['symbols_list'])} auto_trade={live_cfg_data['auto_trade']}")
         return
 
+    from data_manager import DataManager
+    from massive_client import MassiveClient
     from v3_pipeline.core.futu_connector import FutuConnector
     from v3_pipeline.core.main_loop import LiveConfig, LiveTradingLoop
     from v3_pipeline.models.brain import KiroLSTM
@@ -179,10 +181,14 @@ def run_kiro_v35(config_path: str = "config.json", profile_override: Optional[st
         max_position_fraction=min(1.0, max(0.0, float(live_cfg_data.get("max_position_fraction_per_symbol", 0.30)))),
     )
 
+    futu_connector = FutuConnector()
+    data_manager = DataManager(futu_trader=futu_connector, massive_client=MassiveClient())
+
     loop = LiveTradingLoop(
         model_manager=manager,
         risk_controller=RiskController(config=risk_cfg),
-        futu_connector=FutuConnector(),
+        futu_connector=futu_connector,
+        data_manager=data_manager,
         config=live_cfg,
     )
     loop.start()

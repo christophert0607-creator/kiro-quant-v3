@@ -5,7 +5,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
@@ -74,12 +74,14 @@ class LiveTradingLoop:
         model_manager: ModelManager,
         risk_controller: RiskController,
         futu_connector: Optional[FutuConnector] = None,
+        data_manager: Optional[Any] = None,
         feature_generator: Optional[TechnicalIndicatorGenerator] = None,
         config: Optional[LiveConfig] = None,
     ) -> None:
         self.model_manager = model_manager
         self.risk_controller = risk_controller
         self.futu_connector = futu_connector or FutuConnector()
+        self.data_manager = data_manager
         self.feature_generator = feature_generator or TechnicalIndicatorGenerator()
         self.config = config or LiveConfig()
         self.logger = _build_stderr_logger(self.__class__.__name__)
@@ -152,6 +154,48 @@ class LiveTradingLoop:
 
         await asyncio.gather(*(guarded(symbol) for symbol in self.symbols))
 
+    def _normalize_symbol_code(self, symbol: str) -> str:
+        if "." in symbol:
+            return symbol.split(".", 1)[1]
+        return symbol
+
+    def _normalize_data_manager_quote(self, symbol: str, payload: dict[str, Any]) -> dict[str, Any]:
+        price = float(payload["price"])
+        return {
+            "Date": pd.Timestamp.now(),
+            "Open": float(payload.get("open", price)),
+            "High": float(payload.get("high", price)),
+            "Low": float(payload.get("low", price)),
+            "Close": price,
+            "Volume": float(payload.get("volume", 0.0)),
+            "data_source": str(payload.get("source", "UNKNOWN")).upper(),
+        }
+
+    def _get_quote_with_fallback(self, symbol: str) -> dict[str, Any]:
+        if self.data_manager is None:
+            return self.futu_connector.get_latest_quote(symbol)
+
+        candidates = [symbol]
+        normalized = self._normalize_symbol_code(symbol)
+        if normalized != symbol:
+            candidates.append(normalized)
+        if not symbol.startswith("US.") and not symbol.startswith("HK."):
+            candidates.append(f"US.{normalized}")
+
+        errors: list[str] = []
+        for candidate in candidates:
+            market = "HK" if candidate.startswith("HK.") else "US"
+            try:
+                payload = self.data_manager.get_market_data(candidate, market=market)
+                if payload and payload.get("price") is not None:
+                    return self._normalize_data_manager_quote(symbol, payload)
+            except Exception as exc:
+                errors.append(f"{candidate}={exc}")
+
+        if errors:
+            self.logger.warning("DataManager fallback exhausted for %s: %s", symbol, "; ".join(errors))
+        return self.futu_connector.get_latest_quote(symbol)
+
     def _normalize_pattern_meta(self, symbol: str, raw_meta: object) -> tuple[str, float]:
         if not isinstance(raw_meta, dict):
             self.logger.warning("[%s] predict_pattern returned non-dict payload", symbol)
@@ -180,7 +224,7 @@ class LiveTradingLoop:
 
         try:
             quote = await asyncio.wait_for(
-                asyncio.to_thread(self.futu_connector.get_latest_quote, symbol),
+                asyncio.to_thread(self._get_quote_with_fallback, symbol),
                 timeout=self.config.quote_timeout_seconds,
             )
         except TimeoutError:
