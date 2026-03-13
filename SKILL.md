@@ -82,3 +82,10 @@ python futu_api.py assets --env simulated
 - 風險邊界：止盈與時限退出均加註 `RISK BOUNDARY` 註釋，明確其風險控制目的。
 - 測試覆蓋：`tests/test_main_loop_trade_bridge.py` 新增 1% 止盈與 5 根 K 線強制退出回歸測試。
 
+
+## Issue #42 多任務 Pattern Recognition（2026-03-13）
+- 新增 `StockPatternModel`（CNN-LSTM + temporal attention）雙頭輸出：價格變化回歸 + pattern 分類。
+- 新增 `trainer_pattern_v1.py`：支援 parquet sliding window、rule-based pseudo label、`0.7*MSE + 0.3*CE` 多任務 loss。
+- 主循環新增 `predict_pattern()` 輸出：`Detected Pattern: <label>, Prob=<p>`，並於高信心 bullish pattern 下放寬入場閾值。
+- Dashboard 新增 Pattern Heatmap（symbol x pattern 平均 confidence）與最新 pattern 訊號列表。
+- 回歸要求：執行 `python -m pytest tests/`，並跑 `check_and_trade` profiling 確認性能可接受。

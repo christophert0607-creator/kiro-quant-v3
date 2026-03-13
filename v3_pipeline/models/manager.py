@@ -10,12 +10,24 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn.functional as F
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
 from v3_pipeline.data.downloader import HistoricalDataDownloader
 from v3_pipeline.features.indicators import TechnicalIndicatorGenerator
 from v3_pipeline.models.brain import KiroLSTM
+
+PATTERN_LABELS = [
+    "Unknown",
+    "HeadShoulderTop",
+    "DoubleBottom",
+    "UpTrend",
+    "DownTrend",
+    "Reversal",
+    "VolumePulse",
+    "Triangle",
+]
 
 REQUIRED_COLUMNS = ["Date", "Open", "High", "Low", "Close", "Volume"]
 
@@ -472,10 +484,33 @@ class ModelManager:
         with torch.no_grad():
             x = active_preparer.transform_for_inference(latest_data_window).to(self.device)
             self._ensure_model_input_dim(int(x.shape[-1]))
-            scaled_pred = float(self.model(x).cpu().numpy().ravel()[0])
+            model_out = self.model(x)
+            scaled_tensor = model_out[0] if isinstance(model_out, tuple) else model_out
+            scaled_pred = float(scaled_tensor.cpu().numpy().ravel()[0])
             pred = active_preparer.inverse_scale_target(scaled_pred)
             self.logger.info("Prediction (scaled=%.6f, inverse=%.6f, input_dim=%d)", scaled_pred, pred, int(x.shape[-1]))
             return pred
+
+    def predict_pattern(self, latest_data_window: pd.DataFrame, data_preparer: Optional[DataPreparer] = None) -> dict:
+        active_preparer = data_preparer or self.data_preparer
+        self.model.eval()
+        with torch.no_grad():
+            x = active_preparer.transform_for_inference(latest_data_window).to(self.device)
+            model_out = self.model(x)
+            if not isinstance(model_out, tuple) or len(model_out) != 2:
+                return {"pattern": "Unknown", "confidence": 0.0, "probs": {"Unknown": 1.0}}
+
+            _, pattern_logits = model_out
+            probs = F.softmax(pattern_logits, dim=-1).cpu().numpy().ravel()
+            labels = PATTERN_LABELS[: len(probs)]
+            best_idx = int(np.argmax(probs)) if len(probs) else 0
+            best_label = labels[best_idx] if best_idx < len(labels) else "Unknown"
+            best_conf = float(probs[best_idx]) if len(probs) else 0.0
+            return {
+                "pattern": best_label,
+                "confidence": best_conf,
+                "probs": {label: float(p) for label, p in zip(labels, probs)},
+            }
 
     def save(self, model_name: str) -> Path:
         target = self.model_dir / f"{model_name}.pth"

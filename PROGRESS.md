@@ -85,3 +85,13 @@
 - [x] 執行 Paper Trading 驗證：`PAPER_ORDER ... type=NORMAL` 日誌可觸發
 - [x] 執行 `cProfile`（5,000 次 `check_and_trade`）確認新增判斷可接受
 
+
+## 🆕 2026-03-13 Multi-task Pattern Recognition 升級（CNN-LSTM + Temporal Attention）
+- [x] 新增 `StockPatternModel`（CNN-LSTM + Attention）支援雙頭輸出：價格回歸 + 型態分類
+- [x] 新增 `trainer_pattern_v1.py`：從 `base_10y` parquet 建立 sliding window，採 `0.7*MSE + 0.3*CE` 訓練
+- [x] 新增 rule-based pattern 自動標註邏輯（HeadShoulderTop/DoubleBottom/UpTrend/Reversal/VolumePulse/Triangle）
+- [x] 主循環整合 pattern 推論：輸出 `Detected Pattern` log，並用高信心 bullish pattern 放寬入場閾值
+- [x] dashboard 新增 Pattern Heatmap 區塊，顯示 symbol x pattern 平均信心與最新訊號
+- [x] 補齊單元測試：pattern model/dataset + 交易閾值 pattern gate
+- [x] 執行 `python -m pytest tests/` 全部通過
+- [x] 執行 profiling（3,000 次 `check_and_trade`）

@@ -37,6 +37,9 @@ class _DummyModelManager:
     def predict(self, *_args, **_kwargs):
         return self._prediction
 
+    def predict_pattern(self, *_args, **_kwargs):
+        return {"pattern": "Unknown", "confidence": 0.0, "probs": {"Unknown": 1.0}}
+
 
 class _DummyRiskController:
     def __init__(self, allow_ror: bool = True):
@@ -440,3 +443,27 @@ def test_bypass_ror_gate_emits_warning_log():
     )
 
     assert any("[ROR_GATE][TSLA] bypass enabled for diagnostics" in line for line in warnings)
+
+
+def test_high_confidence_bullish_pattern_relaxes_buy_threshold():
+    loop = _build_loop(prediction=100.95)
+    executed: list[tuple[str, int, str]] = []
+
+    def _fake_execute(symbol, side, qty, price, reason):
+        executed.append((side, qty, reason))
+
+    loop._execute = _fake_execute  # type: ignore[assignment]
+    loop.config.swing_strategy_enabled = False
+
+    loop.check_and_trade(
+        symbol="TSLA",
+        current_price=100.0,
+        prediction=100.95,
+        confidence=0.6,
+        allow_long=True,
+        pattern_label="DoubleBottom",
+        pattern_confidence=0.9,
+    )
+
+    assert executed
+    assert executed[0][0] == "BUY"
