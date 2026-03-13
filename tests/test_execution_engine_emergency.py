@@ -52,3 +52,27 @@ def test_check_emergency_triggers_liquidates_on_daily_loss(monkeypatch):
 
     assert out["triggered"] is True
     assert out["reason"] == "MaxDailyLossEmergency"
+
+
+def test_execute_signal_success_log_contains_stock_code(monkeypatch, caplog):
+    engine = ee.ExecutionEngine()
+
+    monkeypatch.setattr(engine, "get_account_info", lambda: {"cash": 100000, "total_assets": 100000, "power": 100000})
+    monkeypatch.setattr(engine, "get_positions", lambda: {})
+    monkeypatch.setattr(
+        engine.risk,
+        "check",
+        lambda **kwargs: {"ok": True, "qty": 1},
+    )
+    monkeypatch.setattr(engine, "_place_with_retry", lambda code, signal, qty, price: {"status": "OK", "order_id": "OID-LOG-1"})
+    monkeypatch.setattr(ee.ss, "load", lambda: {})
+    monkeypatch.setattr(ee.ss, "record_order", lambda state, code, signal, qty, price: None)
+    monkeypatch.setattr(ee.ss, "save", lambda state: None)
+
+    with caplog.at_level("INFO", logger="ExecutionEngine"):
+        monkeypatch.setattr(engine, "close_short_if_needed", lambda code, positions: True)
+        result = engine.execute("US.TSLA", "BUY", 250.0)
+
+    assert result["status"] == "OK"
+    assert "US.TSLA" in caplog.text
+    assert "BUY" in caplog.text
