@@ -129,3 +129,11 @@
 - [x] Swing BUY / Model BUY 兩條路徑統一使用同一買量計算 helper，減少冗長並保持行為一致
 - [x] 執行驗證：`python -m py_compile v3_pipeline/core/main_loop.py`
 - [x] 執行回歸：`python -m pytest tests/test_main_loop_trade_bridge.py -q`（18 passed）
+
+
+## 🆕 2026-03-13 Review #47 follow-up（LiveConfig 參數錯誤修復）
+- [x] 修復 `LiveConfig.__init__()` unexpected keyword：新增 `_filter_live_config_kwargs`，建立 `LiveConfig` 前先過濾非 dataclass 欄位
+- [x] 保留 `ruin_threshold` 於 launcher 設定供 `RiskConfig` 使用，不再直接傳入 `LiveConfig`
+- [x] 新增回歸測試：`tests/test_v3_launcher_live_config_filter.py`（驗證 unknown key 會被濾除）
+- [x] 執行驗證：`python -m py_compile v3_launcher.py`
+- [x] 執行測試：`python -m pytest tests/test_v3_launcher_live_config_filter.py -q`

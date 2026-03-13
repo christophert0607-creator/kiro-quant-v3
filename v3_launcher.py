@@ -8,7 +8,7 @@ with lower memory/CPU overhead when full model capacity is not required.
 import argparse
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Any, Optional
 
@@ -129,6 +129,11 @@ def build_live_config(config_path: str = "config.json") -> dict:
     }
 
 
+def _filter_live_config_kwargs(live_cfg_cls: type, raw_cfg: dict[str, Any]) -> dict[str, Any]:
+    allowed_fields = {f.name for f in fields(live_cfg_cls)}
+    return {key: value for key, value in raw_cfg.items() if key in allowed_fields}
+
+
 def resolve_runtime_profile(config_path: str = "config.json", override: Optional[str] = None) -> RuntimeProfile:
     if override:
         key = override.strip().lower()
@@ -172,7 +177,7 @@ def run_kiro_v35(config_path: str = "config.json", profile_override: Optional[st
     )
     manager = ModelManager(model=model, data_preparer=preparer)
 
-    live_cfg = LiveConfig(**live_cfg_data)
+    live_cfg = LiveConfig(**_filter_live_config_kwargs(LiveConfig, live_cfg_data))
 
     risk_cfg = RiskConfig(
         ruin_threshold=float(live_cfg_data.get("ruin_threshold", 0.15)),
