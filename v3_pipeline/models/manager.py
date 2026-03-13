@@ -496,6 +496,7 @@ class ModelManager:
         self.model.eval()
         with torch.no_grad():
             x = active_preparer.transform_for_inference(latest_data_window).to(self.device)
+            self._ensure_model_input_dim(int(x.shape[-1]))
             model_out = self.model(x)
             if not isinstance(model_out, tuple) or len(model_out) != 2:
                 return {"pattern": "Unknown", "confidence": 0.0, "probs": {"Unknown": 1.0}}

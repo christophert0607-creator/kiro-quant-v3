@@ -89,3 +89,9 @@ python futu_api.py assets --env simulated
 - 主循環新增 `predict_pattern()` 輸出：`Detected Pattern: <label>, Prob=<p>`，並於高信心 bullish pattern 下放寬入場閾值。
 - Dashboard 新增 Pattern Heatmap（symbol x pattern 平均 confidence）與最新 pattern 訊號列表。
 - 回歸要求：執行 `python -m pytest tests/`，並跑 `check_and_trade` profiling 確認性能可接受。
+
+## Issue #42 follow-up（2026-03-13）
+- 修復向後兼容：`LiveTradingLoop` 對舊版 `ModelManager`（無 `predict_pattern`）改為安全 fallback，避免部署時因介面落差中斷。
+- 修復可用性：pattern snapshot CSV 寫入加入例外保護，確保主迴圈穩定。
+- 修復訓練邊界：`trainer_pattern_v1` 小樣本 split 風險防護。
+- 回歸覆蓋：新增無 `predict_pattern` 相容測試，並再次跑全量 pytest + paper log + profiling。

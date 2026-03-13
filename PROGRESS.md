@@ -95,3 +95,13 @@
 - [x] 補齊單元測試：pattern model/dataset + 交易閾值 pattern gate
 - [x] 執行 `python -m pytest tests/` 全部通過
 - [x] 執行 profiling（3,000 次 `check_and_trade`）
+
+## 🆕 2026-03-13 Pattern Recognition 修正回合（review follow-up）
+- [x] 回復向後兼容：`LiveTradingLoop` 在 `model_manager` 無 `predict_pattern()` 時自動 fallback `Unknown`，不阻斷既有模型。
+- [x] 強化穩定性：pattern snapshot CSV 寫入改為容錯路徑，避免 I/O 例外中斷主交易循環。
+- [x] 訓練器邊界修正：`trainer_pattern_v1` 對小樣本 window 增加 split 防護（避免 0-size train/val）。
+- [x] 風險邊界註釋：pattern 閾值放寬加入 cap 說明（最低維持 baseline 50%）。
+- [x] 新增單元測試：覆蓋「無 `predict_pattern` 的舊 manager」相容場景。
+- [x] 執行 `python -m pytest tests/` 全部通過。
+- [x] 執行 paper trading 驗證：輸出 `PAPER_ORDER TSLA BUY ...`。
+- [x] 執行 profiling（2,000 次 `check_and_trade`）。

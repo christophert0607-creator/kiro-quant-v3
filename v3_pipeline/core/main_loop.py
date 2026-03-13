@@ -200,7 +200,13 @@ class LiveTradingLoop:
         self.latest_prices[symbol] = current_price
         prediction = float(self.model_manager.predict(wfa_frame, data_preparer=symbol_preparer))
         base_confidence = min(1.0, abs(prediction - current_price) / max(current_price, 1e-9))
-        pattern_meta = self.model_manager.predict_pattern(wfa_frame, data_preparer=symbol_preparer)
+        pattern_meta = {"pattern": "Unknown", "confidence": 0.0}
+        predict_pattern_fn = getattr(self.model_manager, "predict_pattern", None)
+        if callable(predict_pattern_fn):
+            try:
+                pattern_meta = predict_pattern_fn(wfa_frame, data_preparer=symbol_preparer)
+            except Exception as exc:
+                self.logger.warning("[%s] predict_pattern failed: %s", symbol, exc)
         pattern_label = str(pattern_meta.get("pattern", "Unknown"))
         pattern_confidence = float(pattern_meta.get("confidence", 0.0))
         confidence = min(1.0, 0.7 * base_confidence + 0.3 * pattern_confidence)
@@ -307,6 +313,7 @@ class LiveTradingLoop:
 
         symbol_threshold = float(self.config.prediction_thresholds.get(symbol, self.config.prediction_threshold))
         if pattern_confidence >= self.config.pattern_confidence_threshold and pattern_label in {"DoubleBottom", "UpTrend", "Reversal"}:
+            # RISK BOUNDARY: threshold relaxation is capped (floor=50% of baseline) to avoid over-aggressive entries.
             symbol_threshold = symbol_threshold * max(0.5, 1.0 - self.config.pattern_threshold_relaxation)
         threshold_up = current_price * (1 + symbol_threshold)
         threshold_down = current_price * (1 - symbol_threshold)
@@ -615,9 +622,12 @@ class LiveTradingLoop:
             "current_price": current_price,
             "predicted_move": (prediction - current_price) / max(current_price, 1e-9),
         }
-        if out.exists():
-            hist = pd.read_csv(out)
-            hist = pd.concat([hist, pd.DataFrame([row])], ignore_index=True).tail(1000)
-        else:
-            hist = pd.DataFrame([row])
-        hist.to_csv(out, index=False)
+        try:
+            if out.exists():
+                hist = pd.read_csv(out)
+                hist = pd.concat([hist, pd.DataFrame([row])], ignore_index=True).tail(1000)
+            else:
+                hist = pd.DataFrame([row])
+            hist.to_csv(out, index=False)
+        except Exception as exc:
+            self.logger.warning("Pattern snapshot write failed: %s", exc)

@@ -10,7 +10,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
-import torch.nn.functional as F
 from torch import nn
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader, Dataset
@@ -155,7 +154,13 @@ class PatternTrainerV1:
     def run(self) -> dict:
         frame = self._load_parquet()
         dataset = PatternWindowDataset(frame, lookback=self.cfg.lookback)
-        split = int(len(dataset) * 0.85)
+        if len(dataset) < 2:
+            raise RuntimeError(f"Not enough windows for training: {len(dataset)}")
+
+        split = max(1, int(len(dataset) * 0.85))
+        if split >= len(dataset):
+            split = len(dataset) - 1
+
         train_set, val_set = torch.utils.data.random_split(dataset, [split, len(dataset) - split])
 
         train_loader = DataLoader(train_set, batch_size=self.cfg.batch_size, shuffle=True)
