@@ -266,7 +266,7 @@ class ExecutionEngine:
         if result.get("status") == "OK":
             ss.record_order(state, code, signal, qty, price)
             self.risk.record_success(state)
-            log.info(f"✅ 下單成功: #{result.get('order_id')}")
+            log.info(f"✅ 下單成功: {signal} {qty}股 {code} @ ${price:.2f} -> #{result.get('order_id')}")
         else:
             self.risk.record_error(state)
 
