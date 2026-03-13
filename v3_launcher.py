@@ -120,6 +120,12 @@ def build_live_config(config_path: str = "config.json") -> dict:
         "auto_trade": _parse_bool(v3_live.get("auto_trade"), root_auto_trade),
         "paper_trading": _parse_bool(v3_live.get("paper_trading"), root_paper_trading),
         "buy_cooldown_cycles": _parse_int(v3_live.get("buy_cooldown_cycles", 3), 3),
+        "quick_take_profit_pct": float(v3_live.get("quick_take_profit_pct", 0.01)),
+        "stop_loss_pct": float(v3_live.get("stop_loss_pct", 0.02)),
+        "max_hold_bars": _parse_int(v3_live.get("max_hold_bars", 5), 5),
+        "max_positions": _parse_int(v3_live.get("max_positions", 5), 5),
+        "max_position_fraction_per_symbol": float(v3_live.get("max_position_fraction_per_symbol", 0.30)),
+        "ruin_threshold": float(v3_live.get("ruin_threshold", 0.15)),
     }
 
 
@@ -154,7 +160,7 @@ def run_kiro_v35(config_path: str = "config.json", profile_override: Optional[st
     from v3_pipeline.core.main_loop import LiveConfig, LiveTradingLoop
     from v3_pipeline.models.brain import KiroLSTM
     from v3_pipeline.models.manager import DataPreparer, ModelManager
-    from v3_pipeline.risk.manager import RiskController
+    from v3_pipeline.risk.manager import RiskConfig, RiskController
 
     preparer = DataPreparer(lookback=profile.lookback, target_col="Close")
     model = KiroLSTM(
@@ -168,9 +174,14 @@ def run_kiro_v35(config_path: str = "config.json", profile_override: Optional[st
 
     live_cfg = LiveConfig(**live_cfg_data)
 
+    risk_cfg = RiskConfig(
+        ruin_threshold=float(live_cfg_data.get("ruin_threshold", 0.15)),
+        max_position_fraction=min(1.0, max(0.0, float(live_cfg_data.get("max_position_fraction_per_symbol", 0.30)))),
+    )
+
     loop = LiveTradingLoop(
         model_manager=manager,
-        risk_controller=RiskController(),
+        risk_controller=RiskController(config=risk_cfg),
         futu_connector=FutuConnector(),
         config=live_cfg,
     )

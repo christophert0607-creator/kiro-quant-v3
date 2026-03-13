@@ -25,7 +25,7 @@ class RiskConfig:
     max_drawdown: float = 0.20
     max_position_fraction: float = 0.05
     trailing_stop_pct: float = 0.05
-    ruin_threshold: float = 0.35
+    ruin_threshold: float = 0.15
     max_trade_var_95: float = 0.03
 
 
@@ -117,10 +117,14 @@ class RiskController:
             reward_risk_ratio=reward_risk_ratio,
             risk_fraction=risk_fraction,
         )
-        if ror > self.config.ruin_threshold:
+        # Treat ruin_threshold as minimum survival score to keep tuning intuitive at 0.1~0.2.
+        # Example: threshold=0.15 means we allow trades with ror <= 0.85.
+        survival_score = 1.0 - ror
+        if survival_score < self.config.ruin_threshold:
             self.logger.warning(
-                "ROR gate blocked trade. ror=%.3f threshold=%.3f",
+                "ROR gate blocked trade. ror=%.3f survival=%.3f threshold=%.3f",
                 ror,
+                survival_score,
                 self.config.ruin_threshold,
             )
             return False

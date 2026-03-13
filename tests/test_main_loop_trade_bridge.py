@@ -599,3 +599,52 @@ def test_run_symbol_cycle_handles_invalid_pattern_confidence_payload():
     asyncio.run(loop._run_symbol_cycle("TSLA"))
 
     assert any("predict_pattern confidence is invalid" in line for line in captured)
+
+
+def test_stop_loss_exits_at_two_percent_drawdown():
+    loop = _build_loop(prediction=100.1)
+    loop.position_qty_by_symbol["TSLA"] = 8
+    loop.entry_price_by_symbol["TSLA"] = 100.0
+    loop.highest_price_since_entry_by_symbol["TSLA"] = 98.0
+    loop.config.swing_strategy_enabled = False
+    executed: list[tuple[str, int, str]] = []
+
+    def _fake_execute(symbol, side, qty, price, reason):
+        executed.append((side, qty, reason))
+
+    loop._execute = _fake_execute  # type: ignore[assignment]
+
+    loop.check_and_trade(
+        symbol="TSLA",
+        current_price=98.0,
+        prediction=100.1,
+        confidence=0.2,
+        allow_long=True,
+    )
+
+    assert executed
+    assert executed[0] == ("SELL", 8, "stop_loss_0.0200")
+
+
+def test_position_cap_blocks_additional_model_entry():
+    loop = _build_loop(prediction=101.5)
+    loop.config.swing_strategy_enabled = False
+    loop.config.max_positions = 1
+    loop.position_qty_by_symbol["TSLA"] = 0
+    loop.position_qty_by_symbol["TSLL"] = 3
+    executed: list[tuple[str, int, str]] = []
+
+    def _fake_execute(symbol, side, qty, price, reason):
+        executed.append((side, qty, reason))
+
+    loop._execute = _fake_execute  # type: ignore[assignment]
+
+    loop.check_and_trade(
+        symbol="TSLA",
+        current_price=100.0,
+        prediction=101.5,
+        confidence=0.8,
+        allow_long=True,
+    )
+
+    assert not executed
