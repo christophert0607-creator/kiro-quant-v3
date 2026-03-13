@@ -75,3 +75,10 @@ python futu_api.py assets --env simulated
 - 防呆：若倉位為負，記錄 `DIAG_QTY` 並 clamp 為 0，避免後續決策污染。
 
 - 診斷回歸：針對 `DIAG_QTY` 與 ROR bypass warning 需有單元測試覆蓋，避免診斷開關失效。
+
+## Issue #41 快速止盈與持倉時限（2026-03-13）
+- 快速止盈：`LiveConfig.quick_take_profit_pct` 預設 `1%`，當現價達入場價 +1% 時優先全平倉。
+- 持倉時限：`LiveConfig.max_hold_bars` 預設 `5`，持倉超過上限 K 線後強制平倉，避免長時間 hold 侵蝕手續費。
+- 風險邊界：止盈與時限退出均加註 `RISK BOUNDARY` 註釋，明確其風險控制目的。
+- 測試覆蓋：`tests/test_main_loop_trade_bridge.py` 新增 1% 止盈與 5 根 K 線強制退出回歸測試。
+

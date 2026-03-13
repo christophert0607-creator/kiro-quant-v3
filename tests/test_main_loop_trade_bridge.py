@@ -237,6 +237,59 @@ def test_trade_logic_swing_sell_signal_triggers_exit():
     assert executed[0] == ("SELL", 12, "swing_signal")
 
 
+def test_quick_take_profit_exits_at_one_percent_gain_before_other_signals():
+    loop = _build_loop(prediction=100.1)
+    loop.position_qty_by_symbol["TSLA"] = 10
+    loop.entry_price_by_symbol["TSLA"] = 100.0
+    loop.highest_price_since_entry_by_symbol["TSLA"] = 100.0
+    loop.config.swing_strategy_enabled = False
+    executed: list[tuple[str, int, str]] = []
+
+    def _fake_execute(symbol, side, qty, price, reason):
+        executed.append((side, qty, reason))
+
+    loop._execute = _fake_execute  # type: ignore[assignment]
+
+    loop.check_and_trade(
+        symbol="TSLA",
+        current_price=101.0,
+        prediction=100.1,
+        confidence=0.2,
+        allow_long=True,
+    )
+
+    assert executed
+    assert executed[0][0] == "SELL"
+    assert "quick_take_profit_0.0100" == executed[0][2]
+
+
+def test_max_hold_bars_forces_exit_when_position_is_stale():
+    loop = _build_loop(prediction=100.1)
+    loop.position_qty_by_symbol["TSLA"] = 6
+    loop.entry_price_by_symbol["TSLA"] = 100.0
+    loop.highest_price_since_entry_by_symbol["TSLA"] = 100.5
+    loop.bars_held_by_symbol["TSLA"] = 4
+    loop.config.max_hold_bars = 5
+    loop.config.swing_strategy_enabled = False
+    executed: list[tuple[str, int, str]] = []
+
+    def _fake_execute(symbol, side, qty, price, reason):
+        executed.append((side, qty, reason))
+
+    loop._execute = _fake_execute  # type: ignore[assignment]
+
+    loop.check_and_trade(
+        symbol="TSLA",
+        current_price=100.2,
+        prediction=100.15,
+        confidence=0.1,
+        allow_long=True,
+    )
+
+    assert executed
+    assert executed[0] == ("SELL", 6, "max_hold_5_bars")
+
+
 def test_run_symbol_cycle_logs_symbol_prediction_line(monkeypatch):
     loop = _build_loop(prediction=102.5)
     messages: list[str] = []

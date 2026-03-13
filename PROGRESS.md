@@ -75,3 +75,13 @@
 - [x] 執行 `check_and_trade` profiling（5,000 次）
 
 - [x] 回應 review comment：新增 `DIAG_QTY` / `bypass_ror_gate` 日誌測試，確保診斷行為可驗證
+
+## 🆕 2026-03-13 Issue #41 快速止盈（1%）+ 持倉上限（5 根 K）
+- [x] 新增 `LiveConfig.quick_take_profit_pct=0.01`，有賺頭即走（達入場價 +1% 優先觸發 SELL）
+- [x] 新增 `LiveConfig.max_hold_bars=5`，持倉超過 5 根 K 線強制平倉，避免過度持有
+- [x] 交易主路徑加入風險邊界註釋（`RISK BOUNDARY`）說明止盈/時限平倉目的
+- [x] 補齊單元測試：`tests/test_main_loop_trade_bridge.py` 新增 quick take profit 與 max hold bars 退出場景
+- [x] 執行 `python -m pytest tests/` 全部通過
+- [x] 執行 Paper Trading 驗證：`PAPER_ORDER ... type=NORMAL` 日誌可觸發
+- [x] 執行 `cProfile`（5,000 次 `check_and_trade`）確認新增判斷可接受
+

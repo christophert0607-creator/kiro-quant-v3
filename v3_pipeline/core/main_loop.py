@@ -58,6 +58,8 @@ class LiveConfig:
     swing_sr_tolerance: float = 0.003
     bypass_ror_gate: bool = False
     diagnostics_verbose: bool = True
+    quick_take_profit_pct: float = 0.01
+    max_hold_bars: int = 5
 
 
 class LiveTradingLoop:
@@ -82,6 +84,7 @@ class LiveTradingLoop:
         }
         self.position_qty_by_symbol: dict[str, int] = {s: 0 for s in self.symbols}
         self.highest_price_since_entry_by_symbol: dict[str, float] = {s: 0.0 for s in self.symbols}
+        self.entry_price_by_symbol: dict[str, float] = {s: 0.0 for s in self.symbols}
         self.bars_held_by_symbol: dict[str, int] = {s: 0 for s in self.symbols}
         self.cycles_since_buy_by_symbol: dict[str, int] = {s: 999999 for s in self.symbols}
         self.last_price_by_symbol: dict[str, float] = {}
@@ -253,6 +256,23 @@ class LiveTradingLoop:
             stop_price = self.highest_price_since_entry_by_symbol[symbol] * (1 - stop_pct)
             if current_price < stop_price:
                 self._execute(symbol, "SELL", qty, current_price, "time_decay_vol_stop")
+                return
+
+            entry_price = float(self.entry_price_by_symbol.get(symbol, 0.0) or 0.0)
+            if entry_price <= 0:
+                entry_price = current_price
+                self.entry_price_by_symbol[symbol] = entry_price
+
+            # RISK BOUNDARY: quick take-profit immediately de-risks once a small gain is locked.
+            take_profit_price = entry_price * (1 + max(0.0, float(self.config.quick_take_profit_pct)))
+            if current_price >= take_profit_price:
+                self._execute(symbol, "SELL", qty, current_price, f"quick_take_profit_{self.config.quick_take_profit_pct:.4f}")
+                return
+
+            # RISK BOUNDARY: time-based exit caps exposure duration and fee drag from over-holding.
+            max_hold_bars = max(1, int(self.config.max_hold_bars))
+            if self.bars_held_by_symbol.get(symbol, 0) >= max_hold_bars:
+                self._execute(symbol, "SELL", qty, current_price, f"max_hold_{max_hold_bars}_bars")
                 return
 
         symbol_threshold = float(self.config.prediction_thresholds.get(symbol, self.config.prediction_threshold))
@@ -516,11 +536,13 @@ class LiveTradingLoop:
         if side == "BUY":
             self.position_qty_by_symbol[symbol] += qty
             self.highest_price_since_entry_by_symbol[symbol] = fill_price
+            self.entry_price_by_symbol[symbol] = fill_price
             self.cycles_since_buy_by_symbol[symbol] = 0
         else:
             self.position_qty_by_symbol[symbol] = max(0, self.position_qty_by_symbol[symbol] - qty)
             if self.position_qty_by_symbol[symbol] == 0:
                 self.highest_price_since_entry_by_symbol[symbol] = 0.0
+                self.entry_price_by_symbol[symbol] = 0.0
                 self.bars_held_by_symbol[symbol] = 0
                 self.cycles_since_buy_by_symbol[symbol] = 999999
 
