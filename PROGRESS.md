@@ -73,3 +73,5 @@
 - [x] 執行 `python -m pytest tests/` 全部通過
 - [x] 執行 Paper Trading 驗證：`PAPER_ORDER` 日誌可觸發
 - [x] 執行 `check_and_trade` profiling（5,000 次）
+
+- [x] 回應 review comment：新增 `DIAG_QTY` / `bypass_ror_gate` 日誌測試，確保診斷行為可驗證

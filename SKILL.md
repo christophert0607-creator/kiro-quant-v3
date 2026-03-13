@@ -73,3 +73,5 @@ python futu_api.py assets --env simulated
 - 臨時繞過：`LiveConfig.bypass_ror_gate=True` 可在定位階段跳過 ROR gate（預設 `False`）。
 - 門檻判斷：模型路徑以 `predicted_move`（相對變化）對比 `prediction_threshold`。
 - 防呆：若倉位為負，記錄 `DIAG_QTY` 並 clamp 為 0，避免後續決策污染。
+
+- 診斷回歸：針對 `DIAG_QTY` 與 ROR bypass warning 需有單元測試覆蓋，避免診斷開關失效。

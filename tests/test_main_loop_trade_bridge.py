@@ -336,3 +336,54 @@ def test_trade_check_logs_allow_long_and_qty_context():
 
     assert any("TRADE_CHECK[TSLA] allow_long=False qty=7" in line for line in messages)
     assert any("DIAG_GATE[TSLA] allow_long=False qty=7" in line for line in messages)
+
+
+
+def test_negative_qty_is_clamped_and_warned():
+    loop = _build_loop(prediction=99.0)
+    loop.position_qty_by_symbol["TSLA"] = -5
+    infos: list[str] = []
+    warnings: list[str] = []
+
+    def _capture_info(msg, *args, **kwargs):
+        infos.append(msg % args if args else msg)
+
+    def _capture_warning(msg, *args, **kwargs):
+        warnings.append(msg % args if args else msg)
+
+    loop.logger.info = _capture_info  # type: ignore[assignment]
+    loop.logger.warning = _capture_warning  # type: ignore[assignment]
+    loop.config.swing_strategy_enabled = False
+
+    loop.check_and_trade(
+        symbol="TSLA",
+        current_price=100.0,
+        prediction=99.0,
+        confidence=0.5,
+        allow_long=True,
+    )
+
+    assert any("DIAG_QTY[TSLA] invalid negative qty=-5; clamped to 0" in line for line in warnings)
+    assert any("TRADE_CHECK[TSLA] allow_long=True qty=0" in line for line in infos)
+
+
+def test_bypass_ror_gate_emits_warning_log():
+    loop = _build_loop(prediction=101.8, allow_ror=False)
+    warnings: list[str] = []
+
+    def _capture_warning(msg, *args, **kwargs):
+        warnings.append(msg % args if args else msg)
+
+    loop.logger.warning = _capture_warning  # type: ignore[assignment]
+    loop.config.swing_strategy_enabled = False
+    loop.config.bypass_ror_gate = True
+
+    loop.check_and_trade(
+        symbol="TSLA",
+        current_price=100.0,
+        prediction=101.8,
+        confidence=0.8,
+        allow_long=True,
+    )
+
+    assert any("[ROR_GATE][TSLA] bypass enabled for diagnostics" in line for line in warnings)
