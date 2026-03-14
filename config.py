@@ -131,6 +131,15 @@ BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
 LOG_PATH    = os.path.join(BASE_DIR, "quant_v2.log")
 STATE_PATH  = os.path.join(BASE_DIR, "state.json")
 
+# Organized folder paths
+DOCS_DIR   = os.path.join(BASE_DIR, "docs")      # Documentation
+LOGS_DIR   = os.path.join(BASE_DIR, "logs")      # Review logs
+DATA_DIR   = os.path.join(BASE_DIR, "data")      # Market data
+BACKUP_DIR = os.path.join(BASE_DIR, "backups")    # System backups
+
+# Daily trading output (paper trading records, PnL reports)
+DAILY_DIR  = "/home/tsukii0607/.openclaw/workspace/kiro_quant_daily"
+
 # ============================================================
 # Helper
 # ============================================================
