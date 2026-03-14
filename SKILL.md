@@ -61,6 +61,11 @@ python futu_api.py assets --env simulated
 
 ## ✅ 已完成
 
+### DataManager 品質監控（2026-03-14）
+- 新增市場數據 payload 驗證流程（price/source/timestamp/volume）
+- 新增來源級品質指標（total/invalid/missing 與 rate）
+- 當 invalid-rate 超過門檻時輸出 warning log
+
 ### PR #40 - Swing 信號 + 診斷日誌
 - 添加 RSI/MACD Swing 交易信號
 - 添加診斷日誌 (DIAG_GATE, DIAG_QTY)

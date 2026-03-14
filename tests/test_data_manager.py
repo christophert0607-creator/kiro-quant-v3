@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 import sys
+from datetime import datetime, timedelta
 
 sys.modules.setdefault("websockets", SimpleNamespace(connect=None))
 
@@ -17,6 +18,15 @@ class DummyInfowayClient:
 
     def get_price(self, _symbol):
         return None
+
+
+class PayloadInfowayClient(DummyInfowayClient):
+    def __init__(self, api_key, symbols, payload):
+        super().__init__(api_key, symbols)
+        self._payload = payload
+
+    def get_price(self, _symbol):
+        return self._payload
 
 
 class DummyTicker:
@@ -151,3 +161,97 @@ def test_get_market_data_ignores_non_positive_fast_info_price(monkeypatch):
 
     assert result is not None
     assert result["price"] == 221.4
+
+
+def test_validate_market_payload_rejects_null_price(monkeypatch):
+    payload = {
+        "price": None,
+        "source": "INFOWAY",
+        "timestamp": datetime.now(),
+    }
+    monkeypatch.setattr(
+        data_manager,
+        "InfowayClient",
+        lambda api_key, symbols: PayloadInfowayClient(api_key, symbols, payload),
+    )
+    monkeypatch.setattr(data_manager.config, "INFOWAY_CONFIG", {"API_KEY": "test"})
+
+    dm = data_manager.DataManager(start_infoway=False)
+    assert dm.get_market_data("US.TSLA") is None
+
+
+def test_validate_market_payload_rejects_negative_price(monkeypatch):
+    payload = {
+        "price": -1,
+        "source": "INFOWAY",
+        "timestamp": datetime.now(),
+    }
+    monkeypatch.setattr(
+        data_manager,
+        "InfowayClient",
+        lambda api_key, symbols: PayloadInfowayClient(api_key, symbols, payload),
+    )
+    monkeypatch.setattr(data_manager.config, "INFOWAY_CONFIG", {"API_KEY": "test"})
+
+    dm = data_manager.DataManager(start_infoway=False)
+    assert dm.get_market_data("US.TSLA") is None
+
+
+def test_validate_market_payload_rejects_malformed_timestamp(monkeypatch):
+    payload = {
+        "price": 100,
+        "source": "INFOWAY",
+        "timestamp": "not-a-timestamp",
+    }
+    monkeypatch.setattr(
+        data_manager,
+        "InfowayClient",
+        lambda api_key, symbols: PayloadInfowayClient(api_key, symbols, payload),
+    )
+    monkeypatch.setattr(data_manager.config, "INFOWAY_CONFIG", {"API_KEY": "test"})
+
+    dm = data_manager.DataManager(start_infoway=False)
+    assert dm.get_market_data("US.TSLA") is None
+
+
+def test_quality_metrics_increment_for_invalid_and_missing(monkeypatch):
+    monkeypatch.setattr(data_manager, "InfowayClient", DummyInfowayClient)
+    monkeypatch.setattr(data_manager.config, "INFOWAY_CONFIG", {"API_KEY": "test"})
+    monkeypatch.setattr(data_manager, "yf", None)
+
+    class DummyMassiveClient:
+        def __init__(self):
+            self._quotes = [
+                {"price": None},
+                {"price": None},
+            ]
+
+        def get_quote(self, _symbol):
+            return self._quotes.pop(0)
+
+    stale_futu_timestamp = datetime.now() - timedelta(seconds=301)
+
+    class DummyFutuClient:
+        def get_market_data(self, _symbol, _market):
+            return {
+                "price": 100,
+                "source": "FUTU",
+                "timestamp": stale_futu_timestamp,
+            }
+
+    dm = data_manager.DataManager(
+        futu_trader=DummyFutuClient(),
+        massive_client=DummyMassiveClient(),
+        start_infoway=False,
+    )
+
+    assert dm.get_market_data("HK.00700") is None
+    assert dm.get_market_data("HK.00700") is None
+
+    metrics = dm.get_quality_metrics()
+    assert metrics["MASSIVE"]["total_samples"] == 2
+    assert metrics["MASSIVE"]["invalid_samples"] == 2
+    assert metrics["MASSIVE"]["invalid_rate"] == 1.0
+    assert metrics["FUTU-HK"]["total_samples"] == 2
+    assert metrics["FUTU-HK"]["invalid_samples"] == 2
+    assert metrics["YFINANCE"]["missing_samples"] == 2
