@@ -648,3 +648,29 @@ def test_position_cap_blocks_additional_model_entry():
     )
 
     assert not executed
+
+
+def test_reconnect_stops_after_three_failures_and_enables_offline_mode():
+    class _FailReconnectConnector(_DummyConnector):
+        def __init__(self):
+            self.reconnect_calls = 0
+
+        def reconnect(self, **_kwargs):
+            self.reconnect_calls += 1
+            raise RuntimeError("RECONNECT_BUDGET_EXCEEDED")
+
+    connector = _FailReconnectConnector()
+    loop = LiveTradingLoop(
+        model_manager=_DummyModelManager(prediction=101.0),
+        risk_controller=_DummyRiskController(allow_ror=True),
+        futu_connector=connector,
+        feature_generator=_PassFeatureGenerator(),
+        config=LiveConfig(symbol="TSLA", symbols_list=["TSLA"]),
+    )
+
+    for _ in range(5):
+        loop._attempt_reconnect()
+
+    assert loop.futu_reconnect_failures == 3
+    assert loop.broker_offline_fallback_mode is True
+    assert connector.reconnect_calls == 3
