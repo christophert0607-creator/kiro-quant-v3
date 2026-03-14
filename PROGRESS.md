@@ -141,3 +141,7 @@
 - [x] 執行 `python -m pytest tests/`。
 - [x] 執行 Paper Trading 驗證日誌（`PAPER_ORDER ...`）。
 - [x] 執行 profiling（`check_and_trade` 迴圈）。
+## 2026-03-14 DataManager Data Quality Validation
+- Added unified market payload validation in `data_manager.py` across Infoway/Massive/Futu-HK/yfinance.
+- Added per-source quality metrics (total/invalid/missing and rates) with warning threshold logging.
+- Extended `tests/test_data_manager.py` for null/negative price, malformed timestamp, and metrics increments.

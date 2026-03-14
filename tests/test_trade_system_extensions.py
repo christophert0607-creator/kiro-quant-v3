@@ -52,7 +52,7 @@ def test_paper_trading_and_pnl_report(tmp_path: Path):
     assert (tmp_path / "pnl_report.json").exists()
 
 
-def test_reconnect_backoff(monkeypatch):
+def test_reconnect_backoff_caps_attempts_and_uses_bounded_delays(monkeypatch):
     connector = FutuConnector(config=FutuConfig(trd_env="SIMULATE"))
     sleeps = []
     attempts = {"n": 0}
@@ -69,4 +69,32 @@ def test_reconnect_backoff(monkeypatch):
     connector.reconnect(max_retries=10, base_delay_seconds=5)
 
     assert attempts["n"] == 3
-    assert sleeps == [5, 10]
+    assert sleeps == [2, 4]
+
+
+def test_reconnect_budget_exceeded_raises_deterministic_error(monkeypatch):
+    connector = FutuConnector(config=FutuConfig(trd_env="SIMULATE"))
+    attempts = {"n": 0}
+
+    def fake_connect():
+        attempts["n"] += 1
+        raise RuntimeError("boom")
+
+    clock = {"now": 0.0}
+
+    def fake_time():
+        clock["now"] += 11.0
+        return clock["now"]
+
+    monkeypatch.setattr(connector, "connect", fake_connect)
+    monkeypatch.setattr(connector, "_safe_close_contexts", lambda: None)
+    monkeypatch.setattr("v3_pipeline.core.futu_connector.time.sleep", lambda _seconds: None)
+    monkeypatch.setattr("v3_pipeline.core.futu_connector.time.time", fake_time)
+
+    try:
+        connector.reconnect(max_retries=10, base_delay_seconds=5)
+        raise AssertionError("expected reconnect to fail")
+    except RuntimeError as exc:
+        assert "RECONNECT_BUDGET_EXCEEDED" in str(exc)
+
+    assert 1 <= attempts["n"] <= 3

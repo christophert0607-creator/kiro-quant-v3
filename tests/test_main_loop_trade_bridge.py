@@ -138,6 +138,22 @@ class _DummyConnector:
         return pd.DataFrame([])
 
 
+class _DummyFailingConnector(_DummyConnector):
+    def heartbeat(self):
+        raise RuntimeError("broker down")
+
+    def reconnect(self, **_kwargs):
+        raise RuntimeError("reconnect failed")
+
+
+class _DummyDataManager:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def get_market_data(self, _symbol):
+        return self.payload
+
+
 class _PassFeatureGenerator:
     def generate(self, frame):
         return frame
@@ -149,6 +165,7 @@ class _PassAlphaEngine:
 
 
 def _build_loop(prediction: float, auto_trade: bool = False, allow_ror: bool = True, allow_daily: bool = True, allow_var_cvar: bool = True):
+def _build_loop(prediction: float, auto_trade: bool = False, allow_ror: bool = True, futu_connector=None, data_manager=None):
     model_manager = _DummyModelManager(prediction=prediction)
     cfg = LiveConfig(
         symbol="TSLA",
@@ -164,6 +181,9 @@ def _build_loop(prediction: float, auto_trade: bool = False, allow_ror: bool = T
         model_manager=model_manager,
         risk_controller=_DummyRiskController(allow_ror=allow_ror, allow_daily=allow_daily, allow_var_cvar=allow_var_cvar),
         futu_connector=_DummyConnector(),
+        risk_controller=_DummyRiskController(allow_ror=allow_ror),
+        futu_connector=futu_connector or _DummyConnector(),
+        data_manager=data_manager,
         feature_generator=_PassFeatureGenerator(),
         config=cfg,
     )
@@ -687,3 +707,52 @@ def test_daily_loss_gate_blocks_model_buy_before_execution():
 
     assert not executed
     assert any("[DAILY_LOSS_GATE][TSLA] blocked BUY" in line for line in warnings)
+def test_reconnect_stops_after_three_failures_and_enables_offline_mode():
+    class _FailReconnectConnector(_DummyConnector):
+        def __init__(self):
+            self.reconnect_calls = 0
+
+        def reconnect(self, **_kwargs):
+            self.reconnect_calls += 1
+            raise RuntimeError("RECONNECT_BUDGET_EXCEEDED")
+
+    connector = _FailReconnectConnector()
+    loop = LiveTradingLoop(
+        model_manager=_DummyModelManager(prediction=101.0),
+        risk_controller=_DummyRiskController(allow_ror=True),
+        futu_connector=connector,
+        feature_generator=_PassFeatureGenerator(),
+        config=LiveConfig(symbol="TSLA", symbols_list=["TSLA"]),
+    )
+
+    for _ in range(5):
+        loop._attempt_reconnect()
+
+    assert loop.futu_reconnect_failures == 3
+    assert loop.broker_offline_fallback_mode is True
+    assert connector.reconnect_calls == 3
+def test_run_cycle_uses_data_manager_fallback_when_broker_is_down():
+    fallback_dm = _DummyDataManager({"price": 123.45, "source": "INFOWAY"})
+    loop = _build_loop(
+        prediction=124.0,
+        futu_connector=_DummyFailingConnector(),
+        data_manager=fallback_dm,
+    )
+    captured: list[str] = []
+
+    def _capture_info(msg, *args, **kwargs):
+        captured.append(msg % args if args else msg)
+
+    loop.logger.info = _capture_info  # type: ignore[assignment]
+    loop._check_heartbeat()
+
+    asyncio.run(loop._run_symbol_cycle("TSLA"))
+
+    latest_row = loop.market_buffers["TSLA"].iloc[-1]
+    assert latest_row["Open"] == 123.45
+    assert latest_row["High"] == 123.45
+    assert latest_row["Low"] == 123.45
+    assert latest_row["Close"] == 123.45
+    assert latest_row["Volume"] == 0.0
+    assert latest_row["data_source"] == "INFOWAY"
+    assert any("QuoteSource[TSLA] broker_online=False source=INFOWAY" in line for line in captured)
