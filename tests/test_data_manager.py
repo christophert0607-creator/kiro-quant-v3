@@ -20,12 +20,15 @@ class DummyInfowayClient:
 
 
 class DummyTicker:
-    def __init__(self, symbol, *, fast_info, history_data):
+    def __init__(self, symbol, *, fast_info, history_data, daily_history_data=None):
         self.symbol = symbol
         self.fast_info = fast_info
         self._history_data = history_data
+        self._daily_history_data = daily_history_data if daily_history_data is not None else history_data
 
     def history(self, period="1d", interval="1m"):
+        if period == "5d" and interval == "1d":
+            return self._daily_history_data
         return self._history_data
 
 
@@ -110,3 +113,41 @@ def test_get_market_data_returns_none_when_yfinance_unavailable(monkeypatch):
 
     dm = data_manager.DataManager(start_infoway=False)
     assert dm.get_market_data("US.TSLA") is None
+
+
+def test_get_market_data_uses_daily_history_when_intraday_is_empty(monkeypatch):
+    monkeypatch.setattr(data_manager, "InfowayClient", DummyInfowayClient)
+    monkeypatch.setattr(data_manager.config, "INFOWAY_CONFIG", {"API_KEY": "test"})
+
+    ticker = DummyTicker(
+        "TSLA",
+        fast_info=SimpleNamespace(last_price=None),
+        history_data=DummyHistory([]),
+        daily_history_data=DummyHistory([210.0, 212.8]),
+    )
+    monkeypatch.setattr(data_manager, "yf", SimpleNamespace(Ticker=lambda _symbol: ticker))
+
+    dm = data_manager.DataManager(start_infoway=False)
+    result = dm.get_market_data("US.TSLA")
+
+    assert result is not None
+    assert result["source"] == "YFINANCE"
+    assert result["price"] == 212.8
+
+
+def test_get_market_data_ignores_non_positive_fast_info_price(monkeypatch):
+    monkeypatch.setattr(data_manager, "InfowayClient", DummyInfowayClient)
+    monkeypatch.setattr(data_manager.config, "INFOWAY_CONFIG", {"API_KEY": "test"})
+
+    ticker = DummyTicker(
+        "TSLA",
+        fast_info={"lastPrice": 0},
+        history_data=DummyHistory([221.4]),
+    )
+    monkeypatch.setattr(data_manager, "yf", SimpleNamespace(Ticker=lambda _symbol: ticker))
+
+    dm = data_manager.DataManager(start_infoway=False)
+    result = dm.get_market_data("US.TSLA")
+
+    assert result is not None
+    assert result["price"] == 221.4

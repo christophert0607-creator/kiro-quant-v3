@@ -128,3 +128,5 @@
 - [x] yfinance 價格讀取強化：`fast_info` 不可用時回退 `history(1d/1m)` 最新收盤價。
 - [x] 新增測試 `tests/test_data_manager.py` 覆蓋 API key 缺失、`fast_info` dict、history 回退、缺 yfinance 場景。
 - [x] 執行 `python -m pytest tests/` 全部通過。
+- [x] yfinance fallback 再強化：僅接受有效正價格，`history(1d/1m)` 空資料時再回退 `history(5d/1d)`。
+- [x] 新增回歸測試：覆蓋 intraday 空資料日線回退、`fast_info` 非正價格自動忽略。
