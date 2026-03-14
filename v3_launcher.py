@@ -161,6 +161,7 @@ def run_kiro_v35(config_path: str = "config.json", profile_override: Optional[st
     from v3_pipeline.models.brain import KiroLSTM
     from v3_pipeline.models.manager import DataPreparer, ModelManager
     from v3_pipeline.risk.manager import RiskConfig, RiskController
+    from data_manager import DataManager
 
     preparer = DataPreparer(lookback=profile.lookback, target_col="Close")
     model = KiroLSTM(
@@ -183,6 +184,7 @@ def run_kiro_v35(config_path: str = "config.json", profile_override: Optional[st
         model_manager=manager,
         risk_controller=RiskController(config=risk_cfg),
         futu_connector=FutuConnector(),
+        data_manager=DataManager(start_infoway=True),
         config=live_cfg,
     )
     loop.start()
