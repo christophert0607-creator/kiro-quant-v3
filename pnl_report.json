@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-03-14T12:04:48.433667+00:00",
+  "total_unrealized_pnl": 0.0,
+  "total_realized_pnl": -716.0125775756312,
+  "net_pnl": -716.0125775756312,
+  "symbols": {
+    "NVDA": {
+      "qty": 0,
+      "avg_cost": 0.0,
+      "cost_basis": 0.0,
+      "entry_time": null,
+      "last_fill_time": "2026-03-14T12:04:48.433662+00:00",
+      "mark_price": 180.26499938964844,
+      "unrealized_pnl": 0.0,
+      "realized_pnl": -716.0125775756312
+    }
+  }
+}

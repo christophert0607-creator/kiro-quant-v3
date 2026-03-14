@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-03-14T12:04:48.433394+00:00",
+  "cash": 99283.98742241692,
+  "equity": 99283.98742241692,
+  "realized_pnl": -716.0125775756312,
+  "unrealized_pnl": 0.0,
+  "net_pnl": -716.0125775756312,
+  "positions": {
+    "NVDA": {
+      "qty": 0,
+      "avg_cost": 0.0,
+      "cost_basis": 0.0,
+      "entry_time": null,
+      "last_fill_time": "2026-03-14T12:04:48.433366+00:00",
+      "mark_price": 180.26499938964844,
+      "unrealized_pnl": 0.0,
+      "realized_pnl": -716.0125775756312
+    }
+  }
+}

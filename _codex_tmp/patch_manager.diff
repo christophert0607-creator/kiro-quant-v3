@@ -1,0 +1,45 @@
+diff --git a/v3_pipeline/risk/manager.py b/v3_pipeline/risk/manager.py
+index fd41a55..279851b 100644
+--- a/v3_pipeline/risk/manager.py
++++ b/v3_pipeline/risk/manager.py
+@@ -25,7 +25,9 @@ class RiskConfig:
+     max_drawdown: float = 0.20
+     max_position_fraction: float = 0.05
+     trailing_stop_pct: float = 0.05
+-    ruin_threshold: float = 0.35
++    ruin_threshold: float = 0.20
++    min_win_rate: float = 0.55
++    min_reward_risk_ratio: float = 1.0
+     max_trade_var_95: float = 0.03
+ 
+ 
+@@ -112,6 +114,29 @@ class RiskController:
+         risk_fraction: float,
+         mc_var_95: float,
+     ) -> bool:
++        try:
++            win_rate = float(win_rate)
++        except (TypeError, ValueError):
++            win_rate = 0.5
++        try:
++            reward_risk_ratio = float(reward_risk_ratio)
++        except (TypeError, ValueError):
++            reward_risk_ratio = 1.0
++        try:
++            risk_fraction = float(risk_fraction)
++        except (TypeError, ValueError):
++            risk_fraction = 0.01
++        if not math.isfinite(win_rate):
++            win_rate = 0.5
++        if not math.isfinite(reward_risk_ratio):
++            reward_risk_ratio = 1.0
++        if not math.isfinite(risk_fraction):
++            risk_fraction = 0.01
++        win_rate = max(min(win_rate, 1 - 1e-6), self.config.min_win_rate)
++        reward_risk_ratio = max(reward_risk_ratio, self.config.min_reward_risk_ratio)
++        if not math.isfinite(mc_var_95):
++            mc_var_95 = 0.0
++
+         ror = self.estimate_risk_of_ruin(
+             win_rate=win_rate,
+             reward_risk_ratio=reward_risk_ratio,
