@@ -285,8 +285,20 @@ class FutuConnector:
             return False
 
     def reconnect(self, max_retries: int = 10, base_delay_seconds: int = 5) -> None:
+        hard_attempt_cap = 3
+        hard_elapsed_budget_seconds = 30.0
+        bounded_delays_seconds = (2, 4, 8)
+
+        max_retries = min(max(1, int(max_retries)), hard_attempt_cap)
+        started = time.time()
         last_exc: Optional[Exception] = None
         for attempt in range(1, max_retries + 1):
+            elapsed = time.time() - started
+            if elapsed >= hard_elapsed_budget_seconds:
+                raise RuntimeError(
+                    "RECONNECT_BUDGET_EXCEEDED: "
+                    f"elapsed={elapsed:.2f}s attempts={attempt - 1} budget={hard_elapsed_budget_seconds:.2f}s"
+                )
             try:
                 self.logger.warning("Reconnect attempt %d/%d", attempt, max_retries)
                 self._safe_close_contexts()
@@ -297,10 +309,23 @@ class FutuConnector:
                 last_exc = exc
                 if attempt >= max_retries:
                     break
-                delay = base_delay_seconds * (2 ** (attempt - 1))
+                delay = bounded_delays_seconds[min(attempt - 1, len(bounded_delays_seconds) - 1)]
+                remaining_budget = hard_elapsed_budget_seconds - (time.time() - started)
+                if remaining_budget <= 0:
+                    raise RuntimeError(
+                        "RECONNECT_BUDGET_EXCEEDED: "
+                        f"elapsed={time.time() - started:.2f}s attempts={attempt} budget={hard_elapsed_budget_seconds:.2f}s"
+                    ) from exc
+                delay = min(delay, remaining_budget)
                 self.logger.warning("Reconnect attempt %d failed: %s; retrying in %ss", attempt, exc, delay)
                 time.sleep(delay)
-        raise RuntimeError(f"Reconnect failed after {max_retries} attempts: {last_exc}")
+        elapsed = time.time() - started
+        if elapsed >= hard_elapsed_budget_seconds:
+            raise RuntimeError(
+                "RECONNECT_BUDGET_EXCEEDED: "
+                f"elapsed={elapsed:.2f}s attempts={max_retries} budget={hard_elapsed_budget_seconds:.2f}s"
+            ) from last_exc
+        raise RuntimeError(f"RECONNECT_BUDGET_EXCEEDED: attempts={max_retries}/{hard_attempt_cap}; last_error={last_exc}")
 
     def get_latest_quote(self, symbol: str) -> dict:
         code = f"{self.config.market_prefix}.{symbol}"

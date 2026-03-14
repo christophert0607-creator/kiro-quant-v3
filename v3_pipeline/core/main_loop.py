@@ -120,6 +120,8 @@ class LiveTradingLoop:
         }
         self.pnl_tracker = PnLTracker()
         self.paper_trading_simulator = PaperTradingSimulator(starting_cash=self.account_value)
+        self.futu_reconnect_failures = 0
+        self.broker_offline_fallback_mode = False
 
     def start(self) -> None:
         self.futu_connector.connect()
@@ -560,6 +562,9 @@ class LiveTradingLoop:
             self._notify(f"[CRIT] {symbol} moved {move:.2%} in one cycle")
 
     def _check_heartbeat(self) -> None:
+        if self.broker_offline_fallback_mode:
+            self.logger.warning("Broker offline fallback mode active; skip heartbeat reconnect")
+            return
         try:
             ok = self.futu_connector.heartbeat()
             if not ok:
@@ -570,14 +575,22 @@ class LiveTradingLoop:
             self._attempt_reconnect()
 
     def _attempt_reconnect(self) -> None:
+        if self.broker_offline_fallback_mode:
+            return
         try:
-            self.futu_connector.reconnect(max_retries=10, base_delay_seconds=5)
+            self.futu_connector.reconnect(max_retries=3, base_delay_seconds=2)
+            self.futu_reconnect_failures = 0
             self._sync_broker_state()
             orders = self.futu_connector.get_open_orders()
             self.logger.info("Reconnect sync completed: open_orders=%d", len(orders.index))
         except Exception as exc:
-            self.logger.error("Reconnect failed: %s", exc)
+            self.futu_reconnect_failures += 1
+            self.logger.error("Reconnect failed (consecutive=%d): %s", self.futu_reconnect_failures, exc)
             self._notify(f"[RECONNECT_FAIL] {exc}")
+            if self.futu_reconnect_failures >= 3:
+                self.broker_offline_fallback_mode = True
+                self.logger.error("Broker offline fallback mode enabled after %d failed reconnect rounds", self.futu_reconnect_failures)
+                self._notify("[BROKER_OFFLINE] fallback mode enabled")
 
     def _sync_broker_state(self) -> None:
         try:
