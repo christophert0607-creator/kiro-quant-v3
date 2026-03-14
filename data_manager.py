@@ -1,4 +1,5 @@
 import logging
+import math
 from datetime import datetime
 
 try:
@@ -10,6 +11,20 @@ from infoway_client import InfowayClient
 import config
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_price(value):
+    """Return a finite positive float price, otherwise None."""
+    if value is None:
+        return None
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+
+    if not math.isfinite(parsed) or parsed <= 0:
+        return None
+    return parsed
 
 
 class DataManager:
@@ -71,18 +86,23 @@ class DataManager:
             fast_info = getattr(ticker, "fast_info", None)
             price = None
             if fast_info is not None:
-                price = getattr(fast_info, "last_price", None)
+                price = _normalize_price(getattr(fast_info, "last_price", None))
                 if price is None and isinstance(fast_info, dict):
-                    price = fast_info.get("lastPrice") or fast_info.get("last_price")
+                    price = _normalize_price(fast_info.get("lastPrice") or fast_info.get("last_price"))
 
-            if not price:
+            if price is None:
                 history = ticker.history(period="1d", interval="1m")
                 if history is not None and not history.empty:
-                    price = history["Close"].dropna().iloc[-1]
+                    price = _normalize_price(history["Close"].dropna().iloc[-1])
 
-            if price:
+            if price is None:
+                history = ticker.history(period="5d", interval="1d")
+                if history is not None and not history.empty:
+                    price = _normalize_price(history["Close"].dropna().iloc[-1])
+
+            if price is not None:
                 return {
-                    "price": float(price),
+                    "price": price,
                     "source": "YFINANCE",
                     "timestamp": datetime.now(),
                 }
