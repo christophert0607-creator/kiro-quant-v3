@@ -130,3 +130,8 @@
 - [x] 執行 `python -m pytest tests/` 全部通過。
 - [x] yfinance fallback 再強化：僅接受有效正價格，`history(1d/1m)` 空資料時再回退 `history(5d/1d)`。
 - [x] 新增回歸測試：覆蓋 intraday 空資料日線回退、`fast_info` 非正價格自動忽略。
+
+## 2026-03-14 DataManager Data Quality Validation
+- Added unified market payload validation in `data_manager.py` across Infoway/Massive/Futu-HK/yfinance.
+- Added per-source quality metrics (total/invalid/missing and rates) with warning threshold logging.
+- Extended `tests/test_data_manager.py` for null/negative price, malformed timestamp, and metrics increments.
