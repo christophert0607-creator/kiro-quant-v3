@@ -126,6 +126,22 @@ class _DummyConnector:
         return pd.DataFrame([])
 
 
+class _DummyFailingConnector(_DummyConnector):
+    def heartbeat(self):
+        raise RuntimeError("broker down")
+
+    def reconnect(self, **_kwargs):
+        raise RuntimeError("reconnect failed")
+
+
+class _DummyDataManager:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def get_market_data(self, _symbol):
+        return self.payload
+
+
 class _PassFeatureGenerator:
     def generate(self, frame):
         return frame
@@ -136,7 +152,7 @@ class _PassAlphaEngine:
         return featured
 
 
-def _build_loop(prediction: float, auto_trade: bool = False, allow_ror: bool = True):
+def _build_loop(prediction: float, auto_trade: bool = False, allow_ror: bool = True, futu_connector=None, data_manager=None):
     model_manager = _DummyModelManager(prediction=prediction)
     cfg = LiveConfig(
         symbol="TSLA",
@@ -151,7 +167,8 @@ def _build_loop(prediction: float, auto_trade: bool = False, allow_ror: bool = T
     loop = LiveTradingLoop(
         model_manager=model_manager,
         risk_controller=_DummyRiskController(allow_ror=allow_ror),
-        futu_connector=_DummyConnector(),
+        futu_connector=futu_connector or _DummyConnector(),
+        data_manager=data_manager,
         feature_generator=_PassFeatureGenerator(),
         config=cfg,
     )
@@ -648,3 +665,30 @@ def test_position_cap_blocks_additional_model_entry():
     )
 
     assert not executed
+
+
+def test_run_cycle_uses_data_manager_fallback_when_broker_is_down():
+    fallback_dm = _DummyDataManager({"price": 123.45, "source": "INFOWAY"})
+    loop = _build_loop(
+        prediction=124.0,
+        futu_connector=_DummyFailingConnector(),
+        data_manager=fallback_dm,
+    )
+    captured: list[str] = []
+
+    def _capture_info(msg, *args, **kwargs):
+        captured.append(msg % args if args else msg)
+
+    loop.logger.info = _capture_info  # type: ignore[assignment]
+    loop._check_heartbeat()
+
+    asyncio.run(loop._run_symbol_cycle("TSLA"))
+
+    latest_row = loop.market_buffers["TSLA"].iloc[-1]
+    assert latest_row["Open"] == 123.45
+    assert latest_row["High"] == 123.45
+    assert latest_row["Low"] == 123.45
+    assert latest_row["Close"] == 123.45
+    assert latest_row["Volume"] == 0.0
+    assert latest_row["data_source"] == "INFOWAY"
+    assert any("QuoteSource[TSLA] broker_online=False source=INFOWAY" in line for line in captured)

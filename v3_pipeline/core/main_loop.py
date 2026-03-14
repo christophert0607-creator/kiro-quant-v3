@@ -74,15 +74,22 @@ class LiveTradingLoop:
         model_manager: ModelManager,
         risk_controller: RiskController,
         futu_connector: Optional[FutuConnector] = None,
+        data_manager=None,
         feature_generator: Optional[TechnicalIndicatorGenerator] = None,
         config: Optional[LiveConfig] = None,
     ) -> None:
         self.model_manager = model_manager
         self.risk_controller = risk_controller
         self.futu_connector = futu_connector or FutuConnector()
+        if data_manager is None:
+            from data_manager import DataManager
+
+            data_manager = DataManager(start_infoway=False)
+        self.data_manager = data_manager
         self.feature_generator = feature_generator or TechnicalIndicatorGenerator()
         self.config = config or LiveConfig()
         self.logger = _build_stderr_logger(self.__class__.__name__)
+        self.broker_online = True
 
         self.symbols = self.config.symbols_list or [self.config.symbol]
         self.market_buffers: dict[str, pd.DataFrame] = {
@@ -179,10 +186,7 @@ class LiveTradingLoop:
         lookback = int(self.model_manager.data_preparer.lookback)
 
         try:
-            quote = await asyncio.wait_for(
-                asyncio.to_thread(self.futu_connector.get_latest_quote, symbol),
-                timeout=self.config.quote_timeout_seconds,
-            )
+            quote = await self._fetch_quote(symbol)
         except TimeoutError:
             self.logger.warning("TIMEOUT[%s]: quote fetch exceeded %.1fs, skipping cycle", symbol, self.config.quote_timeout_seconds)
             return
@@ -263,6 +267,52 @@ class LiveTradingLoop:
 
         elapsed_ms = (time.perf_counter() - started) * 1000
         self.profile_timings.append({"symbol": symbol, "elapsed_ms": elapsed_ms, "ts": datetime.now(timezone.utc).isoformat()})
+
+    async def _fetch_quote(self, symbol: str) -> dict:
+        if self.broker_online:
+            quote = await asyncio.wait_for(
+                asyncio.to_thread(self.futu_connector.get_latest_quote, symbol),
+                timeout=self.config.quote_timeout_seconds,
+            )
+            source = quote.get("data_source") if isinstance(quote, dict) else None
+            self.logger.info("QuoteSource[%s] broker_online=True source=%s", symbol, source or "BROKER")
+            return quote
+
+        quote = await asyncio.to_thread(self._fetch_fallback_quote, symbol)
+        self.logger.info("QuoteSource[%s] broker_online=False source=%s", symbol, quote.get("data_source", "UNKNOWN"))
+        return quote
+
+    def _fetch_fallback_quote(self, symbol: str) -> dict:
+        fallback = self.data_manager.get_market_data(symbol)
+        if not fallback:
+            raise ValueError(f"No fallback market data for {symbol}")
+
+        if "Close" in fallback:
+            close_price = float(fallback["Close"])
+            open_price = float(fallback.get("Open", close_price))
+            high_price = float(fallback.get("High", close_price))
+            low_price = float(fallback.get("Low", close_price))
+            volume = float(fallback.get("Volume", 0.0))
+            source = str(fallback.get("data_source") or fallback.get("source") or "FALLBACK")
+            ts = fallback.get("Date") or fallback.get("timestamp") or datetime.now(timezone.utc)
+        else:
+            close_price = float(fallback["price"])
+            open_price = close_price
+            high_price = close_price
+            low_price = close_price
+            volume = 0.0
+            source = str(fallback.get("source") or "FALLBACK")
+            ts = fallback.get("timestamp") or datetime.now(timezone.utc)
+
+        return {
+            "Date": pd.to_datetime(ts, errors="coerce"),
+            "Open": open_price,
+            "High": high_price,
+            "Low": low_price,
+            "Close": close_price,
+            "Volume": volume,
+            "data_source": source,
+        }
 
     def check_and_trade(
         self,
@@ -564,22 +614,31 @@ class LiveTradingLoop:
             ok = self.futu_connector.heartbeat()
             if not ok:
                 self.logger.warning("Broker heartbeat unhealthy")
+                self.broker_online = False
                 self._attempt_reconnect()
+            else:
+                self.broker_online = True
         except Exception as exc:
             self.logger.warning("Heartbeat check failed: %s", exc)
+            self.broker_online = False
             self._attempt_reconnect()
 
     def _attempt_reconnect(self) -> None:
         try:
             self.futu_connector.reconnect(max_retries=10, base_delay_seconds=5)
+            self.broker_online = True
             self._sync_broker_state()
             orders = self.futu_connector.get_open_orders()
             self.logger.info("Reconnect sync completed: open_orders=%d", len(orders.index))
         except Exception as exc:
+            self.broker_online = False
             self.logger.error("Reconnect failed: %s", exc)
             self._notify(f"[RECONNECT_FAIL] {exc}")
 
     def _sync_broker_state(self) -> None:
+        if not self.broker_online:
+            self.logger.info("Broker offline: skipping broker asset/position sync")
+            return
         try:
             assets = self.futu_connector.get_sync_assets()
             self.account_value = float(assets.get("total_assets", self.account_value))
