@@ -100,6 +100,8 @@ class LiveTradingLoop:
         self.equity_peak = 0.0
         self.account_value = 100000.0
         self.starting_equity = self.account_value
+        self.day_start_equity = self.account_value
+        self.day_start_date = datetime.now(timezone.utc).date()
         self.strategy_factory = StrategyFactory()
         self.alpha_engine = KiroAlphaEngine()
         self.monte_carlo = MonteCarloSimulator()
@@ -143,6 +145,7 @@ class LiveTradingLoop:
     async def run_one_cycle(self) -> None:
         self._check_heartbeat()
         self._sync_broker_state()
+        self._roll_day_start_equity_if_needed()
 
         semaphore = asyncio.Semaphore(self.config.max_symbol_concurrency)
 
@@ -303,6 +306,8 @@ class LiveTradingLoop:
             self._notify(f"🚨 Circuit breaker hit. Equity={self.account_value:.2f}")
             return
 
+        daily_loss_allowed = self.risk_controller.allow_daily_loss(self.day_start_equity, self.account_value)
+
         qty_raw = int(self.position_qty_by_symbol.get(symbol, 0))
         qty = max(0, qty_raw)
         if qty_raw < 0:
@@ -420,6 +425,16 @@ class LiveTradingLoop:
                 alloc = min(alloc, diversification_cap)
                 buy_qty = max(0, int(alloc / max(current_price, 1e-9)))
                 if buy_qty > 0:
+                    if not daily_loss_allowed:
+                        # RISK BOUNDARY: daily loss gate blocks new long risk after intraday drawdown breach.
+                        self.logger.warning(
+                            "[DAILY_LOSS_GATE][%s] blocked SWING BUY: day_start=%.2f current=%.2f limit=%.2f%%",
+                            symbol,
+                            self.day_start_equity,
+                            self.account_value,
+                            self.risk_controller.config.max_daily_loss_fraction * 100,
+                        )
+                        return
                     self._execute(symbol, "BUY", buy_qty, current_price, f"swing_signal_conf={confidence:.3f}")
                     return
             elif qty > 0 and swing["sell_signal"]:
@@ -458,12 +473,34 @@ class LiveTradingLoop:
                     mc["var95"],
                 )
                 return
+            elif not self.risk_controller.allow_trade_with_var_cvar(
+                mc_var_95=mc["var95"],
+                return_samples=returns.tolist(),
+            ):
+                cvar_95 = self.risk_controller.estimate_cvar_95(return_samples=returns.tolist())
+                self.logger.warning(
+                    "[VAR_CVAR_GATE][%s] blocked BUY: var95=%.4f cvar95=%.4f",
+                    symbol,
+                    mc["var95"],
+                    cvar_95,
+                )
+                return
 
             alloc = self.account_value * risk_pct
             diversification_cap = self.account_value * max(0.0, float(self.config.max_position_fraction_per_symbol))
             alloc = min(alloc, diversification_cap)
             buy_qty = max(0, int(alloc / max(current_price, 1e-9)))
             if buy_qty > 0:
+                if not daily_loss_allowed:
+                    # RISK BOUNDARY: daily loss gate blocks new long risk after intraday drawdown breach.
+                    self.logger.warning(
+                        "[DAILY_LOSS_GATE][%s] blocked BUY: day_start=%.2f current=%.2f limit=%.2f%%",
+                        symbol,
+                        self.day_start_equity,
+                        self.account_value,
+                        self.risk_controller.config.max_daily_loss_fraction * 100,
+                    )
+                    return
                 self._execute(symbol, "BUY", buy_qty, current_price, f"model_signal_conf={confidence:.3f}")
         elif model_sell_signal and qty > 0:
             if self.cycles_since_buy_by_symbol.get(symbol, 0) >= self.config.buy_cooldown_cycles:
@@ -558,6 +595,13 @@ class LiveTradingLoop:
         move = abs(current_price - last) / last
         if move >= self.config.crit_move_threshold:
             self._notify(f"[CRIT] {symbol} moved {move:.2%} in one cycle")
+
+    def _roll_day_start_equity_if_needed(self) -> None:
+        current_day = datetime.now(timezone.utc).date()
+        if current_day != self.day_start_date:
+            self.day_start_date = current_day
+            self.day_start_equity = self.account_value
+            self.logger.info("RISK_DAY_RESET new day-start equity=%.2f", self.day_start_equity)
 
     def _check_heartbeat(self) -> None:
         try:

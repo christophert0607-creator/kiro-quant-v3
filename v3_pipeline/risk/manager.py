@@ -27,6 +27,8 @@ class RiskConfig:
     trailing_stop_pct: float = 0.05
     ruin_threshold: float = 0.15
     max_trade_var_95: float = 0.03
+    max_daily_loss_fraction: float = 1.0
+    max_trade_cvar_95: float | None = None
 
 
 class RiskController:
@@ -129,11 +131,70 @@ class RiskController:
             )
             return False
 
+        if not self.allow_trade_with_var_cvar(mc_var_95=mc_var_95):
+            return False
+
+        return True
+
+    def allow_daily_loss(
+        self,
+        day_start_equity: float,
+        current_equity: float,
+    ) -> bool:
+        """Evaluate whether intraday drawdown is within configured limits."""
+        if day_start_equity <= 0:
+            return True
+        loss_fraction = max(0.0, (day_start_equity - current_equity) / day_start_equity)
+        allowed = loss_fraction <= max(0.0, float(self.config.max_daily_loss_fraction))
+        if not allowed:
+            self.logger.warning(
+                "Daily loss gate blocked trade. loss=%.2f%% limit=%.2f%%",
+                loss_fraction * 100,
+                self.config.max_daily_loss_fraction * 100,
+            )
+        return allowed
+
+    def estimate_cvar_95(
+        self,
+        return_samples: list[float] | tuple[float, ...] | None = None,
+        tail_losses_95: list[float] | tuple[float, ...] | None = None,
+    ) -> float:
+        """Estimate 95% CVaR from return samples or precomputed tail losses."""
+        tail = list(tail_losses_95 or [])
+        if not tail and return_samples:
+            samples = sorted(float(x) for x in return_samples)
+            if samples:
+                cutoff_idx = max(0, int(math.ceil(len(samples) * 0.05)) - 1)
+                var_cutoff = samples[cutoff_idx]
+                tail = [value for value in samples if value <= var_cutoff]
+
+        if not tail:
+            return 0.0
+
+        return float(sum(tail) / len(tail))
+
+    def allow_trade_with_var_cvar(
+        self,
+        mc_var_95: float,
+        return_samples: list[float] | tuple[float, ...] | None = None,
+        tail_losses_95: list[float] | tuple[float, ...] | None = None,
+    ) -> bool:
+        # RISK BOUNDARY: VaR protects percentile loss, CVaR caps average tail severity.
         if mc_var_95 < -abs(self.config.max_trade_var_95):
             self.logger.warning(
-                "MonteCarlo VaR gate blocked trade. var95=%.4f limit=-%.4f",
+                "VaR/CVaR gate blocked trade on VaR. var95=%.4f limit=-%.4f",
                 mc_var_95,
                 abs(self.config.max_trade_var_95),
+            )
+            return False
+
+        cvar_95 = self.estimate_cvar_95(return_samples=return_samples, tail_losses_95=tail_losses_95)
+        max_cvar = self.config.max_trade_cvar_95
+        if max_cvar is not None and cvar_95 < -abs(max_cvar):
+            self.logger.warning(
+                "VaR/CVaR gate blocked trade on CVaR. cvar95=%.4f limit=-%.4f",
+                cvar_95,
+                abs(max_cvar),
             )
             return False
 

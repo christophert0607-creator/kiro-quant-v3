@@ -78,14 +78,26 @@ class _DummyModelManagerBadPatternConfidence:
         return {"pattern": "DoubleBottom", "confidence": "nan!"}
 
 class _DummyRiskController:
-    def __init__(self, allow_ror: bool = True):
+    def __init__(self, allow_ror: bool = True, allow_daily: bool = True, allow_var_cvar: bool = True):
         self.allow_ror = allow_ror
+        self.allow_daily = allow_daily
+        self.allow_var_cvar = allow_var_cvar
+        self.config = SimpleNamespace(max_daily_loss_fraction=1.0)
 
     def circuit_breaker_triggered(self, *_args, **_kwargs):
         return False
 
     def allow_trade_with_ror(self, *_args, **_kwargs):
         return self.allow_ror
+
+    def allow_daily_loss(self, *_args, **_kwargs):
+        return self.allow_daily
+
+    def allow_trade_with_var_cvar(self, *_args, **_kwargs):
+        return self.allow_var_cvar
+
+    def estimate_cvar_95(self, *_args, **_kwargs):
+        return -0.05
 
 
 class _DummyConnector:
@@ -136,7 +148,7 @@ class _PassAlphaEngine:
         return featured
 
 
-def _build_loop(prediction: float, auto_trade: bool = False, allow_ror: bool = True):
+def _build_loop(prediction: float, auto_trade: bool = False, allow_ror: bool = True, allow_daily: bool = True, allow_var_cvar: bool = True):
     model_manager = _DummyModelManager(prediction=prediction)
     cfg = LiveConfig(
         symbol="TSLA",
@@ -150,7 +162,7 @@ def _build_loop(prediction: float, auto_trade: bool = False, allow_ror: bool = T
     )
     loop = LiveTradingLoop(
         model_manager=model_manager,
-        risk_controller=_DummyRiskController(allow_ror=allow_ror),
+        risk_controller=_DummyRiskController(allow_ror=allow_ror, allow_daily=allow_daily, allow_var_cvar=allow_var_cvar),
         futu_connector=_DummyConnector(),
         feature_generator=_PassFeatureGenerator(),
         config=cfg,
@@ -648,3 +660,30 @@ def test_position_cap_blocks_additional_model_entry():
     )
 
     assert not executed
+
+
+def test_daily_loss_gate_blocks_model_buy_before_execution():
+    loop = _build_loop(prediction=101.8, allow_daily=False)
+    loop.config.swing_strategy_enabled = False
+    warnings: list[str] = []
+    executed: list[tuple[str, int, str]] = []
+
+    def _capture_warning(msg, *args, **kwargs):
+        warnings.append(msg % args if args else msg)
+
+    def _fake_execute(symbol, side, qty, price, reason):
+        executed.append((side, qty, reason))
+
+    loop.logger.warning = _capture_warning  # type: ignore[assignment]
+    loop._execute = _fake_execute  # type: ignore[assignment]
+
+    loop.check_and_trade(
+        symbol="TSLA",
+        current_price=100.0,
+        prediction=101.8,
+        confidence=0.8,
+        allow_long=True,
+    )
+
+    assert not executed
+    assert any("[DAILY_LOSS_GATE][TSLA] blocked BUY" in line for line in warnings)

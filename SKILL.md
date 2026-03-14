@@ -93,3 +93,17 @@ python futu_api.py assets --env simulated
 - V3.5: 運行中
 - 模擬倉: $100,000
 - 持倉: 0
+
+
+## 🆕 2026-03-14 風險門檻擴充指引（Daily Loss + VaR/CVaR）
+- `RiskConfig` 可配置：
+  - `max_daily_loss_fraction`：日內最大可承受虧損比例（預設 `1.0`，不影響既有行為）。
+  - `max_trade_cvar_95`：單筆交易 CVaR(95) 下限（預設 `None`，不啟用）。
+- `RiskController` 新增：
+  - `allow_daily_loss(day_start_equity, current_equity)`
+  - `estimate_cvar_95(return_samples|tail_losses_95)`
+  - `allow_trade_with_var_cvar(mc_var_95, ...)`
+- `LiveTradingLoop` 實務：
+  - 每日換日重設 `day_start_equity`。
+  - 每次交易週期先執行日內虧損檢查。
+  - BUY 前再執行一次 gate，阻擋時輸出 `[DAILY_LOSS_GATE]` / `[VAR_CVAR_GATE]` 明確日誌。

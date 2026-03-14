@@ -130,3 +130,14 @@
 - [x] 執行 `python -m pytest tests/` 全部通過。
 - [x] yfinance fallback 再強化：僅接受有效正價格，`history(1d/1m)` 空資料時再回退 `history(5d/1d)`。
 - [x] 新增回歸測試：覆蓋 intraday 空資料日線回退、`fast_info` 非正價格自動忽略。
+
+
+## 🆕 2026-03-14 Risk Gate 擴充（Daily Loss + VaR/CVaR）
+- [x] `RiskConfig` 新增 `max_daily_loss_fraction`、`max_trade_cvar_95`（預設維持向後兼容）。
+- [x] `RiskController` 新增日內虧損 gate 與 CVaR(95) 估計 / VaR+CVaR 聯合 gate。
+- [x] `LiveTradingLoop` 持久化 `day_start_equity`，每個 cycle 先做日內風險門檻檢查。
+- [x] `_run_trading_logic` 在 BUY 前強制執行 daily-loss gate，並輸出明確風險邊界阻擋日誌。
+- [x] 新增/擴充測試：`tests/test_risk_manager.py`、`tests/test_main_loop_trade_bridge.py`。
+- [x] 執行 `python -m pytest tests/`。
+- [x] 執行 Paper Trading 驗證日誌（`PAPER_ORDER ...`）。
+- [x] 執行 profiling（`check_and_trade` 迴圈）。
