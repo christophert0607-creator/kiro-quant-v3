@@ -1,0 +1,59 @@
+{
+  "strategy_version": "3.6",
+
+  "money_management": {
+    "kelly_factor": 0.5,
+    "max_position_per_trade": 0.15,
+    "max_total_position": 0.80,
+    "max_positions": 10,
+    "risk_per_trade": 0.02,
+    "max_daily_risk": 0.05
+  },
+
+  "transaction_costs": {
+    "commission_rate": 0.001,
+    "slippage_large_cap": 0.0005,
+    "slippage_mid_cap": 0.001,
+    "slippage_small_cap": 0.002,
+    "min_cost_threshold": 0.001
+  },
+
+  "risk_management": {
+    "var_confidence": 0.95,
+    "var_stop_loss": true,
+    "max_drawdown_stop": 0.15,
+    "max_drawdown_pause": 0.20,
+    "max_drawdown_kill": 0.30
+  },
+
+  "strategies": {
+    "mean_reversion": {
+      "enabled": true,
+      "rsi_oversold": 30,
+      "rsi_overbought": 70,
+      "lookback_period": 14
+    },
+    "momentum": {
+      "enabled": true,
+      "macd_fast": 12,
+      "macd_slow": 26,
+      "macd_signal": 9
+    },
+    "breakout": {
+      "enabled": false,
+      "lookback_period": 20,
+      "volume_threshold": 1.5
+    }
+  },
+
+  "backtest": {
+    "train_test_split": 0.7,
+    "walk_forward": true,
+    "cost_included": true
+  },
+
+  "symbols": {
+    "US": ["NVDA", "TSLA", "AMD", "META", "GOOGL"],
+    "HK": ["0700.HK", "9988.HK", "3690.HK"]
+  }
+}
