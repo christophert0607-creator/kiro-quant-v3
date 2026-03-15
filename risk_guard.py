@@ -59,6 +59,13 @@ class RiskGuard:
                 ss.set_circuit_break(state, True)
             return self._reject("MaxDailyLoss")
 
+        # ─── 3.4 全局持倉數量上限 ────────────────────────────────
+        if signal == "BUY":
+            active_symbols = sum(1 for p in current_positions.values() if p.get("qty", 0) > 0)
+            if active_symbols >= getattr(self.cfg, "max_positions", 5) and code not in current_positions:
+                log.warning(f"🛑 達到全局持倉上限: 已持有 {active_symbols} 隻股票，拒絕買入 {code}")
+                return self._reject("MaxPositionsReached")
+
         # ─── 3.5 持倉保護 ──────────────────────────────────────
         if signal == "BUY":
             existing_pos = current_positions.get(code, {})

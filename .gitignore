@@ -1,9 +1,10 @@
-venv/
-.venv/
 __pycache__/
 *.pyc
+*.pyo
 *.log
-*.pth
-*.parquet
-state.json
-commit_msg.txt
+*.svg
+*.json
+!config.json
+!state.json
+v3_pipeline/models/trained_models/
+

@@ -304,13 +304,32 @@ class QuantV2:
 
                 # 3. 生成信號
                 row  = df.iloc[-1]
-                pred, conf = self.model_mgr.predict(code, row)
                 price = float(row["close"])
 
-                if conf < RISK_CONFIG.signal_confidence_threshold:
-                    signal = "HOLD"
+                # ==== 強制止損 / 止盈檢查 (Absolute P&L Check) ====
+                forced_sell = False
+                pos_info = api_positions.get(code, {}) if isinstance(api_positions, dict) else {}
+                qty = int(pos_info.get("qty", 0) or 0)
+                avg_cost = float(pos_info.get("avg_cost", 0) or 0)
+                
+                if qty > 0 and avg_cost > 0:
+                    pnl_pct = (price - avg_cost) / avg_cost
+                    if pnl_pct <= -RISK_CONFIG.stop_loss_pct:
+                        self.log.warning(f"🛑 {code} 觸發強制止損: {pnl_pct:.2%} <= -{RISK_CONFIG.stop_loss_pct:.2%}")
+                        forced_sell = True
+                    elif pnl_pct >= RISK_CONFIG.stop_profit_pct:
+                        self.log.info(f"💰 {code} 觸發強制止盈: {pnl_pct:.2%} >= {RISK_CONFIG.stop_profit_pct:.2%}")
+                        forced_sell = True
+
+                if forced_sell:
+                    signal = "SELL"
+                    conf = 1.0
                 else:
-                    signal = "BUY" if pred == 1 else "SELL"
+                    pred, conf = self.model_mgr.predict(code, row)
+                    if conf < RISK_CONFIG.signal_confidence_threshold:
+                        signal = "HOLD"
+                    else:
+                        signal = "BUY" if pred == 1 else "SELL"
 
                 self.log.info(
                     f"📡 {code} | 信號: {signal} | "
@@ -380,6 +399,9 @@ class QuantV2:
 
                 # 執行交易循環
                 self.run_cycle()
+
+                # 輪詢更新待成交訂單 (Order Polling)
+                self.engine.sync_pending_orders()
 
                 # 顯示當前持倉 + 狀態
                 state = ss.load()

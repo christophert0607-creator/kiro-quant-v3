@@ -1,18 +1,18 @@
 {
-  "timestamp": "2026-03-14T12:11:24.103456+00:00",
-  "total_unrealized_pnl": -0.5407949981689057,
-  "total_realized_pnl": -727.9100675353471,
-  "net_pnl": -728.4508625335161,
+  "timestamp": "2026-03-15T11:45:45.241823+00:00",
+  "total_unrealized_pnl": 0.0,
+  "total_realized_pnl": -3204.570894149249,
+  "net_pnl": -3204.570894149249,
   "symbols": {
     "NVDA": {
-      "qty": 6,
-      "avg_cost": 180.35513188934326,
-      "cost_basis": 1082.1307913360595,
-      "entry_time": "2026-03-14T12:11:24.103449+00:00",
-      "last_fill_time": "2026-03-14T12:11:24.103449+00:00",
+      "qty": 0,
+      "avg_cost": 0.0,
+      "cost_basis": 0.0,
+      "entry_time": null,
+      "last_fill_time": "2026-03-15T11:45:45.241816+00:00",
       "mark_price": 180.26499938964844,
-      "unrealized_pnl": -0.5407949981689057,
-      "realized_pnl": -727.9100675353471
+      "unrealized_pnl": 0.0,
+      "realized_pnl": -3204.570894149249
     }
   }
 }

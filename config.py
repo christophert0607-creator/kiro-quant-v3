@@ -82,6 +82,7 @@ STOCK_LIST = ["US.TSLA", "US.F", "US.NVDA"]
 @dataclass
 class RiskConfig:
     # 倉位控制
+    max_positions: int = 5               # 最大同時持有股票數量
     max_position_pct: float = 0.10       # 單股最大 10% 資金
     max_total_exposure: float = 0.60     # 總倉位最大 60%
     min_qty: int = 1                     # 最小下單量

@@ -14,10 +14,26 @@ import logging
 import time
 import state_store as ss
 from risk_guard import RiskGuard
+from notifier import send_tg_msg
 from config import (
     OPEND_HOST, OPEND_PORT, TRADE_PWD, TRADE_MODE, MARKET, ORDER_COOLDOWN_HOURS,
     EMERGENCY_DAILY_LOSS_PCT, MIN_TOTAL_ASSETS_ALERT
 )
+
+# ──────────────────────────────────────────────────────────────
+# Futu OrderStatus strings (as returned in order_list_query df)
+# ──────────────────────────────────────────────────────────────
+_TERMINAL_STATUSES = {
+    "FILLED_ALL",        # 全部成交
+    "CANCELLED_ALL",     # 已撤單
+    "CANCELLED_PART",    # 部分成交後撤單
+    "FAILED",            # 下單失敗
+    "DELETED",           # 已刪除
+    "DISABLED",
+    "DEQUEUED",
+}
+_FILLED_STATUSES = {"FILLED_ALL", "FILLED_PART"}   # 全部或部分成交
+_STALE_ORDER_TTL = 86400   # 24 小時後強制清除 pending 佇列
 
 
 def _resolve_trade_context(host: str, port: int):
@@ -132,6 +148,163 @@ class ExecutionEngine:
         except Exception as e:
             log.error(f"❌ 持倉查詢例外: {e}")
         return {}
+
+    def get_order_status(self, order_id: str) -> dict:
+        """
+        查詢單個訂單的成交狀態，回傳標準化字段：
+        { order_id, code, signal, status, dealt_qty, dealt_avg_price }
+        """
+        if not self.trade_ctx:
+            return {}
+        try:
+            env = ft.TrdEnv.SIMULATE if TRADE_MODE == "SIMULATE" else ft.TrdEnv.REAL
+            ret, data = self.trade_ctx.order_list_query(
+                order_id=str(order_id), trd_env=env
+            )
+            if ret == ft.RET_OK and data is not None and not data.empty:
+                row = data.iloc[0]
+                # Futu 回傳的 order_status 為字串，例如 "FILLED_ALL"
+                raw_status = str(row.get("order_status", ""))
+                # 部分成交時 dealt_qty 可能是 int 或 float
+                dealt_qty = int(float(row.get("dealt_qty", 0) or 0))
+                dealt_avg_price = float(row.get("dealt_avg_price", 0.0) or 0.0)
+                log.debug(
+                    f"🔍 [Poll] #{order_id} | status={raw_status} "
+                    f"dealt={dealt_qty} avg_price={dealt_avg_price:.4f}"
+                )
+                return {
+                    "order_id": str(row.get("order_id", order_id)),
+                    "code": str(row.get("code", "")),
+                    "status": raw_status,
+                    "dealt_qty": dealt_qty,
+                    "dealt_avg_price": dealt_avg_price,
+                }
+            else:
+                log.warning(f"⚠️ [Poll] #{order_id} 查詢失敗或無數據: ret={ret}")
+        except Exception as e:
+            log.error(f"❌ 訂單查詢例外: {e}")
+        return {}
+
+    def sync_pending_orders(self):
+        """
+        從 state["pending_orders"] 輪詢所有待確認訂單，並執行：
+          1. 全部成交 (FILLED_ALL)     → 計算實現 PnL，更新 state，發 TG 通知
+          2. 終結狀態 (CANCELLED/FAIL) → 從佇列移除，發 TG 通知
+          3. 過期訂單 (>24h未確認)     → 強制清除，告警
+          4. 仍在途中                 → 保留至下次輪詢
+        """
+        state = ss.load()
+        pending_orders: dict = state.get("pending_orders", {})
+        if not pending_orders:
+            return
+
+        now = time.time()
+        remaining_pending = {}
+        state_changed = False
+
+        for order_id, order_info in pending_orders.items():
+
+            # ── 過期訂單保護：超過 24h 強制清除 ────────────────────
+            age_secs = now - float(order_info.get("time", 0) or 0)
+            if age_secs > _STALE_ORDER_TTL:
+                log.warning(
+                    f"⏰ [Poll] #{order_id} 已超過 {_STALE_ORDER_TTL/3600:.0f}h 未確認成交，"
+                    f"強制從佇列移除（{order_info.get('code')} {order_info.get('signal')}）"
+                )
+                send_tg_msg(
+                    f"⚠️ *訂單過期清除*\n"
+                    f"單號: `{order_id}`\n"
+                    f"品種: `{order_info.get('code')}`\n"
+                    f"動作: `{order_info.get('signal')}`\n"
+                    f"原因: 超過 24h 無成交確認，已自動移除"
+                )
+                state_changed = True
+                continue
+
+            # ── 向 Futu API 查詢最新狀態 ─────────────────────────────
+            status_data = self.get_order_status(order_id)
+            if not status_data:
+                # 查詢失敗（可能是瞬時網絡問題），保留至下輪
+                remaining_pending[order_id] = order_info
+                continue
+
+            status = status_data.get("status", "")
+            code = status_data.get("code") or order_info.get("code", "")
+            signal = order_info.get("signal", "")
+            qty = status_data.get("dealt_qty", 0)
+            avg_price = status_data.get("dealt_avg_price", 0.0)
+
+            # ── 全部成交 ─────────────────────────────────────────────
+            if status in _FILLED_STATUSES and qty > 0:
+                state_changed = True
+                log.info(
+                    f"💹 [Poll] #{order_id} 成交確認: {signal} {qty}股 "
+                    f"{code} @ ${avg_price:.4f}"
+                )
+
+                # 計算實現 PnL（只有 SELL 才有確定 PnL）
+                if signal == "SELL":
+                    order_cost = float(order_info.get("price", 0) or 0)
+                    pnl_per_share = avg_price - order_cost
+                    realized_pnl = round(pnl_per_share * qty, 4)
+                    ss.update_daily_pnl(state, realized_pnl)
+                    pnl_emoji = "🟢" if realized_pnl >= 0 else "🔴"
+                    log.info(
+                        f"{pnl_emoji} [Poll] {code} 已實現 PnL: "
+                        f"${realized_pnl:+.2f} "
+                        f"({pnl_per_share:+.4f}/股 × {qty}股)"
+                    )
+                    send_tg_msg(
+                        f"{pnl_emoji} *成交確認 (SELL)*\n"
+                        f"品種: `{code}`\n"
+                        f"數量: `{qty}` 股\n"
+                        f"成交均價: `${avg_price:.4f}`\n"
+                        f"已實現盈虧: `${realized_pnl:+.2f}`\n"
+                        f"單號: `{order_id}`"
+                    )
+                else:
+                    # BUY 成交：記錄成交均價到 state 供後續 PnL 計算
+                    fills = state.get("fills", {})
+                    fills[code] = {
+                        "qty": qty,
+                        "avg_fill_price": avg_price,
+                        "time": now,
+                    }
+                    state["fills"] = fills
+                    send_tg_msg(
+                        f"✅ *成交確認 (BUY)*\n"
+                        f"品種: `{code}`\n"
+                        f"數量: `{qty}` 股\n"
+                        f"成交均價: `${avg_price:.4f}`\n"
+                        f"單號: `{order_id}`"
+                    )
+
+            # ── 終結但非全成（撤單/失敗）────────────────────────────
+            elif status in _TERMINAL_STATUSES:
+                state_changed = True
+                log.warning(
+                    f"🚫 [Poll] #{order_id} 訂單終結 ({status}): "
+                    f"{signal} {order_info.get('qty')}股 {code}"
+                )
+                send_tg_msg(
+                    f"🚫 *訂單終結*\n"
+                    f"品種: `{code}`\n"
+                    f"動作: `{signal}`\n"
+                    f"狀態: `{status}`\n"
+                    f"單號: `{order_id}`"
+                )
+
+            # ── 仍在途 (SUBMITTING / WAITING_SUBMIT / SUBMITTED) ────
+            else:
+                remaining_pending[order_id] = order_info
+
+        if state_changed:
+            state["pending_orders"] = remaining_pending
+            ss.save(state)
+            log.info(
+                f"🔄 [Poll] 佇列更新完成 "
+                f"(剩餘待確認: {len(remaining_pending)} 筆)"
+            )
 
 
     def emergency_liquidate_all(self) -> dict:
@@ -264,9 +437,22 @@ class ExecutionEngine:
 
         # 5. 更新 state
         if result.get("status") == "OK":
+            order_id = result.get('order_id')
             ss.record_order(state, code, signal, qty, price)
+            
+            # 寫入待確認訂單佇列
+            pending_orders = state.get("pending_orders", {})
+            pending_orders[order_id] = {
+                "code": code,
+                "signal": signal,
+                "qty": qty,
+                "price": price,
+                "time": time.time()
+            }
+            state["pending_orders"] = pending_orders
+            
             self.risk.record_success(state)
-            log.info(f"✅ 下單成功: {signal} {qty}股 {code} @ ${price:.2f} -> #{result.get('order_id')}")
+            log.info(f"✅ 下單成功: {signal} {qty}股 {code} @ ${price:.2f} -> #{order_id}")
         else:
             self.risk.record_error(state)
 

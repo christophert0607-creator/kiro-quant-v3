@@ -53,19 +53,20 @@ class LiveConfig:
     buy_cooldown_cycles: int = 3
     log_trade_decisions: bool = True
     swing_strategy_enabled: bool = True
-    swing_rsi_oversold: float = 30.0
-    swing_rsi_overbought: float = 70.0
+    swing_rsi_oversold: float = 25.0  # AI 建議: 收緊 RSI 買入閾值
+    swing_rsi_overbought: float = 75.0  # AI 建議: 收緊 RSI 賣出閾值
     swing_sr_window: int = 20
     swing_sr_tolerance: float = 0.003
     bypass_ror_gate: bool = False
     diagnostics_verbose: bool = True
-    quick_take_profit_pct: float = 0.01
-    stop_loss_pct: float = 0.02
-    max_hold_bars: int = 5
+    quick_take_profit_pct: float = 0.03  # AI 建議: 1% → 3%，改善 Risk/Reward
+    stop_loss_pct: float = 0.02  # 保持 2% 停損
+    max_hold_bars: int = 10  # AI 建議: 5 → 10 bars，等更大趨勢
     max_positions: int = 5
-    max_position_fraction_per_symbol: float = 0.30
+    max_position_fraction_per_symbol: float = 0.20  # AI 建議: 30% → 20%，減少單筆風險
     pattern_confidence_threshold: float = 0.65
     pattern_threshold_relaxation: float = 0.25
+    ruin_threshold: float = 0.15  # 破產門檻 15%
 
 
 class LiveTradingLoop:
