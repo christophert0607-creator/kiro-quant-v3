@@ -29,6 +29,7 @@ from config import (
 )
 from execution_engine import ExecutionEngine
 from massive_client import MassiveClient
+from data_manager import DataManager
 from notifier import send_tg_msg
 import state_store as ss
 
@@ -187,8 +188,7 @@ class QuantV2:
         self.log       = logging.getLogger("QuantV2")
         self.engine    = ExecutionEngine()
         self.model_mgr = ModelManager()
-        self.quote_ctx = None
-        self.massive   = None
+        self.data_manager = None
         self.kline_cache = {}
 
     def boot(self):
@@ -209,11 +209,15 @@ class QuantV2:
 
         # Massive Client（US 行情 fallback）
         self.massive = MassiveClient()
-        self.log.info("✅ 系統就位！（含 Massive fallback）")
+        
+        # Data Manager (Centralized Routing)
+        self.data_manager = DataManager(futu_trader=self.engine, massive_client=self.massive)
+        
+        self.log.info("✅ 系統就位！（含 DataManager 統一路由）")
         return True
 
     def fetch_kline(self, code: str) -> pd.DataFrame:
-        """取 K 線：先嘗試快取與 Futu，失敗自動 fallback 至 Massive"""
+        """取 K 線：優先使用快取，否則透過 DataManager 獲取（含 Futu/YF/Massive 自動路由）"""
         now = time.time()
         cached = self.kline_cache.get(code)
         if cached:
@@ -222,41 +226,17 @@ class QuantV2:
                 self.log.info(f"💾 [Kline cache] {code} 命中，沿用 {len(cached_df)} 條")
                 return cached_df.copy()
 
-        # 1. Futu 優先
-        if self.quote_ctx:
-            try:
-                ret, data, msg = self.quote_ctx.request_history_kline(
-                    code, ktype=ft.KLType.K_DAY, max_count=KLINE_COUNT
-                )
-                if ret == ft.RET_OK and not data.empty:
-                    data = data.sort_values("time_key").reset_index(drop=True)
-                    self.kline_cache[code] = (now, data.copy())
-                    self.log.info(f"📥 [Futu] {code} K線 {len(data)} 條")
-                    return data
-                else:
-                    self.log.warning(f"⚠️ Futu K線無數據或失敗 ({code}): {msg}")
-            except Exception as e:
-                self.log.warning(f"⚠️ Futu K線例外: {e}")
+        if not self.data_manager:
+            self.log.error("❌ DataManager 未初始化")
+            return pd.DataFrame()
 
-        # 2. Massive fallback（US 股）
-        symbol = code.replace("US.", "")
-        self.log.info(f"🔄 [Massive fallback] 取 {symbol} K線...")
-        try:
-            from_date = (datetime.now() - timedelta(days=730)).strftime('%Y-%m-%d')
-            to_date   = datetime.now().strftime('%Y-%m-%d')
-            bars = self.massive.get_kline(symbol, timespan="day", limit=KLINE_COUNT,
-                                          from_date=from_date, to_date=to_date)
-            if bars:
-                df = pd.DataFrame(bars)
-                # Massive 返回最新在前，要反轉
-                df = df.sort_values("time_key").reset_index(drop=True)
-                self.kline_cache[code] = (now, df.copy())
-                self.log.info(f"📥 [Massive] {code} K線 {len(df)} 條")
-                return df
-        except Exception as e:
-            self.log.error(f"❌ Massive K線失敗: {e}")
-
-        self.log.error(f"❌ {code} 無法取得 K 線（Futu + Massive 均失敗）")
+        # 透過 DataManager 獲取數據（內含 3 層 fallback）
+        df = self.data_manager.get_history_kline(code, ktype="K_DAY", count=KLINE_COUNT)
+        
+        if not df.empty:
+            self.kline_cache[code] = (now, df.copy())
+            return df
+            
         return pd.DataFrame()
 
     def train_models(self):
@@ -426,8 +406,8 @@ class QuantV2:
 
     def shutdown(self):
         self.engine.disconnect()
-        if self.quote_ctx:
-            self.quote_ctx.close()
+        if self.data_manager:
+            self.data_manager.stop()
         self.log.info("✅ Quant Engine v2 已完全停止")
 
 
