@@ -9,7 +9,7 @@ Quant Engine v2 - Config Module
 
 import os
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 
 
 def _detect_opend_host() -> str:
@@ -105,6 +105,46 @@ class RiskConfig:
     suppress_no_position_logs: bool = False  # 抑制 "NoPosition" 拒絕日誌（減少噪音）
 
 RISK_CONFIG = RiskConfig()
+
+
+@dataclass
+class V36MoneyManagementConfig:
+    kelly_factor: float = 0.50
+    max_position_per_trade: float = 0.20
+    max_total_position: float = 0.80
+    max_positions: int = 10
+    risk_per_trade: float = 0.02
+    max_daily_risk: float = 0.05
+
+
+@dataclass
+class V36TransactionCostConfig:
+    commission_rate_us: float = 0.001
+    commission_rate_hk: float = 0.001
+    stamp_duty_rate_hk: float = 0.001
+    slippage_large_cap: float = 0.0005
+    slippage_mid_cap: float = 0.001
+    slippage_small_cap: float = 0.002
+    min_cost_threshold: float = 0.001
+
+
+@dataclass
+class V36RiskControlConfig:
+    var_confidence: float = 0.95
+    max_drawdown_stop: float = 0.15
+    max_drawdown_pause: float = 0.20
+    max_drawdown_kill: float = 0.30
+
+
+@dataclass
+class V36Config:
+    strategy_version: str = "3.6"
+    money_management: V36MoneyManagementConfig = field(default_factory=V36MoneyManagementConfig)
+    transaction_costs: V36TransactionCostConfig = field(default_factory=V36TransactionCostConfig)
+    risk_management: V36RiskControlConfig = field(default_factory=V36RiskControlConfig)
+
+
+V36_CONFIG = V36Config()
 
 # ============================================================
 # 系統參數
