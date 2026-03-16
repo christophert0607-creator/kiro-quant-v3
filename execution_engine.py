@@ -13,8 +13,7 @@ import futu as ft
 import logging
 import time
 import state_store as ss
-from risk_guard import RiskGuard
-from notifier import send_tg_msg
+from risk_guard_v36 import RiskGuardV36
 from config import (
     OPEND_HOST, OPEND_PORT, TRADE_PWD, TRADE_MODE, MARKET, ORDER_COOLDOWN_HOURS,
     EMERGENCY_DAILY_LOSS_PCT, MIN_TOTAL_ASSETS_ALERT
@@ -48,7 +47,7 @@ log = logging.getLogger("ExecutionEngine")
 
 class ExecutionEngine:
     def __init__(self):
-        self.risk = RiskGuard()
+        self.risk = RiskGuardV36()
         self.trade_ctx = None
         self.quote_ctx = None
         self._connected = False
