@@ -1,0 +1,37 @@
+# Risk Management Configuration
+
+risk:
+  # Position sizing
+  position:
+    max_per_position: 0.20  # 20% max single position
+    max_total: 0.80  # 80% total invested
+    max_positions: 10
+    
+  # Kelly Criterion
+  kelly:
+    enabled: true
+    fraction: 0.25  # fractional Kelly for safety
+    
+  # Stop loss / Take profit
+  exit:
+    stop_loss: 0.05  # 5%
+    take_profit: 0.15  # 15%
+    max_hold_days: 30
+    
+  # Drawdown limits
+  drawdown:
+    max_dd_stop: 0.15  # 15% - stop trading
+    max_dd_pause: 0.20  # 20% - pause
+    max_dd_kill: 0.30  # 30% - kill switch
+    
+  # Daily limits
+  daily:
+    max_loss: 0.05  # 5% daily loss limit
+    max_trades: 50
+    
+  # Survivor Bias Handling
+  survivor_bias:
+    train_period:
+      use_surviving_only: true  # Use stocks that survived until end of train
+    test_period:
+      use_all_stocks: true  # Include delisted stocks

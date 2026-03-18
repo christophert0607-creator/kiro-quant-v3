@@ -1,0 +1,77 @@
+# Indicator Configuration
+
+indicators:
+  RSI:
+    name: Relative Strength Index
+    type: mean_reversion
+    params:
+      period: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+    signal:
+      oversold: 30
+      overbought: 70
+      
+  MACD:
+    name: Moving Average Convergence Divergence
+    type: trend_following
+    params:
+      fast: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+      slow: [15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60]
+      signal: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    filter: fast < slow
+    signal:
+      bullish: macd > signal
+      bearish: macd < signal
+      
+  BB:
+    name: Bollinger Bands
+    type: mean_reversion
+    params:
+      period: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+      std: [1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0]
+    signal:
+      oversold: price < lower_band
+      overbought: price > upper_band
+      
+  KDJ:
+    name: Stochastic Oscillator
+    type: momentum
+    params:
+      period: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]
+      k: [3]
+      d: [3]
+    signal:
+      oversold: k < 20
+      overbought: k > 80
+      
+  ADX:
+    name: Average Directional Index
+    type: trend_strength
+    params:
+      period: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
+    signal:
+      strong_trend: adx > 25
+      
+  CCI:
+    name: Commodity Channel Index
+    type: mean_reversion
+    params:
+      period: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
+    signal:
+      oversold: cci < -100
+      overbought: cci > 100
+      
+  WILLR:
+    name: Williams %R
+    type: mean_reversion
+    params:
+      period: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]
+    signal:
+      oversold: willr < -80
+      overbought: willr > -20
+      
+  ATR:
+    name: Average True Range
+    type: volatility
+    params:
+      period: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50]
+    # Used for position sizing, not signal generation

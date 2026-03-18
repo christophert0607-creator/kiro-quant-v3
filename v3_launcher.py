@@ -173,6 +173,8 @@ def run_kiro_v35(config_path: str = "config.json", profile_override: Optional[st
     )
     manager = ModelManager(model=model, data_preparer=preparer)
 
+    # Note: Model uses randomly initialized weights (can be loaded manually if needed)
+
     live_cfg = LiveConfig(**live_cfg_data)
 
     risk_cfg = RiskConfig(
@@ -180,11 +182,14 @@ def run_kiro_v35(config_path: str = "config.json", profile_override: Optional[st
         max_position_fraction=min(1.0, max(0.0, float(live_cfg_data.get("max_position_fraction_per_symbol", 0.30)))),
     )
 
+    # In paper_trading mode, skip Futu connection entirely
+    futu_connector = None if live_cfg_data.get("paper_trading", True) else FutuConnector()
+    
     loop = LiveTradingLoop(
         model_manager=manager,
         risk_controller=RiskController(config=risk_cfg),
-        futu_connector=FutuConnector(),
-        data_manager=DataManager(start_infoway=True),
+        futu_connector=futu_connector,
+        data_manager=DataManager(start_infoway=not live_cfg_data.get("paper_trading", True)),
         config=live_cfg,
     )
     loop.start()

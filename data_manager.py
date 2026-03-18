@@ -11,6 +11,18 @@ except Exception:  # optional dependency in test/minimal env
 from infoway_client import InfowayClient
 import config
 
+# Try to import East Money fetcher
+try:
+    from v3_pipeline.data.east_money_fetcher import EastMoneyFetcher
+    _east_money_fetcher = None  # Lazy init
+    def _get_east_money():
+        global _east_money_fetcher
+        if _east_money_fetcher is None:
+            _east_money_fetcher = EastMoneyFetcher()
+        return _east_money_fetcher
+except ImportError:
+    _get_east_money = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -163,7 +175,13 @@ class DataManager:
         # Layer 1: yfinance (PRIMARY - Most Reliable)
         if yf is not None:
             try:
-                ticker = yf.Ticker(symbol.split(".")[-1] if "." in symbol else symbol)
+                # Fix: HK stocks (e.g., "0700.HK") need full format for Yahoo Finance
+                # US stocks can use just the ticker (e.g., "TSLA")
+                if symbol.endswith(".HK"):
+                    yf_symbol = symbol  # Keep "0700.HK" as-is
+                else:
+                    yf_symbol = symbol.split(".")[-1] if "." in symbol else symbol
+                ticker = yf.Ticker(yf_symbol)
                 fast_info = getattr(ticker, "fast_info", None)
                 price = None
                 if fast_info is not None:
@@ -237,6 +255,29 @@ class DataManager:
             except Exception as e:
                 logger.warning(f"Futu HK fallback failed for {symbol}: {e}")
 
+        # Layer 4: East Money (HK stocks fallback)
+        if _get_east_money and (len(symbol) == 5 or symbol.startswith("HK.")):
+            try:
+                # Extract HK code (e.g., "00700" from "00700" or "HK.00700")
+                hk_code = symbol.replace("HK.", "").replace("HK", "")
+                if len(hk_code) == 5 and hk_code.isdigit():
+                    em_data = _get_east_money().get_quote(hk_code)
+                    if em_data and em_data.get("price"):
+                        payload = {
+                            "price": em_data.get("price"),
+                            "open": em_data.get("open"),
+                            "high": em_data.get("high"),
+                            "low": em_data.get("low"),
+                            "volume": em_data.get("volume"),
+                            "source": "EASTMONEY",
+                            "timestamp": em_data.get("timestamp", datetime.now()),
+                        }
+                        validated_em = self._validate_market_payload(payload, "EASTMONEY")
+                        if validated_em:
+                            return validated_em
+            except Exception as e:
+                logger.debug(f"East Money HK fallback failed for {symbol}: {e}")
+
         # All data sources exhausted
         logger.warning("All data sources failed for %s", symbol)
         return None
@@ -282,7 +323,11 @@ class DataManager:
             try:
                 # Map K_DAY to 1d
                 period_map = {"K_DAY": "1d"}
-                yf_symbol = symbol.split(".")[-1] if "." in symbol else symbol
+                # Fix: HK stocks need full "0700.HK" format
+                if symbol.endswith(".HK"):
+                    yf_symbol = symbol
+                else:
+                    yf_symbol = symbol.split(".")[-1] if "." in symbol else symbol
                 ticker = yf.Ticker(yf_symbol)
                 
                 # Get historical data (adjust range based on count)
@@ -306,7 +351,11 @@ class DataManager:
         # Layer 3: Massive
         if self.massive:
             try:
-                massive_symbol = symbol.split(".")[-1] if "." in symbol else symbol
+                # Fix: HK stocks need full "0700.HK" format
+                if symbol.endswith(".HK"):
+                    massive_symbol = symbol
+                else:
+                    massive_symbol = symbol.split(".")[-1] if "." in symbol else symbol
                 klines = self.massive.get_kline(massive_symbol, timespan="day", limit=count)
                 if klines:
                     df = pd.DataFrame(klines)

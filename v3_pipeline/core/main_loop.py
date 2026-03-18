@@ -21,16 +21,35 @@ from v3_pipeline.features.indicators import TechnicalIndicatorGenerator
 from v3_pipeline.models.manager import DataPreparer, ModelManager
 from v3_pipeline.risk.manager import RiskController
 
+from v36.kelly_position_sizer import KellyPositionSizer, KellyConfig
+from v36.transaction_cost import TransactionCostCalculator
+from v36.strategy_config import load_v36_config
+from db_manager import DatabaseManager
+
 
 def _build_stderr_logger(name: str) -> logging.Logger:
     logger = logging.getLogger(name)
     if logger.handlers:
         return logger
     logger.setLevel(logging.INFO)
-    handler = logging.StreamHandler(sys.stderr)
-    formatter = logging.Formatter("%(asctime)s | %(name)s | %(levelname)s | %(message)s", "%Y-%m-%d %H:%M:%S")
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    
+    # Console Handler
+    c_handler = logging.StreamHandler(sys.stderr)
+    c_formatter = logging.Formatter("%(asctime)s | %(name)s | %(levelname)s | %(message)s", "%Y-%m-%d %H:%M:%S")
+    c_handler.setFormatter(c_formatter)
+    logger.addHandler(c_handler)
+
+    # Rotating File Handler
+    try:
+        from logging.handlers import RotatingFileHandler
+        os.makedirs("logs", exist_ok=True)
+        f_handler = RotatingFileHandler("logs/v3_live.log", maxBytes=10*1024*1024, backupCount=30, encoding="utf-8")
+        f_formatter = logging.Formatter("%(asctime)s | %(name)s | %(levelname)s | %(message)s")
+        f_handler.setFormatter(f_formatter)
+        logger.addHandler(f_handler)
+    except Exception as e:
+        print(f"Failed to setup file logging: {e}")
+
     logger.propagate = False
     return logger
 
@@ -81,7 +100,8 @@ class LiveTradingLoop:
     ) -> None:
         self.model_manager = model_manager
         self.risk_controller = risk_controller
-        self.futu_connector = futu_connector or FutuConnector()
+        # Allow None for futu_connector in paper_trading mode
+        self.futu_connector = FutuConnector() if futu_connector is None and not (config and getattr(config, 'paper_trading', False)) else futu_connector
         if data_manager is None:
             from data_manager import DataManager
 
@@ -101,6 +121,7 @@ class LiveTradingLoop:
         self.entry_price_by_symbol: dict[str, float] = {s: 0.0 for s in self.symbols}
         self.bars_held_by_symbol: dict[str, int] = {s: 0 for s in self.symbols}
         self.cycles_since_buy_by_symbol: dict[str, int] = {s: 999999 for s in self.symbols}
+        self.consecutive_swing_buy_signals: dict[str, int] = {s: 0 for s in self.symbols}  # Count consecutive swing buy signals
         self.last_price_by_symbol: dict[str, float] = {}
         self.profile_timings: list[dict] = []
         self.latest_prices: dict[str, float] = {}
@@ -133,13 +154,31 @@ class LiveTradingLoop:
         self.futu_reconnect_failures = 0
         self.broker_offline_fallback_mode = False
 
+        self.v36_config = load_v36_config()
+        self.kelly = KellyPositionSizer(KellyConfig(
+            kelly_factor=self.v36_config.kelly_factor,
+            max_position_per_trade=self.v36_config.max_position_per_trade,
+            max_total_position=self.v36_config.max_total_position,
+            max_positions=self.v36_config.max_positions,
+            risk_per_trade=self.v36_config.risk_per_trade,
+            max_daily_risk=self.v36_config.max_daily_risk,
+        ))
+        self.cost_calc = TransactionCostCalculator()
+        self.db = DatabaseManager()
+
     def start(self) -> None:
-        self.futu_connector.connect()
+        # Skip Futu connection in paper_trading mode - use yfinance directly
+        if not self.config.paper_trading and self.futu_connector is not None:
+            self.futu_connector.connect()
+        else:
+            self.logger.info("PAPER_TRADING_MODE: Skipping Futu connection, using yfinance data source")
+            self.broker_online = False
         try:
             asyncio.run(self._run_forever())
         finally:
             self._archive_market_data()
-            self.futu_connector.close()
+            if not self.config.paper_trading and self.futu_connector is not None:
+                self.futu_connector.close()
 
     async def _run_forever(self) -> None:
         primed = await self.history_primer.prime_symbols(self.symbols)
@@ -234,6 +273,15 @@ class LiveTradingLoop:
 
         current_price = float(wfa_frame.iloc[-1]["Close"])
         self.latest_prices[symbol] = current_price
+        # Save to SQL for long-term data collection
+        try:
+            # We only save the single latest bar from the featured dataframe
+            latest_bar = featured.iloc[-1:] # Use 'featured' as it contains all generated features
+            self.db.save_data(latest_bar, symbol=symbol)
+            self.logger.info("MARKET_DATA [%s] bar persisted to SQL", symbol)
+        except Exception as exc:
+            self.logger.error("DB_SAVE_ERROR [%s]: %s", symbol, exc)
+
         prediction = float(self.model_manager.predict(wfa_frame, data_preparer=symbol_preparer))
         base_confidence = min(1.0, abs(prediction - current_price) / max(current_price, 1e-9))
         pattern_meta = {"pattern": "Unknown", "confidence": 0.0}
@@ -260,7 +308,7 @@ class LiveTradingLoop:
             current_price,
             predicted_move * 100,
         )
-        self.check_and_trade(
+        await self.check_and_trade(
             symbol,
             current_price,
             prediction,
@@ -320,7 +368,7 @@ class LiveTradingLoop:
             "data_source": source,
         }
 
-    def check_and_trade(
+    async def check_and_trade(
         self,
         symbol: str,
         current_price: float,
@@ -332,7 +380,7 @@ class LiveTradingLoop:
         pattern_confidence: float = 0.0,
     ) -> None:
         """Bridge model prediction to executable trading decisions."""
-        self._run_trading_logic(
+        await self._run_trading_logic(
             symbol,
             current_price,
             prediction,
@@ -343,7 +391,7 @@ class LiveTradingLoop:
             pattern_confidence=pattern_confidence,
         )
 
-    def _run_trading_logic(
+    async def _run_trading_logic(
         self,
         symbol: str,
         current_price: float,
@@ -375,7 +423,7 @@ class LiveTradingLoop:
             self.highest_price_since_entry_by_symbol[symbol] = max(self.highest_price_since_entry_by_symbol.get(symbol, 0.0), current_price)
             stop_price = self.highest_price_since_entry_by_symbol[symbol] * (1 - stop_pct)
             if current_price < stop_price:
-                self._execute(symbol, "SELL", qty, current_price, "time_decay_vol_stop")
+                await self._execute(symbol, "SELL", qty, current_price, "time_decay_vol_stop")
                 return
 
             entry_price = float(self.entry_price_by_symbol.get(symbol, 0.0) or 0.0)
@@ -386,19 +434,19 @@ class LiveTradingLoop:
             # RISK BOUNDARY: quick take-profit immediately de-risks once a small gain is locked.
             take_profit_price = entry_price * (1 + max(0.0, float(self.config.quick_take_profit_pct)))
             if current_price >= take_profit_price:
-                self._execute(symbol, "SELL", qty, current_price, f"quick_take_profit_{self.config.quick_take_profit_pct:.4f}")
+                await self._execute(symbol, "SELL", qty, current_price, f"quick_take_profit_{self.config.quick_take_profit_pct:.4f}")
                 return
 
             # RISK BOUNDARY: hard stop-loss clips downside when momentum regime flips.
             stop_loss_price = entry_price * (1 - max(0.0, float(self.config.stop_loss_pct)))
             if current_price <= stop_loss_price:
-                self._execute(symbol, "SELL", qty, current_price, f"stop_loss_{self.config.stop_loss_pct:.4f}")
+                await self._execute(symbol, "SELL", qty, current_price, f"stop_loss_{self.config.stop_loss_pct:.4f}")
                 return
 
             # RISK BOUNDARY: time-based exit caps exposure duration and fee drag from over-holding.
             max_hold_bars = max(1, int(self.config.max_hold_bars))
             if self.bars_held_by_symbol.get(symbol, 0) >= max_hold_bars:
-                self._execute(symbol, "SELL", qty, current_price, f"max_hold_{max_hold_bars}_bars")
+                await self._execute(symbol, "SELL", qty, current_price, f"max_hold_{max_hold_bars}_bars")
                 return
 
         symbol_threshold = float(self.config.prediction_thresholds.get(symbol, self.config.prediction_threshold))
@@ -461,7 +509,24 @@ class LiveTradingLoop:
             return
 
         if self.config.swing_strategy_enabled:
+            # Track consecutive swing buy signals (require 4+ before executing)
+            if swing["buy_signal"]:
+                self.consecutive_swing_buy_signals[symbol] = self.consecutive_swing_buy_signals.get(symbol, 0) + 1
+            else:
+                self.consecutive_swing_buy_signals[symbol] = 0
+            
             if qty == 0 and allow_long and swing["buy_signal"]:
+                # Require 4+ consecutive swing buy signals before executing
+                signal_count = self.consecutive_swing_buy_signals.get(symbol, 0)
+                if signal_count < 4:
+                    self.logger.info(
+                        "SWING_SIGNAL_WAIT[%s] need %d more signal(s) (%d/4) before BUY",
+                        symbol,
+                        4 - signal_count,
+                        signal_count,
+                    )
+                    return
+                    
                 open_positions = sum(1 for held_qty in self.position_qty_by_symbol.values() if held_qty > 0)
                 if open_positions >= max(1, int(self.config.max_positions)):
                     self.logger.info(
@@ -471,9 +536,28 @@ class LiveTradingLoop:
                         int(self.config.max_positions),
                     )
                     return
-                # RISK BOUNDARY: swing entries still use existing confidence-based risk sizing.
-                risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
-                alloc = self.account_value * risk_pct
+                # V3.6 Kelly Position Sizing for Swing
+                active_pos = sum(1 for q in self.position_qty_by_symbol.values() if q > 0)
+                exposure = sum(q * self.latest_prices.get(s, current_price) for s, q in self.position_qty_by_symbol.items()) / max(self.account_value, 1.0)
+                daily_used = max(0.0, (self.day_start_equity - self.account_value) / self.day_start_equity) if self.day_start_equity > 0 else 0.0
+
+                kelly = self.kelly.calculate_position_size(
+                    win_rate=0.55,
+                    avg_win=0.02,
+                    avg_loss=0.015,
+                    portfolio_value=self.account_value,
+                    tier="verified",
+                    current_total_exposure=exposure,
+                    current_positions_count=active_pos,
+                    daily_risk_used=daily_used,
+                )
+                if kelly["reason"] == "ok" and kelly["position_value"] > 0:
+                    alloc = kelly["position_value"]
+                else:
+                    self.logger.warning("[KELLY_GATE_SWING][%s] bypassed (reason=%s). Falling back.", symbol, kelly["reason"])
+                    risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
+                    alloc = self.account_value * risk_pct
+
                 diversification_cap = self.account_value * max(0.0, float(self.config.max_position_fraction_per_symbol))
                 alloc = min(alloc, diversification_cap)
                 buy_qty = max(0, int(alloc / max(current_price, 1e-9)))
@@ -488,11 +572,11 @@ class LiveTradingLoop:
                             self.risk_controller.config.max_daily_loss_fraction * 100,
                         )
                         return
-                    self._execute(symbol, "BUY", buy_qty, current_price, f"swing_signal_conf={confidence:.3f}")
+                    await self._execute(symbol, "BUY", buy_qty, current_price, f"swing_signal_conf={confidence:.3f}")
                     return
             elif qty > 0 and swing["sell_signal"]:
                 # RISK BOUNDARY: swing exits flatten full position to cap reversal exposure.
-                self._execute(symbol, "SELL", qty, current_price, "swing_signal")
+                await self._execute(symbol, "SELL", qty, current_price, "swing_signal")
                 return
 
         if allow_long and model_buy_signal and qty == 0:
@@ -539,7 +623,44 @@ class LiveTradingLoop:
                 )
                 return
 
-            alloc = self.account_value * risk_pct
+            # V3.6 Cost Check
+            cost_check = self.cost_calc.is_profitable_after_cost(
+                expected_return=predicted_move,
+                symbol=symbol,
+                quantity=max(1, int(self.account_value * 0.05 / max(current_price, 1e-9))),
+                price=current_price,
+            )
+            if not cost_check["profitable"]:
+                self.logger.warning(
+                    "[COST_GATE][%s] blocked BUY: return=%.4f%% < cost=%.4f%%",
+                    symbol,
+                    predicted_move * 100,
+                    cost_check["round_trip_cost_with_buffer"] * 100,
+                )
+                return
+
+            # V3.6 Kelly Position Sizing
+            active_pos = sum(1 for q in self.position_qty_by_symbol.values() if q > 0)
+            exposure = sum(q * self.latest_prices.get(s, current_price) for s, q in self.position_qty_by_symbol.items()) / max(self.account_value, 1.0)
+            daily_used = max(0.0, (self.day_start_equity - self.account_value) / self.day_start_equity) if self.day_start_equity > 0 else 0.0
+
+            kelly = self.kelly.calculate_position_size(
+                win_rate=mc.get("win_rate", 0.5),
+                avg_win=mc.get("avg_win", 0.01),
+                avg_loss=mc.get("avg_loss", 0.01),
+                portfolio_value=self.account_value,
+                tier="verified" if confidence > 0.6 else "unverified",
+                current_total_exposure=exposure,
+                current_positions_count=active_pos,
+                daily_risk_used=daily_used,
+            )
+
+            if kelly["reason"] == "ok" and kelly["position_value"] > 0:
+                alloc = kelly["position_value"]
+            else:
+                self.logger.warning("[KELLY_GATE][%s] bypassed (reason=%s). Falling back.", symbol, kelly["reason"])
+                alloc = self.account_value * risk_pct
+                
             diversification_cap = self.account_value * max(0.0, float(self.config.max_position_fraction_per_symbol))
             alloc = min(alloc, diversification_cap)
             buy_qty = max(0, int(alloc / max(current_price, 1e-9)))
@@ -554,10 +675,10 @@ class LiveTradingLoop:
                         self.risk_controller.config.max_daily_loss_fraction * 100,
                     )
                     return
-                self._execute(symbol, "BUY", buy_qty, current_price, f"model_signal_conf={confidence:.3f}")
+                await self._execute(symbol, "BUY", buy_qty, current_price, f"model_signal_conf={confidence:.3f}")
         elif model_sell_signal and qty > 0:
             if self.cycles_since_buy_by_symbol.get(symbol, 0) >= self.config.buy_cooldown_cycles:
-                self._execute(symbol, "SELL", qty, current_price, "model_signal")
+                await self._execute(symbol, "SELL", qty, current_price, "model_signal")
             else:
                 self.logger.info("Cooldown[%s]: hold position (%d/%d cycles)", symbol, self.cycles_since_buy_by_symbol.get(symbol, 0), self.config.buy_cooldown_cycles)
         elif self.config.log_trade_decisions:
@@ -634,6 +755,9 @@ class LiveTradingLoop:
         )
 
     def _get_vix(self) -> float:
+        # Skip VIX query if no Futu connector (paper_trading mode)
+        if self.futu_connector is None:
+            return 18.0
         try:
             quote = self.futu_connector.get_latest_quote("^VIX")
             return float(quote["Close"])
@@ -657,6 +781,10 @@ class LiveTradingLoop:
             self.logger.info("RISK_DAY_RESET new day-start equity=%.2f", self.day_start_equity)
 
     def _check_heartbeat(self) -> None:
+        # Skip heartbeat in paper_trading mode
+        if self.config.paper_trading:
+            self.broker_online = False
+            return
         if self.broker_offline_fallback_mode:
             self.logger.warning("Broker offline fallback mode active; skip heartbeat reconnect")
             return
@@ -696,9 +824,13 @@ class LiveTradingLoop:
                 self.logger.error("Broker offline fallback mode enabled after %d failed reconnect rounds", self.futu_reconnect_failures)
                 self._notify("[BROKER_OFFLINE] fallback mode enabled")
 
-        except Exception as exc:
-            self.logger.warning("Asset sync failed: %s", exc)
-
+    def _sync_broker_state(self) -> None:
+        """Sync broker state - no-op in paper trading mode."""
+        if self.config.paper_trading:
+            return
+        if self.futu_connector is None:
+            return
+        # Real broker sync would go here
         try:
             positions = self.futu_connector.get_sync_positions()
             for symbol in self.symbols:
@@ -712,8 +844,12 @@ class LiveTradingLoop:
         except Exception as exc:
             self.logger.warning("Position sync failed: %s", exc)
 
-    def _execute(self, symbol: str, side: str, qty: int, price: float, reason: str) -> None:
-        reference_price = self.futu_connector.get_order_reference_price(symbol, side, fallback_price=price)
+    async def _execute(self, symbol: str, side: str, qty: int, price: float, reason: str) -> None:
+        # In paper_trading mode, use price directly without Futu order book lookup
+        if self.config.paper_trading:
+            reference_price = price
+        else:
+            reference_price = await asyncio.to_thread(self.futu_connector.get_order_reference_price, symbol, side, fallback_price=price)
         fill_price = reference_price if reference_price > 0 else price
 
         if self.config.auto_trade:
@@ -725,9 +861,9 @@ class LiveTradingLoop:
                     self.account_value = float(paper_pnl.get("equity", self.account_value))
                     self.logger.info("PAPER_ORDER %s %s qty=%d fill=%.4f type=NORMAL", symbol, side, qty, fill_price)
                 else:
-                    order_result = self.futu_connector.place_order(symbol, qty, side, fill_price)
+                    order_result = await asyncio.to_thread(self.futu_connector.place_order, symbol, qty, side, fill_price)
                     order_id = self.futu_connector.extract_order_id(order_result)
-                    status = self.futu_connector.wait_for_fill(order_id)
+                    status = await asyncio.to_thread(self.futu_connector.wait_for_fill, order_id)
                     fill_price = float(status.get("filled_avg_price") or fill_price)
             except Exception as exc:
                 self.logger.error(

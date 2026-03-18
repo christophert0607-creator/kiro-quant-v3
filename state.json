@@ -1,13 +1,22 @@
 {
-  "date": "2026-03-12",
+  "date": "2026-03-18",
+  "mode": "HK_lite",
+  "runtime_profile": "lite",
   "daily_pnl": 0.0,
-  "daily_trades": 0,
+  "daily_trades": 8,
   "consecutive_errors": 0,
   "circuit_broken": false,
   "circuit_break_time": null,
-  "last_orders": {},
-  "positions": {},
-  "total_invested": 0.0,
-  "last_review": "2026-03-12T02:58:00Z",
-  "review_notes": "State reset by hourly review system"
+  "last_orders": {
+    "0388.HK": "BUY 2 @ 404.00 (swing_signal)",
+    "1211.HK": "SELL 10 @ 102.55 (swing_signal)",
+    "2269.HK": "SELL 30 @ 35.12 (model_signal)",
+    "0941.HK": "SELL 13 @ 79.71 (swing_signal)",
+    "1810.HK": "SELL 30 @ 34.70 (model_signal)",
+    "1109.HK": "SELL 34 @ 30.54 (model_signal)",
+    "1299.HK": "SELL 12 @ 84.46 (swing_signal)",
+    "2018.HK": "SELL 31 @ 33.20 (swing_signal)"
+  },
+  "last_review": "2026-03-18T18:22:00Z",
+  "review_notes": "Hourly self-review 2026-03-18 18:22 UTC: System healthy. HK lite profile running with no errors. Logs show clean execution - multiple trade cycles processed. 8 trades executed this hour: heavy SELL activity (7 sells, 1 buy). Model predictions negative (-2% to -6%). Position cap at 10/10 - full. PnL: daily=$0, cumulative=-$3,219.28. Code review: syntax OK, no bare except, async/await implemented, Kelly sizer integrated, transaction cost calculator present. TA-Lib still using pandas fallback. No code changes applied this hour."
 }

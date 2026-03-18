@@ -1,15 +1,13 @@
 {
   "strategy_version": "3.6",
-
   "money_management": {
     "kelly_factor": 0.5,
     "max_position_per_trade": 0.15,
-    "max_total_position": 0.80,
+    "max_total_position": 0.8,
     "max_positions": 10,
     "risk_per_trade": 0.02,
     "max_daily_risk": 0.05
   },
-
   "transaction_costs": {
     "commission_rate": 0.001,
     "slippage_large_cap": 0.0005,
@@ -17,15 +15,13 @@
     "slippage_small_cap": 0.002,
     "min_cost_threshold": 0.001
   },
-
   "risk_management": {
     "var_confidence": 0.95,
     "var_stop_loss": true,
     "max_drawdown_stop": 0.15,
-    "max_drawdown_pause": 0.20,
-    "max_drawdown_kill": 0.30
+    "max_drawdown_pause": 0.2,
+    "max_drawdown_kill": 0.3
   },
-
   "strategies": {
     "mean_reversion": {
       "enabled": true,
@@ -45,15 +41,39 @@
       "volume_threshold": 1.5
     }
   },
-
   "backtest": {
     "train_test_split": 0.7,
     "walk_forward": true,
     "cost_included": true
   },
-
   "symbols": {
-    "US": ["NVDA", "TSLA", "AMD", "META", "GOOGL"],
-    "HK": ["0700.HK", "9988.HK", "3690.HK"]
+    "US": [
+      "NVDA",
+      "TSLA",
+      "AMD",
+      "META",
+      "GOOGL"
+    ],
+    "HK": [
+      "0700.HK",
+      "9988.HK",
+      "3690.HK",
+      "1024.HK",
+      "2318.HK",
+      "1299.HK",
+      "0939.HK",
+      "0005.HK",
+      "0388.HK",
+      "0960.HK",
+      "1109.HK",
+      "0941.HK",
+      "0175.HK",
+      "1810.HK",
+      "2688.HK",
+      "2269.HK",
+      "1211.HK",
+      "2018.HK",
+      "0688.HK"
+    ]
   }
 }

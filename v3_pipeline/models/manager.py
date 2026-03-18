@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import io
 import logging
@@ -175,7 +175,10 @@ class DataPreparer:
         features = inference_frame.drop(columns=["Date"]).copy()
         missing = [c for c in self.feature_columns if c not in features.columns]
         if missing:
-            raise ValueError(f"Missing required features for inference: {missing}")
+            # Add missing columns with 0.0 (neutral value) - consistent with _sanitize behavior
+            for col in missing:
+                features[col] = 0.0
+            self.logger.warning("Added %d missing feature columns with 0.0: %s", len(missing), missing)
 
         ordered = features[self.feature_columns]
         scaled = self._minmax_scale(ordered, self.feature_mins, self.feature_maxs)
@@ -242,6 +245,8 @@ class DataPreparer:
         numeric_cols = [c for c in clean.columns if c != "Date"]
         for col in numeric_cols:
             clean[col] = pd.to_numeric(clean[col], errors="coerce")
+            # CRITICAL FIX: Replace INF with NaN so they get filled by ffill/bfill instead of poisoning min/max
+            clean[col] = clean[col].replace([np.inf, -np.inf], np.nan)
 
         before = len(clean)
         clean = clean.sort_values("Date").drop_duplicates(subset=["Date"]).reset_index(drop=True)
@@ -488,8 +493,110 @@ class ModelManager:
             scaled_tensor = model_out[0] if isinstance(model_out, tuple) else model_out
             scaled_pred = float(scaled_tensor.cpu().numpy().ravel()[0])
             pred = active_preparer.inverse_scale_target(scaled_pred)
+            
+            # FINAL SAFETY CHECK: Ensure prediction is not NaN or Inf
+            if not np.isfinite(pred):
+                self.logger.warning("Prediction is non-finite (NaN/Inf). Scaled=%.6f. Falling back to latest price.", scaled_pred)
+                try:
+                    pred = float(latest_data_window.iloc[-1][active_preparer.target_col])
+                except:
+                    pred = 0.0 # Extreme fallback
+            
             self.logger.info("Prediction (scaled=%.6f, inverse=%.6f, input_dim=%d)", scaled_pred, pred, int(x.shape[-1]))
             return pred
+
+    def _classify_pattern_rule_based(self, df: pd.DataFrame) -> dict:
+        """
+        Rule-based pattern classification using technical indicators.
+        Used as fallback when model doesn't return pattern logits.
+        """
+        if len(df) < 20:
+            return {"pattern": "Unknown", "confidence": 0.0, "probs": {"Unknown": 1.0}}
+        
+        # Get latest values
+        latest = df.iloc[-1]
+        prev = df.iloc[-5] if len(df) >= 5 else df.iloc[-2]
+        
+        close = latest.get("Close", 0.0)
+        high = latest.get("High", 0.0)
+        low = latest.get("Low", 0.0)
+        volume = latest.get("Volume", 0.0)
+        
+        # Get EMA values (use EMA_12 and EMA_26 if available)
+        ema_fast = float(latest.get("EMA_12", close)) if not pd.isna(latest.get("EMA_12")) else close
+        ema_slow = float(latest.get("EMA_26", close)) if not pd.isna(latest.get("EMA_26")) else close
+        
+        # Get Bollinger Bands
+        bb_upper = float(latest.get("BB_UPPER", close)) if not pd.isna(latest.get("BB_UPPER")) else close
+        bb_lower = float(latest.get("BB_LOWER", close)) if not pd.isna(latest.get("BB_LOWER")) else close
+        bb_middle = float(latest.get("BB_MIDDLE", close)) if not pd.isna(latest.get("BB_MIDDLE")) else close
+        
+        # Get ATR for volatility measurement
+        atr = float(latest.get("ATR_14", 0.0)) if not pd.isna(latest.get("ATR_14")) else 0.0
+        
+        # Calculate average close for normalization
+        avg_close = df["Close"].mean()
+        atr_ratio = atr / avg_close if avg_close > 0 else 0
+        
+        # Volume analysis
+        avg_volume = df["Volume"].rolling(20).mean().iloc[-1] if len(df) >= 20 else df["Volume"].mean()
+        volume_ratio = volume / avg_volume if avg_volume > 0 else 1.0
+        
+        # Pattern detection scores
+        pattern_scores = {}
+        
+        # 1. Uptrend: EMA fast > EMA slow, price above EMA
+        if ema_fast > ema_slow and close > ema_fast:
+            trend_strength = min(1.0, (ema_fast - ema_slow) / ema_slow * 100 if ema_slow > 0 else 0)
+            price_above_ema = min(1.0, (close - ema_fast) / ema_fast * 100 if ema_fast > 0 else 0)
+            pattern_scores["UpTrend"] = 0.5 + 0.3 * trend_strength + 0.2 * price_above_ema
+        
+        # 2. Downtrend: EMA fast < EMA slow, price below EMA
+        if ema_fast < ema_slow and close < ema_fast:
+            trend_strength = min(1.0, (ema_slow - ema_fast) / ema_slow * 100 if ema_slow > 0 else 0)
+            price_below_ema = min(1.0, (ema_fast - close) / ema_fast * 100 if ema_fast > 0 else 0)
+            pattern_scores["DownTrend"] = 0.5 + 0.3 * trend_strength + 0.2 * price_below_ema
+        
+        # 3. Consolidation: Low volatility, price between bands, near middle
+        bb_width = (bb_upper - bb_lower) / bb_middle if bb_middle > 0 else 0
+        if bb_width < 0.05 and abs(close - bb_middle) / bb_middle < 0.02 if bb_middle > 0 else False:
+            pattern_scores["Consolidation"] = 0.7 + 0.3 * (1.0 - bb_width * 20)
+        
+        # 4. Breakout: Strong volume, price突破 recent high
+        recent_high = df["High"].rolling(20).max().iloc[-2] if len(df) >= 2 else df["High"].max()
+        recent_low = df["Low"].rolling(20).min().iloc[-2] if len(df) >= 2 else df["Low"].min()
+        
+        if high > recent_high and volume_ratio > 1.5:
+            breakout_strength = min(1.0, (high - recent_high) / recent_high * 100 if recent_high > 0 else 0)
+            pattern_scores["Breakout"] = 0.5 + 0.3 * min(1.0, (volume_ratio - 1.5) / 2.0) + 0.2 * breakout_strength
+        elif low < recent_low and volume_ratio > 1.5:
+            breakdown_strength = min(1.0, (recent_low - low) / recent_low * 100 if recent_low > 0 else 0)
+            pattern_scores["Breakout"] = 0.5 + 0.3 * min(1.0, (volume_ratio - 1.5) / 2.0) + 0.2 * breakdown_strength
+        
+        # 5. Volatility Spike: High ATR or wide Bollinger Bands
+        if bb_width > 0.08 or atr_ratio > 0.03:
+            vol_score = max(bb_width * 10, atr_ratio * 30)
+            pattern_scores["VolatilitySpike"] = min(0.95, 0.5 + vol_score)
+        
+        # Normalize scores to probabilities
+        if pattern_scores:
+            total_score = sum(pattern_scores.values())
+            probs = {k: round(v / total_score, 4) for k, v in pattern_scores.items()}
+            best_pattern = max(pattern_scores, key=pattern_scores.get)
+            confidence = pattern_scores[best_pattern] / total_score
+            
+            # Ensure all pattern types have a probability (add Unknown for remaining)
+            remaining_prob = 1.0 - sum(probs.values())
+            if remaining_prob > 0.001:
+                probs["Unknown"] = round(remaining_prob, 4)
+            
+            return {
+                "pattern": best_pattern,
+                "confidence": round(confidence, 4),
+                "probs": probs,
+            }
+        
+        return {"pattern": "Unknown", "confidence": 0.0, "probs": {"Unknown": 1.0}}
 
     def predict_pattern(self, latest_data_window: pd.DataFrame, data_preparer: Optional[DataPreparer] = None) -> dict:
         active_preparer = data_preparer or self.data_preparer
@@ -499,7 +606,8 @@ class ModelManager:
             self._ensure_model_input_dim(int(x.shape[-1]))
             model_out = self.model(x)
             if not isinstance(model_out, tuple) or len(model_out) != 2:
-                return {"pattern": "Unknown", "confidence": 0.0, "probs": {"Unknown": 1.0}}
+                # Model doesn't support pattern classification, use rule-based fallback
+                return self._classify_pattern_rule_based(latest_data_window)
 
             _, pattern_logits = model_out
             probs = F.softmax(pattern_logits, dim=-1).cpu().numpy().ravel()

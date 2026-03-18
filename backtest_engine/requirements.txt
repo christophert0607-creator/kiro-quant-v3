@@ -1,0 +1,34 @@
+# 8×8×139 Backtest Engine Dependencies
+
+# Core
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Data
+duckdb>=0.9.0
+yfinance>=0.2.0
+openbb>=3.0.0
+futu-api>=9.6.0
+
+# Indicators
+pandas-ta>=0.3.14
+ta-lib>=0.4.28
+
+# Computation
+numba>=0.58.0
+
+# Optimization
+optuna>=3.0.0
+
+# Parallel
+joblib>=1.3.0
+
+# Visualization
+matplotlib>=3.8.0
+plotly>=5.18.0
+
+# Config
+pyyaml>=6.0
+
+# Utils
+tqdm>=4.65.0

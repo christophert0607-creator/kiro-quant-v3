@@ -1,0 +1,30 @@
+# Backtest Configuration
+
+backtest:
+  # Walk-Forward Optimization
+  wfo:
+    enabled: true
+    train_period: [2018-01-01, 2022-12-31]  # 5 years
+    validation_period: [2023-01-01, 2023-12-31]  # 1 year
+    test_period: [2024-01-01, 2026-12-31]  # 2 years
+    
+  # Initial capital per portfolio
+  initial_capital: 100000
+  
+  # Transaction costs
+  slippage:
+    phase1_fixed: 0.001  # 0.1% conservative
+    phase2_dynamic: false
+    
+  # Parallelization
+  parallel:
+    enabled: true
+    n_jobs: -1  # all cores
+    
+  # Optimization
+  optimization:
+    method: bayesian  # bayesian (optuna) or grid
+    n_trials: 500  # for bayesian
+    top_n: 10  # select top N for validation
+
+# Walk-Forward: Select top strategies from Train, validate on Val, test on Test

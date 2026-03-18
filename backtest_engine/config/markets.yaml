@@ -1,0 +1,50 @@
+# Market Configuration
+
+markets:
+  - code: HK
+    name: Hong Kong
+    data_source: futu
+    currency: HKD
+    commission: 0.0008
+    min_fee: 100
+    stamp_duty: 0.001  # sell only
+    
+  - code: US
+    name: United States
+    data_source: futu
+    currency: USD
+    commission: 0.005  # per share
+    min_fee: 1.0
+    stamp_duty: 0
+    
+  - code: A股
+    name: China A-Shares
+    data_source: futu
+    currency: CNY
+    commission: 0.0003
+    min_fee: 5
+    stamp_duty: 0.001  # sell only
+    
+  - code: SG
+    name: Singapore
+    data_source: yfinance
+    currency: SGD
+    commission: 0.002
+    min_fee: 25
+    stamp_duty: 0
+    
+  - code: JP
+    name: Japan
+    data_source: yfinance
+    currency: JPY
+    commission: 0.0005
+    min_fee: 50
+    stamp_duty: 0
+    
+  - code: AU
+    name: Australia
+    data_source: yfinance
+    currency: AUD
+    commission: 0.001
+    min_fee: 10
+    stamp_duty: 0

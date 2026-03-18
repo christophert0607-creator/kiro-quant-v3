@@ -35,9 +35,15 @@ class MonteCarloSimulator:
         tail = sim_arr[sim_arr <= var95]
         cvar95 = float(tail.mean()) if len(tail) else var95
         win_rate = float((sim_arr > 0).mean())
+        wins = sim_arr[sim_arr > 0]
+        losses = sim_arr[sim_arr < 0]
+        avg_win = float(wins.mean()) if len(wins) > 0 else 0.0
+        avg_loss = float(abs(losses.mean())) if len(losses) > 0 else 0.0
         return {
             "expected": float(sim_arr.mean()),
             "var95": var95,
             "cvar95": cvar95,
             "win_rate": win_rate,
+            "avg_win": avg_win,
+            "avg_loss": avg_loss,
         }
