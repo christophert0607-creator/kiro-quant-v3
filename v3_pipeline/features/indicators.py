@@ -29,6 +29,9 @@ FALLBACK_ALL_NAN_DEFAULTS = {
     "OBV": 0.0,
     "ROC_10": 0.0,
     "WILLR_14": -50.0,
+    "VWAP": 0.0,
+    "K_14": 50.0,
+    "D_3": 50.0,
 }
 
 
@@ -117,6 +120,16 @@ class TechnicalIndicatorGenerator:
         df["OBV"] = self.ta.OBV(close, volume)
         df["ROC_10"] = self.ta.ROC(close, timeperiod=10)
         df["WILLR_14"] = self.ta.WILLR(high, low, close, timeperiod=14)
+
+        # VWAP (Volume Weighted Average Price)
+        typical_price = (high + low + close) / 3
+        df["VWAP"] = (typical_price * volume).cumsum() / (pd.Series(volume).cumsum() + 1e-10).values
+
+        # STOCH (Stochastic Oscillator)
+        slowk, slowd = self.ta.STOCH(high, low, close, fastk_period=14, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0)
+        df["K_14"] = slowk
+        df["D_3"] = slowd
+
         return df
 
     def _fallback(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -182,6 +195,17 @@ class TechnicalIndicatorGenerator:
         highest = high.rolling(14).max()
         lowest = low.rolling(14).min()
         df["WILLR_14"] = -100 * (highest - close) / (highest - lowest).replace(0, np.nan)
+
+        # VWAP (Volume Weighted Average Price)
+        df["VWAP"] = (typical * volume).cumsum() / (volume.cumsum() + 1e-10)
+
+        # STOCH (Stochastic Oscillator)
+        low_min = low.rolling(14).min()
+        high_max = high.rolling(14).max()
+        k = 100 * (close - low_min) / (high_max - low_min).replace(0, np.nan)
+        df["K_14"] = k.rolling(3).mean()
+        df["D_3"] = df["K_14"].rolling(3).mean()
+
         self._normalize_fallback_indicators(df)
         return df
 

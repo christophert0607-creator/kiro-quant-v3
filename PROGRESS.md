@@ -13,9 +13,9 @@
 
 ### 2. 增加技術指標庫
 - [x] RSI, MACD, VWAP, ADX ✅
-- [ ] Bollinger Bands
-- [ ] ATR (Average True Range)
-- [ ] Stochastic Oscillator
+- [x] Bollinger Bands ✅
+- [x] ATR (Average True Range) ✅
+- [x] Stochastic Oscillator ✅
 
 ### 3. 採用 skfolio 組合優化
 - 與 scikit-learn 無縫集成
@@ -40,8 +40,8 @@
 ### 4. 模型升級
 - [x] XGBoost ✅ (42.56% accuracy)
 - [x] Random Forest ✅ (51.63% accuracy)
-- [ ] LightGBM
-- [ ] CatBoost
+- [x] LightGBM ✅
+- [x] CatBoost ✅
 
 ---
 

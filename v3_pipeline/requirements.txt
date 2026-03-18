@@ -15,3 +15,7 @@ apscheduler
 vaderSentiment
 efinance
 curl_cffi
+xgboost
+lightgbm
+catboost
+skfolio

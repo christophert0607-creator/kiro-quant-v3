@@ -77,7 +77,37 @@
 - **內容：** 短期/中期/長期改進路線圖
 
 ---
-**下一階段目標：**
-- 驗證 4 次連續信號過濾效果
-- 監控 PnL 改善情況
 - 考慮進一步提高 threshold 或增加 required signals
+- 實行 skfolio 組合優化與 GBM 模型對抗測試
+
+---
+
+## 日期: 2026-03-18 (晚間更新)
+**主題: 技術指標庫擴展、GBM 模型升級與 skfolio 組合優化整合**
+
+本次更新大幅增強了 V3.6 旗艦版的特徵工程能力與模型多樣性，並引入了專業級的組合優化工具。
+
+### 🚀 1. 技術指標庫全面擴展 (Indicators Library Expansion)
+- **新增指標：** 在 `v3_pipeline/features/indicators.py` 中新增了 `VWAP` (成交量加權平均價) 與 `Stochastic Oscillator` (KDJ, %K/%D)。
+- **優化：** 補全了 `Bollinger Bands` 與 `ATR` 的回退(fallback)計算邏輯。
+- **穩定性：** 在所有分母運算中加入了 `1e-10` 保護，並強化了 NaN 填充邏輯，有效防止 `repro_nan.py` 中遇到的數據污染問題。
+
+### 🧠 2. 引入 GBM 模型管理員 (XGBoost, LightGBM, CatBoost)
+- **新增內容：** 在 `v3_pipeline/models/manager.py` 中創建了 `GBMModelManager`。
+- **功能：** 支持單一接口調用三種主流樹型模型。相較於 LSTM，這些模型在非時間序列強相關的因子預測上通常具有更好的精確度與訓練速度。
+- **流水線：** 新增 `train_gbm_pipeline` 函數，支持自動生成 5 日漲跌標籤並完成模型訓練與保存。
+
+### 📈 3. 整合 skfolio 組合優化 (Advanced Portfolio Optimization)
+- **新增內容：** 在 `v3_pipeline/portfolio/portfolio.py` 中整合了 `skfolio` 庫。
+- **算法：** 實現了 `optimize_with_skfolio` 方法，支持 **最大夏普比率 (Maximum Sharpe)** 與 **等風險貢獻 (Equal Risk Contribution/ERC)** 算法。
+- **靈活性：** 允許主迴圈根據歷史收益率動態調整部位權重，而不僅僅依賴於規則導向的固定比例。
+
+### 📦 4. 依賴環境更新
+- **檔案：** `v3_pipeline/requirements.txt`
+- **新增：** `xgboost`, `lightgbm`, `catboost`, `skfolio`。
+
+---
+**下一階段目標：**
+- 執行 `GBMModelManager` 的基準測試，對比 LSTM 與 XGB/LGBM 的預測準確率。
+- 在回測中啟用 `skfolio` 優化，驗證其相較於等權重組合的夏普比率提升。
+- 檢查 `repro_nan.py` 以確保所有指標計算在極端數據下依然強健。

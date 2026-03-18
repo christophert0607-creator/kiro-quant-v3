@@ -1,9 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, Optional
+import logging
 
 from .constraints import enforce_constraints
+
+try:
+    import skfolio
+    from skfolio import Population, Portfolio as SkPortfolio
+    from skfolio.optimization import MaximumSharpe, EqualRiskContribution, ObjectiveFunction
+except ImportError:
+    skfolio = None
 
 
 @dataclass
@@ -37,6 +45,7 @@ class Portfolio:
     trading_halted: bool = False
 
     def __post_init__(self) -> None:
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.equity = self.cash
         self.peak_equity = self.cash
         self.daily_start_equity = self.cash
@@ -65,12 +74,53 @@ class Portfolio:
         self.update_equity(prices)
         return trades
 
-    def rebalance(self, target_weights: Dict[str, float], prices: Dict[str, float]) -> List[Trade]:
+    def optimize_with_skfolio(
+        self,
+        returns_df: pd.DataFrame,
+        objective: str = "max_sharpe", 
+        target_return: Optional[float] = None
+    ) -> Dict[str, float]:
+        """
+        Optimize weights using skfolio based on historical returns.
+        Supported objectives: "max_sharpe", "erc" (Equal Risk Contribution)
+        """
+        if skfolio is None:
+            self.logger.warning("skfolio not installed. Returning equal weights.")
+            return {sym: 1.0 / len(returns_df.columns) for sym in returns_df.columns}
+        
+        # skfolio expects T x N pandas DataFrame of returns
+        if objective == "max_sharpe":
+            model = MaximumSharpe()
+            model.fit(returns_df)
+            weights = model.weights_
+        elif objective == "erc" or objective == "risk_parity":
+            model = EqualRiskContribution()
+            model.fit(returns_df)
+            weights = model.weights_
+        else:
+            # Fallback to current weights if unknown
+            return {}
+
+        # map back to symbols
+        weight_dict = dict(zip(returns_df.columns, weights))
+        return weight_dict
+
+    def rebalance(self, target_weights: Dict[str, float], prices: Dict[str, float], returns_df: Optional[pd.DataFrame] = None, use_skfolio: bool = False) -> List[Trade]:
         if self.trading_halted:
             return []
 
         self.update_equity(prices)
-        constrained = enforce_constraints(target_weights, self.max_positions, self.max_single_position)
+        
+        # Apply skfolio if requested and data is present
+        actual_target = target_weights
+        if use_skfolio and returns_df is not None and not returns_df.empty:
+            optimized = self.optimize_with_skfolio(returns_df)
+            if optimized:
+                # Merge original target signs (+/-) with optimized magnitudes if needed, 
+                # or just use optimized directly if original targets are binary (0/1)
+                actual_target = optimized
+
+        constrained = enforce_constraints(actual_target, self.max_positions, self.max_single_position)
 
         target_qty: Dict[str, float] = {}
         for sym, weight in constrained.items():

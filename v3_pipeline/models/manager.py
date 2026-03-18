@@ -14,6 +14,13 @@ import torch.nn.functional as F
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
+try:
+    import xgboost as xgb
+    import lightgbm as lgb
+    from catboost import CatBoostClassifier, Pool
+except ImportError:
+    xgb = lgb = CatBoostClassifier = Pool = None
+
 from v3_pipeline.data.downloader import HistoricalDataDownloader
 from v3_pipeline.features.indicators import TechnicalIndicatorGenerator
 from v3_pipeline.models.brain import KiroLSTM
@@ -700,4 +707,157 @@ def train_symbol_pipeline(
     prediction = manager.predict(featured)
 
     return manager, losses, prediction
+
+
+class GBMModelManager:
+    """Manager for tree-based models: XGBoost, LightGBM, CatBoost."""
+
+    def __init__(
+        self,
+        model_type: str = "xgboost",
+        model_dir: str = "v3_pipeline/models/trained_models",
+        params: Optional[dict] = None,
+    ) -> None:
+        self.logger = _build_stderr_logger(self.__class__.__name__)
+        self.model_type = model_type.lower()
+        self.model_dir = Path(model_dir)
+        self.model_dir.mkdir(parents=True, exist_ok=True)
+        self.params = params or self._get_default_params()
+        self.model = None
+        self.feature_columns: List[str] = []
+
+    def _get_default_params(self) -> dict:
+        if self.model_type == "xgboost":
+            return {
+                "n_estimators": 100,
+                "max_depth": 6,
+                "learning_rate": 0.05,
+                "objective": "multi:softmax",
+                "num_class": 3,
+                "use_label_encoder": False,
+                "eval_metric": "mlogloss",
+            }
+        elif self.model_type == "lightgbm":
+            return {
+                "n_estimators": 100,
+                "max_depth": -1,
+                "learning_rate": 0.05,
+                "objective": "multiclass",
+                "num_class": 3,
+                "verbose": -1,
+            }
+        elif self.model_type == "catboost":
+            return {
+                "iterations": 100,
+                "depth": 6,
+                "learning_rate": 0.05,
+                "loss_function": "MultiClass",
+                "verbose": False,
+            }
+        return {}
+
+    def train(self, X: pd.DataFrame, y: pd.Series) -> float:
+        """Simple train function for GBM models."""
+        self.feature_columns = X.columns.tolist()
+
+        if self.model_type == "xgboost":
+            if xgb is None:
+                raise ImportError("xgboost is not installed")
+            self.model = xgb.XGBClassifier(**self.params)
+            self.model.fit(X, y)
+        elif self.model_type == "lightgbm":
+            if lgb is None:
+                raise ImportError("lightgbm is not installed")
+            self.model = lgb.LGBMClassifier(**self.params)
+            self.model.fit(X, y)
+        elif self.model_type == "catboost":
+            if CatBoostClassifier is None:
+                raise ImportError("catboost is not installed")
+            self.model = CatBoostClassifier(**self.params)
+            self.model.fit(X, y)
+        else:
+            raise ValueError(f"Unsupported model_type: {self.model_type}")
+
+        # Basic accuracy measurement
+        y_pred = self.model.predict(X)
+        from sklearn.metrics import accuracy_score
+        accuracy = float(accuracy_score(y, y_pred))
+        self.logger.info("Trained %s | Training Accuracy: %.2f%%", self.model_type.upper(), accuracy * 100)
+        return accuracy
+
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+        if self.model is None:
+            raise RuntimeError(f"{self.model_type} model is not trained/loaded")
+        
+        # Ensure features are in same order as training
+        X_ordered = X[self.feature_columns]
+        return self.model.predict(X_ordered)
+
+    def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
+        if self.model is None:
+            raise RuntimeError(f"{self.model_type} model is not trained/loaded")
+        
+        X_ordered = X[self.feature_columns]
+        return self.model.predict_proba(X_ordered)
+
+    def save(self, model_name: str) -> Path:
+        target = self.model_dir / f"{model_name}_{self.model_type}.joblib"
+        import joblib
+        payload = {
+            "model": self.model,
+            "model_type": self.model_type,
+            "feature_columns": self.feature_columns,
+            "params": self.params,
+        }
+        joblib.dump(payload, target)
+        self.logger.info("Saved %s model to %s", self.model_type.upper(), target)
+        return target
+
+    def load(self, model_name: str) -> None:
+        target = self.model_dir / f"{model_name}_{self.model_type}.joblib"
+        import joblib
+        payload = joblib.load(target)
+        self.model = payload["model"]
+        self.model_type = payload["model_type"]
+        self.feature_columns = payload["feature_columns"]
+        self.params = payload["params"]
+        self.logger.info("Loaded %s model from %s", self.model_type.upper(), target)
+
+
+def train_gbm_pipeline(
+    symbol: str, 
+    start_date: str, 
+    end_date: str,
+    model_type: str = "xgboost"
+) -> Tuple[GBMModelManager, float]:
+    """Integrated pipeline for training a GBM model (classification: UP/HOLD/DOWN)."""
+    logger = _build_stderr_logger("GBMTrainPipeline")
+    downloader = HistoricalDataDownloader()
+    feature_gen = TechnicalIndicatorGenerator()
+
+    logger.info("Running GBM pipeline for %s | Model: %s", symbol, model_type.upper())
+    ohlcv = downloader.fetch_history(symbol, start_date, end_date, interval="1d", save=True)
+    featured = feature_gen.generate(ohlcv)
+    
+    # Create labels: UP (2) if return in 5d > 2%, DOWN (0) if < -2%, else HOLD (1)
+    close = featured["Close"].astype(float)
+    future_return = close.shift(-5) / close - 1
+    labels = pd.Series(1, index=featured.index) # Default HOLD
+    labels[future_return > 0.02] = 2
+    labels[future_return < -0.02] = 0
+    
+    # Prepare X, y
+    X = featured.drop(columns=["Date", "data_source"], errors="ignore")
+    y = labels
+    
+    # Drop rows with NaN (from indicators and future labels)
+    valid_idx = ~(X.isna().any(axis=1) | y.isna())
+    X_clean = X[valid_idx]
+    y_clean = y[valid_idx]
+    
+    manager = GBMModelManager(model_type=model_type)
+    accuracy = manager.train(X_clean, y_clean)
+    manager.save(f"{symbol}_gbm")
+    
+    return manager, accuracy
 
