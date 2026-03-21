@@ -45,11 +45,28 @@ python3 v3_launcher.py
 ### Dry Run
 ```bash
 python3 v3_launcher.py --dry-run
+python3 v3_launcher.py --dry-run --profile standard
+```
+
+### Validate Config
+```bash
+python3 validate_config.py --config config.json
+```
+
+### Preflight Safety Check
+```bash
+python3 preflight.py --config config.json
 ```
 
 ### Daily Scan
 ```bash
 ./daily_scan.sh
+```
+
+### Development Setup
+```bash
+python3 -m pip install -r requirements-dev.txt
+python3 -m pytest --collect-only
 ```
 
 ---
@@ -148,6 +165,10 @@ python3 v3_launcher.py
 - [DEVLOG.md](./DEVLOG.md) - 開發日誌
 - [SKILL.md](./SKILL.md) - OpenClaw Skill
 - [backtest_engine/SPEC.md](./backtest_engine/SPEC.md) - 回測規格
+- [docs/PHASE1_BASELINE_2026-03-21.md](./docs/PHASE1_BASELINE_2026-03-21.md) - Phase 1 baseline snapshot
+- [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md) - 開發環境、測試與 smoke check 指南
+- [docs/RUNBOOK.md](./docs/RUNBOOK.md) - 啟動、排障、緊急處理與審計紀錄指引
+- [docs/READINESS_REHEARSAL_2026-03-21.md](./docs/READINESS_REHEARSAL_2026-03-21.md) - Paper-trading readiness rehearsal scorecard
 
 ---
 

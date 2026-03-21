@@ -81,4 +81,27 @@
 
 ---
 
-*Last Updated: 2026-03-18*
+## 🧱 Phase 1 系統硬化（2026-03-21）
+
+### 已完成
+- [x] 建立 `requirements-dev.txt`，補齊 pytest / 基本開發依賴
+- [x] 建立 `pytest.ini`，統一 test discovery
+- [x] 新增 `validate_config.py`，可先做 config fail-fast
+- [x] 對齊 `config.json` / `config.example.json` 關鍵 schema（含 `runtime_profile`）
+- [x] 建立 GitHub Actions smoke CI（config / compile / dry-run / pytest collect）
+- [x] 強化 `.gitignore`，收斂 logs / DB / backup / tmp / venv 噪音
+- [x] 新增 `docs/DEVELOPMENT.md` 與 `docs/PHASE1_BASELINE_2026-03-21.md`
+
+### Phase 2（2026-03-21）
+- [x] persistence schema expansion（`executions` / `position_snapshots` / `pnl_snapshots` / `risk_events` / `alerts`）
+- [x] secrets / startup preflight hardening（`preflight.py`、launcher preflight、禁用預設 hardcoded fallback key）
+
+### Phase 3（2026-03-21）
+- [x] execution audit trail plumbing（gate blocks / hold decisions / execution failures / alerts 落 SQLite）
+- [x] runbook / failure handling（`docs/RUNBOOK.md`）
+
+### Phase 4（2026-03-21）
+- [x] paper-trading readiness rehearsal（`docs/READINESS_REHEARSAL_2026-03-21.md`）
+- [x] go/no-go scorecard：paper trading = GO，live trading = NO-GO
+
+*Last Updated: 2026-03-21*

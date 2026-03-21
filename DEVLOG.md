@@ -111,3 +111,83 @@
 - 執行 `GBMModelManager` 的基準測試，對比 LSTM 與 XGB/LGBM 的預測準確率。
 - 在回測中啟用 `skfolio` 優化，驗證其相較於等權重組合的夏普比率提升。
 - 檢查 `repro_nan.py` 以確保所有指標計算在極端數據下依然強健。
+
+---
+
+## 日期: 2026-03-21
+**主題: 系統硬化衝刺 (Phase 1-4) 與 `auto_trade=false` 執行保護修復**
+
+今次工作重點唔係再堆新策略，而係將 Kiro Quant 由「可跑嘅 prototype」推進到「更可信嘅 paper-trading engineering system」。主要完成了環境規範、配置治理、CI smoke lane、持久化審計、runbook，以及最後發現並修復 `auto_trade=false` 仍會污染內部狀態的 bug。
+
+### 🧱 1. Phase 1 — 開發環境 / Config / CI / Repo Hygiene
+- **新增：** `requirements-dev.txt`、`pytest.ini`、`.github/workflows/smoke.yml`
+- **新增：** `validate_config.py` 作為 config fail-fast 驗證工具
+- **對齊：** `config.json` / `config.example.json` schema，補齊 `runtime_profile` 等關鍵欄位
+- **整理：** 強化 `.gitignore`，將 logs / DB / backup / temp / venv 等噪音排除
+- **文件：** 新增 `docs/DEVELOPMENT.md`、`docs/PHASE1_BASELINE_2026-03-21.md`
+- **結果：** 建立咗可重現嘅 setup path，同基本 smoke CI
+
+### 🗄️ 2. Phase 2 — Persistence Schema Expansion + Preflight Hardening
+- **擴充 `db_manager.py`：**
+  - 新增 `executions`
+  - 新增 `position_snapshots`
+  - 新增 `pnl_snapshots`
+  - 新增 `risk_events`
+  - 新增 `alerts`
+- **主迴圈接線：** 將成交、持倉快照、PnL snapshot、風險事件、通知寫入 SQLite
+- **新增：** `preflight.py`
+- **安全策略調整：** `config.py` 改為**預設禁用** hardcoded Infoway fallback key，必須顯式設 `KIRO_ALLOW_DEV_FALLBACK_KEYS=1` 先會允許 local-dev fallback
+- **啟動保護：** `v3_launcher.py` 非 dry-run 啟動前自動做 preflight（可 `--skip-preflight`）
+
+### 🧾 3. Phase 3 — Execution Audit Trail + Runbook
+- **補齊 audit trail：** 除咗 execution fail / invalid sell 外，再將以下 decision/gate 類事件寫入 `risk_events`：
+  - `PROFILE_GATE`
+  - `SWING_MODEL_FILTER`
+  - `SWING_SIGNAL_WAIT`
+  - `POSITION_CAP`
+  - `DAILY_LOSS_GATE`
+  - `ROR_GATE`
+  - `VAR_CVAR_GATE`
+  - `COST_GATE`
+  - `HOLD_NO_SIGNAL`
+- **新增：** `docs/RUNBOOK.md`
+- **內容：** 標準啟動流程、何時禁止 live、paper reset、broker 故障排查、保全證據檔案、SQLite audit table 查法
+
+### ✅ 4. Phase 4 — Readiness Rehearsal
+- **完成：** config validate / preflight / compile / dry-run / pytest collect / fast regression
+- **測試狀態：** 48 tests collected，1 skip（`torch` optional），fast subset 通過
+- **完成：** 單周期 paper-trading readiness rehearsal
+- **輸出：** `docs/READINESS_REHEARSAL_2026-03-21.md`
+- **結論：**
+  - **Paper trading = GO**
+  - **Live trading = NO-GO**
+- **原因：** `INFOWAY_API_KEY` 未設、未做 broker-connected rehearsal、未完成 live operator checklist
+
+### 🐛 5. Bug Fix — `auto_trade=false` 仍然污染狀態
+- **問題：** `_execute()` 舊邏輯只將「真落單」放喺 `if self.config.auto_trade:` 入面，但後面嘅：
+  - 持倉更新
+  - PnL tracker 更新
+  - execution / pnl snapshot 寫入
+  仍然照樣發生
+- **後果：** 即使 `auto_trade=false`，系統都會**假裝已成交**，污染 paper rehearsal / DB / 報表結果
+- **修復：**
+  - `_execute()` 開頭直接攔截 `auto_trade=false`
+  - 只記錄 `AUTO_TRADE_DISABLED` audit event
+  - 不再改持倉 / 不再記 fill / 不再寫 execution / pnl snapshot
+- **新增回歸測試：** `tests/test_auto_trade_disabled.py`
+- **驗證：** 修復後測試通過，重跑 rehearsal 亦確認 `fill_count=0`
+
+### 📌 6. 本輪成果總結
+- 建立咗清晰嘅開發環境與 smoke gate
+- 將 config / preflight / runtime safety 基礎拉返正
+- 新增 SQLite audit/persistence 基礎設施
+- 補齊 runbook 同 readiness scorecard
+- 修正咗一個會直接破壞系統可信度嘅執行開關 bug
+
+---
+**下一階段建議：**
+- 追 `signal / execution / audit` 三層更明確解耦
+- 加 per-cycle decision log
+- 做 multi-cycle paper soak test
+- 做 broker-connected rehearsal
+- 清理被排除嘅 legacy tests

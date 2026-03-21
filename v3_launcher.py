@@ -8,6 +8,7 @@ with lower memory/CPU overhead when full model capacity is not required.
 import argparse
 import json
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
@@ -144,7 +145,12 @@ def resolve_runtime_profile(config_path: str = "config.json", override: Optional
     return RUNTIME_PROFILES["lite"]
 
 
-def run_kiro_v35(config_path: str = "config.json", profile_override: Optional[str] = None, dry_run: bool = False) -> None:
+def run_kiro_v35(
+    config_path: str = "config.json",
+    profile_override: Optional[str] = None,
+    dry_run: bool = False,
+    skip_preflight: bool = False,
+) -> None:
     live_cfg_data = build_live_config(config_path)
     profile = resolve_runtime_profile(config_path=config_path, override=profile_override)
 
@@ -155,6 +161,17 @@ def run_kiro_v35(config_path: str = "config.json", profile_override: Optional[st
         )
         print(f"[dry-run] symbols={','.join(live_cfg_data['symbols_list'])} auto_trade={live_cfg_data['auto_trade']}")
         return
+
+    if not skip_preflight:
+        from preflight import run_preflight
+
+        warnings, errors = run_preflight(config_path=config_path, strict=True)
+        for msg in warnings:
+            print(f"[preflight][warn] {msg}")
+        if errors:
+            for msg in errors:
+                print(f"[preflight][error] {msg}", file=sys.stderr)
+            raise SystemExit(2)
 
     from v3_pipeline.core.futu_connector import FutuConnector
     from v3_pipeline.core.main_loop import LiveConfig, LiveTradingLoop
@@ -200,5 +217,11 @@ if __name__ == "__main__":
     parser.add_argument("--config", default="config.json", help="Path to config json")
     parser.add_argument("--profile", choices=sorted(RUNTIME_PROFILES.keys()), help="Runtime profile override")
     parser.add_argument("--dry-run", action="store_true", help="Print resolved runtime and exit")
+    parser.add_argument("--skip-preflight", action="store_true", help="Skip startup preflight checks (not recommended)")
     args = parser.parse_args()
-    run_kiro_v35(config_path=args.config, profile_override=args.profile, dry_run=args.dry_run)
+    run_kiro_v35(
+        config_path=args.config,
+        profile_override=args.profile,
+        dry_run=args.dry_run,
+        skip_preflight=args.skip_preflight,
+    )

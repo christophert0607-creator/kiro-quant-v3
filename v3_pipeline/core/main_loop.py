@@ -1,5 +1,7 @@
 import asyncio
+import json
 import logging
+import os
 import sys
 import time
 from dataclasses import dataclass, field
@@ -10,13 +12,15 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
+from health_monitor import HealthMonitor
 from notifier import send_tg_msg
+import state_store as ss
 from v3_pipeline.core.alpha_engine import KiroAlphaEngine
 from v3_pipeline.core.futu_connector import FutuConnector
 from v3_pipeline.core.history_priming import HistoryPrimer, PrimingConfig
 from v3_pipeline.core.monte_carlo import MonteCarloSimulator
 from v3_pipeline.core.strategy_factory import StrategyFactory
-from v3_pipeline.core.trade_simulation import PaperTradingSimulator, PnLTracker
+from v3_pipeline.core.trade_simulation import PaperTradingSimulator, PnLTracker, PositionState
 from v3_pipeline.features.indicators import TechnicalIndicatorGenerator
 from v3_pipeline.models.manager import DataPreparer, ModelManager
 from v3_pipeline.risk.manager import RiskController
@@ -69,18 +73,20 @@ class LiveConfig:
     max_symbol_concurrency: int = 111
     crit_move_threshold: float = 0.035
     quote_timeout_seconds: float = 10.0
-    buy_cooldown_cycles: int = 3
+    buy_cooldown_cycles: int = 4
     log_trade_decisions: bool = True
     swing_strategy_enabled: bool = True
+    swing_buy_confirmation_count: int = 5
+    swing_block_on_model_sell: bool = True
     swing_rsi_oversold: float = 25.0  # AI 建議: 收緊 RSI 買入閾值
     swing_rsi_overbought: float = 75.0  # AI 建議: 收緊 RSI 賣出閾值
     swing_sr_window: int = 20
     swing_sr_tolerance: float = 0.003
     bypass_ror_gate: bool = False
     diagnostics_verbose: bool = True
-    quick_take_profit_pct: float = 0.03  # AI 建議: 1% → 3%，改善 Risk/Reward
+    quick_take_profit_pct: float = 0.02  # 保守修正：先下調到 2%，減少短線持倉磨損
     stop_loss_pct: float = 0.02  # 保持 2% 停損
-    max_hold_bars: int = 10  # AI 建議: 5 → 10 bars，等更大趨勢
+    max_hold_bars: int = 5  # 保守短線版本：明確維持 5 bars，避免拖太耐
     max_positions: int = 5
     max_position_fraction_per_symbol: float = 0.20  # AI 建議: 30% → 20%，減少單筆風險
     pattern_confidence_threshold: float = 0.65
@@ -165,6 +171,15 @@ class LiveTradingLoop:
         ))
         self.cost_calc = TransactionCostCalculator()
         self.db = DatabaseManager()
+
+        self.health = HealthMonitor()
+        self.health.set_mode("PAPER" if self.config.paper_trading else "FUTU")
+        market = "UNKNOWN"
+        if self.futu_connector is not None and getattr(self.futu_connector, "config", None) is not None:
+            market = getattr(self.futu_connector.config, "market_prefix", "UNKNOWN")
+        self.health.set_market(market)
+        self.health.write()
+        self._restore_position_snapshot(reason="startup")
 
     def start(self) -> None:
         # Skip Futu connection in paper_trading mode - use yfinance directly
@@ -506,24 +521,57 @@ class LiveTradingLoop:
                 symbol,
                 predicted_move * 100,
             )
+            self._audit_event(
+                "PROFILE_GATE",
+                f"Blocked BUY for {symbol} because profile disallows long exposure",
+                severity="INFO",
+                symbol=symbol,
+                side="BUY",
+                metadata={"predicted_move": predicted_move},
+            )
             return
 
         if self.config.swing_strategy_enabled:
-            # Track consecutive swing buy signals (require 4+ before executing)
+            required_swing_confirmations = max(1, int(self.config.swing_buy_confirmation_count))
+            # Track consecutive swing buy signals before executing.
             if swing["buy_signal"]:
                 self.consecutive_swing_buy_signals[symbol] = self.consecutive_swing_buy_signals.get(symbol, 0) + 1
             else:
                 self.consecutive_swing_buy_signals[symbol] = 0
             
             if qty == 0 and allow_long and swing["buy_signal"]:
-                # Require 4+ consecutive swing buy signals before executing
-                signal_count = self.consecutive_swing_buy_signals.get(symbol, 0)
-                if signal_count < 4:
+                if self.config.swing_block_on_model_sell and model_sell_signal:
                     self.logger.info(
-                        "SWING_SIGNAL_WAIT[%s] need %d more signal(s) (%d/4) before BUY",
+                        "SWING_MODEL_FILTER[%s] blocked BUY because model_sell=True (pred_move=%.2f%%)",
                         symbol,
-                        4 - signal_count,
+                        predicted_move * 100,
+                    )
+                    self._audit_event(
+                        "SWING_MODEL_FILTER",
+                        f"Blocked swing BUY for {symbol} because model sell filter triggered",
+                        severity="INFO",
+                        symbol=symbol,
+                        side="BUY",
+                        metadata={"predicted_move": predicted_move},
+                    )
+                    return
+
+                signal_count = self.consecutive_swing_buy_signals.get(symbol, 0)
+                if signal_count < required_swing_confirmations:
+                    self.logger.info(
+                        "SWING_SIGNAL_WAIT[%s] need %d more signal(s) (%d/%d) before BUY",
+                        symbol,
+                        required_swing_confirmations - signal_count,
                         signal_count,
+                        required_swing_confirmations,
+                    )
+                    self._audit_event(
+                        "SWING_SIGNAL_WAIT",
+                        f"Delayed swing BUY for {symbol} pending more confirmations",
+                        severity="INFO",
+                        symbol=symbol,
+                        side="BUY",
+                        metadata={"signal_count": signal_count, "required": required_swing_confirmations},
                     )
                     return
                     
@@ -534,6 +582,14 @@ class LiveTradingLoop:
                         symbol,
                         open_positions,
                         int(self.config.max_positions),
+                    )
+                    self._audit_event(
+                        "POSITION_CAP",
+                        f"Blocked swing BUY for {symbol} due to max positions cap",
+                        severity="INFO",
+                        symbol=symbol,
+                        side="BUY",
+                        metadata={"open_positions": open_positions, "cap": int(self.config.max_positions)},
                     )
                     return
                 # V3.6 Kelly Position Sizing for Swing
@@ -571,6 +627,18 @@ class LiveTradingLoop:
                             self.account_value,
                             self.risk_controller.config.max_daily_loss_fraction * 100,
                         )
+                        self._audit_event(
+                            "DAILY_LOSS_GATE",
+                            f"Blocked swing BUY for {symbol} due to daily loss limit",
+                            severity="WARN",
+                            symbol=symbol,
+                            side="BUY",
+                            metadata={
+                                "day_start_equity": self.day_start_equity,
+                                "current_equity": self.account_value,
+                                "limit_fraction": self.risk_controller.config.max_daily_loss_fraction,
+                            },
+                        )
                         return
                     await self._execute(symbol, "BUY", buy_qty, current_price, f"swing_signal_conf={confidence:.3f}")
                     return
@@ -587,6 +655,14 @@ class LiveTradingLoop:
                     symbol,
                     open_positions,
                     int(self.config.max_positions),
+                )
+                self._audit_event(
+                    "POSITION_CAP",
+                    f"Blocked BUY for {symbol} due to max positions cap",
+                    severity="INFO",
+                    symbol=symbol,
+                    side="BUY",
+                    metadata={"open_positions": open_positions, "cap": int(self.config.max_positions)},
                 )
                 return
 
@@ -609,6 +685,14 @@ class LiveTradingLoop:
                     mc["win_rate"],
                     mc["var95"],
                 )
+                self._audit_event(
+                    "ROR_GATE",
+                    f"Blocked BUY for {symbol} due to risk-of-ruin gate",
+                    severity="WARN",
+                    symbol=symbol,
+                    side="BUY",
+                    metadata={"win_rate": mc.get("win_rate"), "var95": mc.get("var95"), "risk_pct": risk_pct},
+                )
                 return
             elif not self.risk_controller.allow_trade_with_var_cvar(
                 mc_var_95=mc["var95"],
@@ -620,6 +704,14 @@ class LiveTradingLoop:
                     symbol,
                     mc["var95"],
                     cvar_95,
+                )
+                self._audit_event(
+                    "VAR_CVAR_GATE",
+                    f"Blocked BUY for {symbol} due to VaR/CVaR gate",
+                    severity="WARN",
+                    symbol=symbol,
+                    side="BUY",
+                    metadata={"var95": mc.get("var95"), "cvar95": cvar_95},
                 )
                 return
 
@@ -636,6 +728,17 @@ class LiveTradingLoop:
                     symbol,
                     predicted_move * 100,
                     cost_check["round_trip_cost_with_buffer"] * 100,
+                )
+                self._audit_event(
+                    "COST_GATE",
+                    f"Blocked BUY for {symbol} because expected return does not clear costs",
+                    severity="INFO",
+                    symbol=symbol,
+                    side="BUY",
+                    metadata={
+                        "predicted_move": predicted_move,
+                        "round_trip_cost_with_buffer": cost_check.get("round_trip_cost_with_buffer"),
+                    },
                 )
                 return
 
@@ -674,6 +777,18 @@ class LiveTradingLoop:
                         self.account_value,
                         self.risk_controller.config.max_daily_loss_fraction * 100,
                     )
+                    self._audit_event(
+                        "DAILY_LOSS_GATE",
+                        f"Blocked BUY for {symbol} due to daily loss limit",
+                        severity="WARN",
+                        symbol=symbol,
+                        side="BUY",
+                        metadata={
+                            "day_start_equity": self.day_start_equity,
+                            "current_equity": self.account_value,
+                            "limit_fraction": self.risk_controller.config.max_daily_loss_fraction,
+                        },
+                    )
                     return
                 await self._execute(symbol, "BUY", buy_qty, current_price, f"model_signal_conf={confidence:.3f}")
         elif model_sell_signal and qty > 0:
@@ -688,6 +803,13 @@ class LiveTradingLoop:
                 predicted_move * 100,
                 symbol_threshold * 100,
                 qty,
+            )
+            self._audit_event(
+                "HOLD_NO_SIGNAL",
+                f"No trade executed for {symbol}: no qualifying signal",
+                severity="INFO",
+                symbol=symbol,
+                metadata={"predicted_move": predicted_move, "threshold": symbol_threshold, "qty": qty},
             )
 
     def _evaluate_swing_signal(self, symbol: str, current_price: float, latest_frame: Optional[pd.DataFrame]) -> dict[str, float | bool]:
@@ -729,7 +851,8 @@ class LiveTradingLoop:
         near_support = current_price <= support * (1 + tolerance)
         near_resistance = current_price >= resistance * (1 - tolerance)
 
-        buy_signal = (rsi_value < float(self.config.swing_rsi_oversold)) or macd_cross_up or near_support
+        oversold_buy = rsi_value < float(self.config.swing_rsi_oversold)
+        buy_signal = near_support and (oversold_buy or macd_cross_up)
         sell_signal = (rsi_value > float(self.config.swing_rsi_overbought)) or macd_cross_down or near_resistance
 
         return {
@@ -754,14 +877,203 @@ class LiveTradingLoop:
             .reset_index(drop=True)
         )
 
+    def _position_lookup_keys(self, symbol: str) -> list[str]:
+        keys: list[str] = [symbol]
+        try:
+            if self.futu_connector is not None and hasattr(self.futu_connector, "resolve_symbol"):
+                code, provider_symbol = self.futu_connector.resolve_symbol(symbol)
+                for key in (code, provider_symbol):
+                    if key and key not in keys:
+                        keys.append(key)
+        except Exception:
+            pass
+        return keys
+
+    def _extract_state_position(self, source: dict, keys: list[str]) -> tuple[int, float, str | None]:
+        for key in keys:
+            raw = source.get(key)
+            if raw is None:
+                continue
+            if isinstance(raw, dict):
+                qty = int(float(raw.get("qty", 0) or 0))
+                avg_cost = float(raw.get("avg_cost", raw.get("entry_price", 0.0)) or 0.0)
+                entry_time = raw.get("entry_time")
+                return max(0, qty), max(0.0, avg_cost), entry_time if isinstance(entry_time, str) else None
+            if isinstance(raw, (int, float)):
+                return max(0, int(float(raw))), 0.0, None
+        return 0, 0.0, None
+
+    def _read_position_files(self) -> dict[str, dict]:
+        merged: dict[str, dict] = {}
+        for path in (Path("paper_trading_pnl.json"), Path("pnl_report.json")):
+            if not path.exists():
+                continue
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            raw_positions = payload.get("positions") or payload.get("symbols") or {}
+            if not isinstance(raw_positions, dict):
+                continue
+            for symbol, raw in raw_positions.items():
+                if not isinstance(raw, dict):
+                    continue
+                qty = max(0, int(float(raw.get("qty", 0) or 0)))
+                avg_cost = max(0.0, float(raw.get("avg_cost", raw.get("entry_price", 0.0)) or 0.0))
+                merged[str(symbol)] = {
+                    "qty": qty,
+                    "avg_cost": avg_cost,
+                    "entry_time": raw.get("entry_time"),
+                }
+        return merged
+
+    def _persist_position_snapshot(self, reason: str, source: str) -> None:
+        try:
+            state = ss.load()
+            state_positions = state.get("positions") if isinstance(state.get("positions"), dict) else {}
+            state_details = state.get("positions_detail") if isinstance(state.get("positions_detail"), dict) else {}
+            timestamp = datetime.now(timezone.utc).isoformat()
+
+            for symbol in self.symbols:
+                qty = max(0, int(self.position_qty_by_symbol.get(symbol, 0) or 0))
+                detail = {
+                    "qty": qty,
+                    "avg_cost": max(0.0, float(self.entry_price_by_symbol.get(symbol, 0.0) or 0.0)),
+                    "source": source,
+                    "updated_at": timestamp,
+                }
+                state_positions[symbol] = qty
+                state_details[symbol] = detail
+
+            state["positions"] = state_positions
+            state["positions_detail"] = state_details
+            state["last_position_sync_reason"] = reason
+            state["last_position_sync_at"] = timestamp
+            ss.save(state)
+
+            health_positions = {
+                symbol: state_details.get(symbol, {"qty": 0, "avg_cost": 0.0})
+                for symbol in self.symbols
+            }
+            self.health.set_positions(health_positions)
+            for symbol in self.symbols:
+                self.db.save_position_snapshot(
+                    symbol=symbol,
+                    qty=max(0, int(self.position_qty_by_symbol.get(symbol, 0) or 0)),
+                    avg_cost=max(0.0, float(self.entry_price_by_symbol.get(symbol, 0.0) or 0.0)),
+                    source=source,
+                    reason=reason,
+                    metadata={"sync_reason": reason},
+                )
+            self.health.record_event(
+                "POSITIONS_PERSISTED",
+                f"Persisted {len(self.symbols)} symbol snapshots via {source}",
+                severity="INFO",
+                reason=reason,
+            )
+            self.health.write()
+        except Exception as exc:
+            self.logger.warning("Position snapshot persist failed (%s): %s", reason, exc)
+            self.db.save_risk_event(
+                event_code="STATE_SAVE_FAIL",
+                message=f"Position snapshot persist failed: {exc}",
+                severity="ERROR",
+                reason=reason,
+                metadata={"reason": reason},
+            )
+            self.health.record_event("STATE_SAVE_FAIL", f"Position snapshot persist failed: {exc}", severity="ERROR", reason=reason)
+            self.health.write()
+
+    def _restore_position_snapshot(self, reason: str = "runtime") -> bool:
+        try:
+            state = ss.load()
+        except Exception as exc:
+            self.logger.warning("State load failed (%s): %s", reason, exc)
+            self.health.record_event("STATE_RESTORE_FAIL", f"State load failed: {exc}", severity="ERROR", reason=reason)
+            self.health.write()
+            return False
+
+        detail_positions = state.get("positions_detail") if isinstance(state.get("positions_detail"), dict) else {}
+        qty_positions = state.get("positions") if isinstance(state.get("positions"), dict) else {}
+        file_positions = self._read_position_files()
+
+        restored_any = False
+        snapshot: dict[str, dict] = {}
+        for symbol in self.symbols:
+            keys = self._position_lookup_keys(symbol)
+            qty, avg_cost, entry_time = self._extract_state_position(detail_positions, keys)
+            if qty <= 0:
+                qty, avg_cost, entry_time = self._extract_state_position(file_positions, keys)
+            if qty <= 0:
+                qty, _avg_ignored, _ = self._extract_state_position(qty_positions, keys)
+
+            qty = max(0, int(qty))
+            avg_cost = max(0.0, float(avg_cost))
+            self.position_qty_by_symbol[symbol] = qty
+            if qty > 0:
+                restored_any = True
+                if avg_cost > 0:
+                    self.entry_price_by_symbol[symbol] = avg_cost
+                    self.highest_price_since_entry_by_symbol[symbol] = max(
+                        self.highest_price_since_entry_by_symbol.get(symbol, 0.0),
+                        avg_cost,
+                    )
+                state_obj = PositionState(qty=qty, avg_cost=avg_cost, entry_time=entry_time)
+                self.pnl_tracker.positions[symbol] = state_obj
+                self.paper_trading_simulator.tracker.positions[symbol] = state_obj
+            snapshot[symbol] = {
+                "qty": qty,
+                "avg_cost": avg_cost,
+                "source": "state_restore",
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+
+        self.health.set_positions(snapshot)
+        if restored_any:
+            self.health.record_event("POSITIONS_RESTORED", f"Restored position snapshot for {sum(1 for v in snapshot.values() if v.get('qty', 0) > 0)} symbol(s)", severity="INFO", reason=reason)
+        self.health.write()
+        return restored_any
+
+    def _audit_event(
+        self,
+        event_code: str,
+        message: str,
+        *,
+        severity: str = "INFO",
+        symbol: str | None = None,
+        side: str | None = None,
+        reason: str | None = None,
+        metadata: Optional[dict] = None,
+    ) -> None:
+        try:
+            self.db.save_risk_event(
+                event_code=event_code,
+                message=message,
+                severity=severity,
+                symbol=symbol,
+                side=side,
+                reason=reason,
+                metadata=metadata,
+            )
+        except Exception as exc:
+            self.logger.warning("Audit event persist failed (%s): %s", event_code, exc)
+
+    def _volatility_symbol(self) -> str:
+        market = "US"
+        if self.futu_connector is not None and getattr(self.futu_connector, "config", None) is not None:
+            market = str(getattr(self.futu_connector.config, "market_prefix", "US") or "US").upper()
+        return "^HSIL" if market == "HK" else "^VIX"
+
     def _get_vix(self) -> float:
-        # Skip VIX query if no Futu connector (paper_trading mode)
         if self.futu_connector is None:
             return 18.0
+        symbol = self._volatility_symbol()
         try:
-            quote = self.futu_connector.get_latest_quote("^VIX")
+            quote = self.futu_connector.get_latest_quote(symbol)
             return float(quote["Close"])
-        except Exception:
+        except Exception as exc:
+            self.health.record_event("VOLATILITY_DATA_MISSING", f"Volatility quote unavailable for {symbol}: {exc}", severity="WARN", symbol=symbol)
+            self.health.write()
             return 18.0
 
     def _detect_critical_move(self, symbol: str, current_price: float) -> None:
@@ -781,25 +1093,35 @@ class LiveTradingLoop:
             self.logger.info("RISK_DAY_RESET new day-start equity=%.2f", self.day_start_equity)
 
     def _check_heartbeat(self) -> None:
-        # Skip heartbeat in paper_trading mode
-        if self.config.paper_trading:
+        if self.config.paper_trading or os.getenv("NO_FUTU", "0").lower() in {"1", "true", "yes", "on"}:
             self.broker_online = False
+            self.health.set_heartbeat(True)
+            self.health.write()
             return
         if self.broker_offline_fallback_mode:
             self.logger.warning("Broker offline fallback mode active; skip heartbeat reconnect")
+            self.health.set_heartbeat(False)
+            self.health.set_status("DEGRADED")
+            self.health.write()
             return
         try:
             ok = self.futu_connector.heartbeat()
+            self.health.set_heartbeat(ok)
             if not ok:
                 self.logger.warning("Broker heartbeat unhealthy")
+                self.health.record_event("HEARTBEAT_FAIL", "Broker heartbeat unhealthy", severity="ERROR")
                 self.broker_online = False
                 self._attempt_reconnect()
             else:
                 self.broker_online = True
+                self.health.reset_status("READY")
         except Exception as exc:
             self.logger.warning("Heartbeat check failed: %s", exc)
+            self.health.set_heartbeat(False)
+            self.health.record_event("HEARTBEAT_FAIL", f"Heartbeat check failed: {exc}", severity="ERROR")
             self.broker_online = False
             self._attempt_reconnect()
+        self.health.write()
     def _attempt_reconnect(self) -> None:
         # Skip reconnect in paper trading mode - use yfinance instead
         if self.config.paper_trading:
@@ -825,58 +1147,167 @@ class LiveTradingLoop:
                 self._notify("[BROKER_OFFLINE] fallback mode enabled")
 
     def _sync_broker_state(self) -> None:
-        """Sync broker state - no-op in paper trading mode."""
-        if self.config.paper_trading:
+        if self.config.paper_trading or os.getenv("NO_FUTU", "0").lower() in {"1", "true", "yes", "on"}:
+            restored = self._restore_position_snapshot(reason="paper_sync")
+            self.health.set_broker_sync(True)
+            if restored:
+                self.health.reset_status("READY")
+            self.health.write()
             return
+
         if self.futu_connector is None:
+            self.health.set_broker_sync(False)
+            self.health.record_event("BROKER_SYNC_FAIL", "Missing futu connector during broker sync", severity="ERROR")
+            self.health.write()
             return
-        # Real broker sync would go here
+
+        try:
+            assets = self.futu_connector.get_sync_assets()
+            self.account_value = float(assets.get("total_assets", self.account_value))
+        except Exception as exc:
+            self.logger.warning("Asset sync failed: %s", exc)
+            self.health.record_event("ASSET_SYNC_FAIL", f"Asset sync failed: {exc}", severity="ERROR")
+
         try:
             positions = self.futu_connector.get_sync_positions()
+            snapshot: dict[str, dict] = {}
             for symbol in self.symbols:
                 qty = 0
+                avg_cost = 0.0
                 if not positions.empty and "code" in positions.columns:
-                    code = f"{self.futu_connector.config.market_prefix}.{symbol}"
+                    if hasattr(self.futu_connector, "resolve_symbol"):
+                        code, _ = self.futu_connector.resolve_symbol(symbol)
+                    else:
+                        code = f"{self.futu_connector.config.market_prefix}.{symbol}"
                     row = positions[positions["code"] == code]
                     if not row.empty:
-                        qty = int(float(row.iloc[0].get("qty", row.iloc[0].get("can_sell_qty", 0))))
+                        qty = int(float(row.iloc[0].get("qty", row.iloc[0].get("can_sell_qty", 0)) or 0))
+                        avg_cost = float(row.iloc[0].get("cost_price", row.iloc[0].get("nominal_price", 0.0)) or 0.0)
                 self.position_qty_by_symbol[symbol] = max(0, qty)
+                if qty > 0 and avg_cost > 0:
+                    self.entry_price_by_symbol[symbol] = avg_cost
+                    self.highest_price_since_entry_by_symbol[symbol] = max(self.highest_price_since_entry_by_symbol.get(symbol, 0.0), avg_cost)
+                snapshot[symbol] = {
+                    "qty": max(0, qty),
+                    "avg_cost": max(0.0, avg_cost),
+                    "source": "broker_sync",
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }
+
+            self.health.set_broker_sync(True)
+            self.health.set_positions(snapshot)
+            self.health.reset_status("READY")
+            self._persist_position_snapshot(reason="broker_sync", source="broker_sync")
         except Exception as exc:
             self.logger.warning("Position sync failed: %s", exc)
+            self.health.set_broker_sync(False)
+            self.health.record_event("BROKER_SYNC_FAIL", f"Position sync failed: {exc}", severity="ERROR")
+            restored = self._restore_position_snapshot(reason="broker_sync_fallback")
+            if restored:
+                self.health.record_event("STATE_FALLBACK_USED", "Broker sync failed; restored positions from state snapshot", severity="WARN")
+            self.health.write()
 
     async def _execute(self, symbol: str, side: str, qty: int, price: float, reason: str) -> None:
-        # In paper_trading mode, use price directly without Futu order book lookup
+        side = str(side).upper()
+        qty = int(qty)
+        current_qty = max(0, int(self.position_qty_by_symbol.get(symbol, 0) or 0))
+
+        if qty <= 0:
+            self.logger.error("TRADE_BLOCKED %s %s qty=%d reason=%s", symbol, side, qty, reason)
+            self.db.save_risk_event(
+                event_code="TRADE_BLOCKED",
+                message=f"Invalid non-positive qty for {symbol} {side}: {qty}",
+                severity="CRITICAL",
+                symbol=symbol,
+                side=side,
+                reason=reason,
+            )
+            self.health.record_event("TRADE_BLOCKED", f"Invalid non-positive qty for {symbol} {side}: {qty}", severity="CRITICAL", symbol=symbol, side=side, reason=reason)
+            self.health.write()
+            return
+
+        if side == "SELL" and current_qty <= 0:
+            self.logger.error("INVALID_SELL %s qty=%d reason=%s current_qty=%d", symbol, qty, reason, current_qty)
+            self.db.save_risk_event(
+                event_code="INVALID_SELL",
+                message=f"Sell blocked for {symbol}: current_qty={current_qty} requested={qty}",
+                severity="CRITICAL",
+                symbol=symbol,
+                side=side,
+                reason=reason,
+                metadata={"current_qty": current_qty, "requested_qty": qty},
+            )
+            self.health.record_event("INVALID_SELL", f"Sell blocked for {symbol}: current_qty={current_qty} requested={qty}", severity="CRITICAL", symbol=symbol, side=side, reason=reason)
+            self.health.write()
+            return
+
+        if side == "SELL" and qty > current_qty:
+            self.logger.error("INVALID_SELL %s qty=%d reason=%s current_qty=%d", symbol, qty, reason, current_qty)
+            self.db.save_risk_event(
+                event_code="INVALID_SELL",
+                message=f"Sell blocked for {symbol}: requested={qty} > current_qty={current_qty}",
+                severity="CRITICAL",
+                symbol=symbol,
+                side=side,
+                reason=reason,
+                metadata={"current_qty": current_qty, "requested_qty": qty},
+            )
+            self.health.record_event("INVALID_SELL", f"Sell blocked for {symbol}: requested={qty} > current_qty={current_qty}", severity="CRITICAL", symbol=symbol, side=side, reason=reason)
+            self.health.write()
+            return
+
         if self.config.paper_trading:
             reference_price = price
         else:
             reference_price = await asyncio.to_thread(self.futu_connector.get_order_reference_price, symbol, side, fallback_price=price)
         fill_price = reference_price if reference_price > 0 else price
 
-        if self.config.auto_trade:
-            try:
-                if self.config.paper_trading:
-                    paper_fill = self.paper_trading_simulator.execute_order(symbol=symbol, side=side, qty=qty, reference_price=fill_price)
-                    fill_price = float(paper_fill["fill_price"])
-                    paper_pnl = self.paper_trading_simulator.mark_to_market(self.latest_prices)
-                    self.account_value = float(paper_pnl.get("equity", self.account_value))
-                    self.logger.info("PAPER_ORDER %s %s qty=%d fill=%.4f type=NORMAL", symbol, side, qty, fill_price)
-                else:
-                    order_result = await asyncio.to_thread(self.futu_connector.place_order, symbol, qty, side, fill_price)
-                    order_id = self.futu_connector.extract_order_id(order_result)
-                    status = await asyncio.to_thread(self.futu_connector.wait_for_fill, order_id)
-                    fill_price = float(status.get("filled_avg_price") or fill_price)
-            except Exception as exc:
-                self.logger.error(
-                    "EXEC_FAIL %s %s qty=%d limit=%.4f reason=%s error=%s",
-                    symbol,
-                    side,
-                    qty,
-                    fill_price,
-                    reason,
-                    exc,
-                )
-                self._notify(f"[EXEC_FAIL] {symbol} {side} qty={qty} reason={reason} error={exc}")
-                return
+        if not self.config.auto_trade:
+            self.logger.info("AUTO_TRADE_DISABLED %s %s qty=%d reason=%s", symbol, side, qty, reason)
+            self._audit_event(
+                "AUTO_TRADE_DISABLED",
+                f"Skipped execution for {symbol} {side} because auto_trade is disabled",
+                severity="INFO",
+                symbol=symbol,
+                side=side,
+                reason=reason,
+                metadata={"qty": qty, "requested_price": price},
+            )
+            return
+
+        try:
+            if self.config.paper_trading:
+                paper_fill = self.paper_trading_simulator.execute_order(symbol=symbol, side=side, qty=qty, reference_price=fill_price)
+                fill_price = float(paper_fill["fill_price"])
+                paper_pnl = self.paper_trading_simulator.mark_to_market(self.latest_prices)
+                self.account_value = float(paper_pnl.get("equity", self.account_value))
+                self.logger.info("PAPER_ORDER %s %s qty=%d fill=%.4f type=NORMAL", symbol, side, qty, fill_price)
+            else:
+                order_result = await asyncio.to_thread(self.futu_connector.place_order, symbol, qty, side, fill_price)
+                order_id = self.futu_connector.extract_order_id(order_result)
+                status = await asyncio.to_thread(self.futu_connector.wait_for_fill, order_id)
+                fill_price = float(status.get("filled_avg_price") or fill_price)
+        except Exception as exc:
+            self.logger.error(
+                "EXEC_FAIL %s %s qty=%d limit=%.4f reason=%s error=%s",
+                symbol,
+                side,
+                qty,
+                fill_price,
+                reason,
+                exc,
+            )
+            self.db.save_risk_event(
+                event_code="EXEC_FAIL",
+                message=f"Execution failed for {symbol} {side}: {exc}",
+                severity="ERROR",
+                symbol=symbol,
+                side=side,
+                reason=reason,
+                metadata={"qty": qty, "limit_price": fill_price},
+            )
+            self._notify(f"[EXEC_FAIL] {symbol} {side} qty={qty} reason={reason} error={exc}")
+            return
 
         if side == "BUY":
             self.position_qty_by_symbol[symbol] += qty
@@ -895,6 +1326,38 @@ class LiveTradingLoop:
         pnl_report = self.pnl_tracker.build_report(self.latest_prices)
         self.account_value = self.starting_equity + float(pnl_report.get("net_pnl", 0.0))
 
+        mode = "paper_trade" if self.config.paper_trading else "broker_fill"
+        self.db.save_execution(
+            symbol=symbol,
+            side=side,
+            qty=qty,
+            requested_price=price,
+            fill_price=fill_price,
+            reason=reason,
+            mode=mode,
+            order_status="filled",
+            metadata={"account_value": self.account_value},
+        )
+        self.db.save_pnl_snapshot(
+            cash=getattr(self.paper_trading_simulator, "cash", None) if self.config.paper_trading else None,
+            equity=self.account_value,
+            realized_pnl=pnl_report.get("total_realized_pnl"),
+            unrealized_pnl=pnl_report.get("total_unrealized_pnl"),
+            net_pnl=pnl_report.get("net_pnl"),
+            fill_count=pnl_report.get("fill_count"),
+            metadata={"symbol": symbol, "side": side, "reason": reason},
+        )
+
+        self.health.set_trade({
+            "symbol": symbol,
+            "side": side,
+            "qty": qty,
+            "fill_price": fill_price,
+            "reason": reason,
+            "ts": datetime.now(timezone.utc).isoformat(),
+        })
+        self._persist_position_snapshot(reason=f"execute_{side.lower()}", source=mode)
+
         self.logger.info("EXEC %s %s qty=%d fill=%.4f reason=%s", symbol, side, qty, fill_price, reason)
 
     def _archive_market_data(self) -> None:
@@ -909,6 +1372,10 @@ class LiveTradingLoop:
 
     def _notify(self, message: str) -> None:
         self.logger.info(message)
+        try:
+            self.db.save_alert(channel="telegram", message=message)
+        except Exception as exc:
+            self.logger.warning("Alert persistence failed: %s", exc)
         try:
             send_tg_msg(message)
         except Exception as exc:

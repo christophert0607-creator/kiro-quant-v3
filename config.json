@@ -6,6 +6,21 @@
     "yfinance"
   ],
   "rate_limit_delay": 1.1,
+  "futu_api_config": {
+    "host": "127.0.0.1",
+    "port": 11111,
+    "cache_enabled": true,
+    "cache_ttl_seconds": 60,
+    "retry_count": 3,
+    "retry_delay_seconds": 1,
+    "log_level": "INFO"
+  },
+  "market_defaults": {
+    "default_market": "HK",
+    "default_kline_type": "day",
+    "default_kline_count": 100,
+    "default_orderbook_depth": 5
+  },
   "v3_live": {
     "symbols_list": [
       "0700.HK",
@@ -28,6 +43,7 @@
       "2018.HK",
       "0688.HK"
     ],
+    "runtime_profile": "lite",
     "prediction_thresholds": {
       "0700.HK": 0.01,
       "9988.HK": 0.01,
@@ -55,6 +71,9 @@
     "paper_trading": true,
     "stop_loss_pct": 0.03,
     "quick_take_profit_pct": 0.06,
-    "max_positions": 10
+    "max_hold_bars": 5,
+    "max_positions": 10,
+    "max_position_fraction_per_symbol": 0.3,
+    "ruin_threshold": 0.15
   }
 }

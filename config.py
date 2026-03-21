@@ -48,9 +48,35 @@ def _detect_opend_host() -> str:
 # ============================================================
 # Infoway & Data Priority Config
 # ============================================================
+# ── Infoway API Key: loaded from environment if available ──────────────────
+# SECURITY: Do NOT hardcode real API keys here. Set them in .env or as
+# environment variables (INFOWAY_API_KEY, INFOWAY_WS_URL).
+# Example .env:  INFOWAY_API_KEY=your_key_here
+#               INFOWAY_WS_URL=wss://data.infoway.io/ws?business=stock
+_INFOWAY_KEY_FROM_ENV = os.environ.get("INFOWAY_API_KEY", "").strip()
+_INFOWAY_URL_FROM_ENV = os.environ.get("INFOWAY_WS_URL", "").strip()
+
+# ⚠️ SECURITY: hardcoded fallback keys are disabled by default.
+# To explicitly allow local-dev fallback behavior, set:
+#   KIRO_ALLOW_DEV_FALLBACK_KEYS=1
+_FALLBACK_KEY = "9d122d7ab6fd4965bb45e28e9cf00435"
+_ALLOW_DEV_FALLBACK = os.environ.get("KIRO_ALLOW_DEV_FALLBACK_KEYS", "0").strip().lower() in {"1", "true", "yes", "on"}
+import logging as _log
+if not _INFOWAY_KEY_FROM_ENV:
+    if _ALLOW_DEV_FALLBACK:
+        _log.warning(
+            "[CONFIG] INFOWAY_API_KEY not set in environment — using explicit dev fallback key because "
+            "KIRO_ALLOW_DEV_FALLBACK_KEYS=1. Do not use this mode for production."
+        )
+    else:
+        _log.warning(
+            "[CONFIG] INFOWAY_API_KEY not set in environment — hardcoded fallback key disabled by default. "
+            "Set INFOWAY_API_KEY in .env, or explicitly opt into local-dev fallback via KIRO_ALLOW_DEV_FALLBACK_KEYS=1."
+        )
+
 INFOWAY_CONFIG = {
-    "API_KEY": "9d122d7ab6fd4965bb45e28e9cf00435",
-    "WS_URL": "wss://data.infoway.io/ws?business=stock",
+    "API_KEY": _INFOWAY_KEY_FROM_ENV or (_FALLBACK_KEY if _ALLOW_DEV_FALLBACK else ""),
+    "WS_URL": _INFOWAY_URL_FROM_ENV or "wss://data.infoway.io/ws?business=stock",
 }
 DATA_PRIORITY = ["INFOWAY", "FUTU", "MASSIVE", "YFINANCE"]
 # ============================================================
@@ -64,7 +90,8 @@ TRADE_MODE = "SIMULATE" # Keep SIMULATE but use Real Data   # 只改呢一行就
 OPEND_HOST  = _detect_opend_host()
 OPEND_PORT  = int(os.environ.get("FUTU_OPEND_PORT", "11111"))
 # 安全起見：不提供預設交易密碼，必須由環境變數注入
-TRADE_PWD   = os.environ.get("FUTU_TRADE_PWD", "")
+# 兼容新舊命名：優先 FUTU_TRADE_PASSWORD，其次 FUTU_TRADE_PWD
+TRADE_PWD   = os.environ.get("FUTU_TRADE_PASSWORD", os.environ.get("FUTU_TRADE_PWD", ""))
 
 # ============================================================
 # 目標市場

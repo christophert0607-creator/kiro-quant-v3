@@ -3,8 +3,55 @@ __pycache__/
 *.pyo
 *.log
 *.svg
+*.png
+*.parquet
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.gz
+*.tmp
+*.bak
+*.swp
+*.swo
+*.pid
+*.seed
+*.out
+*.err
+.env
+.venv/
+venv/
+.vscode/
+.idea/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage/
+htmlcov/
+logs/
+backups/
+_codex_tmp/
+audit_report.md
+
+# Keep tracked runtime/config state explicit
 *.json
 !config.json
+!config.example.json
 !state.json
+!kiro_config.json
+!kiro_state.json
+!kiro_pnl.json
+!pnl_report.json
+!paper_trading_pnl.json
+!matrix_backtest/matrix_results.json
+!v3_pipeline/reports/base_10y_metrics.json
+!v3_pipeline/reports/training_summary.json
+
+# Local environments / bulky archives should not be source-controlled
+v3_venv/
+venv_py314_final_backup/
+legacy_archive/
+
+# Model artifacts
 v3_pipeline/models/trained_models/
 
