@@ -1,0 +1,84 @@
+{
+  "sweep": [
+    {
+      "threshold": 0.0,
+      "n_trades": 11,
+      "win_rate": 0.36363636363636365,
+      "avg_return": -0.007313454545454546,
+      "max_drawdown": 0.070232,
+      "win_rate_delta": 0.0
+    },
+    {
+      "threshold": 0.1,
+      "n_trades": 8,
+      "win_rate": 0.5,
+      "avg_return": -0.00203375,
+      "max_drawdown": 0.070232,
+      "win_rate_delta": 0.13636363636363635
+    },
+    {
+      "threshold": 0.2,
+      "n_trades": 8,
+      "win_rate": 0.5,
+      "avg_return": -0.00203375,
+      "max_drawdown": 0.070232,
+      "win_rate_delta": 0.13636363636363635
+    },
+    {
+      "threshold": 0.3,
+      "n_trades": 7,
+      "win_rate": 0.5714285714285714,
+      "avg_return": -0.0007694285714285717,
+      "max_drawdown": 0.070232,
+      "win_rate_delta": 0.20779220779220775
+    },
+    {
+      "threshold": 0.4,
+      "n_trades": 6,
+      "win_rate": 0.6666666666666666,
+      "avg_return": -7.499999999999983e-06,
+      "max_drawdown": 0.070232,
+      "win_rate_delta": 0.303030303030303
+    },
+    {
+      "threshold": 0.5,
+      "n_trades": 6,
+      "win_rate": 0.6666666666666666,
+      "avg_return": -7.499999999999983e-06,
+      "max_drawdown": 0.070232,
+      "win_rate_delta": 0.303030303030303
+    },
+    {
+      "threshold": 0.6,
+      "n_trades": 4,
+      "win_rate": 1.0,
+      "avg_return": 0.00173025,
+      "max_drawdown": 0.070232,
+      "win_rate_delta": 0.6363636363636364
+    },
+    {
+      "threshold": 0.7,
+      "n_trades": 4,
+      "win_rate": 1.0,
+      "avg_return": 0.00173025,
+      "max_drawdown": 0.070232,
+      "win_rate_delta": 0.6363636363636364
+    },
+    {
+      "threshold": 0.8,
+      "n_trades": 3,
+      "win_rate": 1.0,
+      "avg_return": 0.0014503333333333336,
+      "max_drawdown": 0.070232,
+      "win_rate_delta": 0.6363636363636364
+    },
+    {
+      "threshold": 0.9,
+      "n_trades": 2,
+      "win_rate": 1.0,
+      "avg_return": 0.0017765,
+      "max_drawdown": 0.070232,
+      "win_rate_delta": 0.6363636363636364
+    }
+  ]
+}

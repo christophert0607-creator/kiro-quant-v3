@@ -85,10 +85,26 @@ class DataPreparer:
 
     def fit_transform(self, frame: pd.DataFrame) -> Tuple[torch.Tensor, torch.Tensor]:
         clean = self._sanitize(frame)
-        features = clean.drop(columns=["Date"]).copy()
 
-        if self.target_col not in features.columns:
+        # Ensure numeric columns before extracting features
+        for col in clean.columns:
+            if col in ("Date", "data_source"):
+                continue
+            clean[col] = pd.to_numeric(clean[col], errors="coerce")
+
+        # Explicitly exclude non-feature columns
+        non_feature_cols = {"Date", "data_source"}
+        feature_cols = [c for c in clean.columns if c not in non_feature_cols]
+
+        if self.target_col not in feature_cols:
             raise ValueError(f"target_col '{self.target_col}' not in data columns")
+
+        features = clean[feature_cols].copy()
+
+        # Replace any remaining NaN/inf in feature columns with 0 before min/max
+        for col in features.columns:
+            features[col] = features[col].replace([float("inf"), float("-inf")], 0.0)
+        features = features.fillna(0.0)
 
         self.feature_columns = features.columns.tolist()
         self.feature_mins = features.min(axis=0)
@@ -159,7 +175,7 @@ class DataPreparer:
         clean["Date"] = pd.to_datetime(clean["Date"], errors="coerce")
         clean = clean.dropna(subset=["Date"]).sort_values("Date").drop_duplicates(subset=["Date"])
 
-        numeric_cols = [c for c in clean.columns if c != "Date"]
+        numeric_cols = [c for c in clean.columns if c not in ("Date", "data_source")]
         for col in numeric_cols:
             clean[col] = pd.to_numeric(clean[col], errors="coerce")
 

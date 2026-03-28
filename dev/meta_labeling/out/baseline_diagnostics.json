@@ -1,0 +1,60 @@
+{
+  "schema": "kiro.meta_labeling.baseline_diagnostics.v1",
+  "total_events": 68,
+  "labeled_events": 34,
+  "label_distribution": {
+    "0": 29,
+    "1": 5
+  },
+  "label_horizons": [
+    "30m",
+    "60m"
+  ],
+  "symbols": [
+    {
+      "symbol": "AMZN",
+      "count": 16
+    },
+    {
+      "symbol": "GOOGL",
+      "count": 16
+    },
+    {
+      "symbol": "NVDA",
+      "count": 14
+    },
+    {
+      "symbol": "MSFT",
+      "count": 13
+    },
+    {
+      "symbol": "AAPL",
+      "count": 9
+    }
+  ],
+  "ohlcv": {
+    "with_all_fields": 68,
+    "missing": 0
+  },
+  "indicators": {
+    "with_any": 68,
+    "missing": 0
+  },
+  "feature_counts": {
+    "confidence": 49,
+    "snapshot_total_assets": 68,
+    "snapshot_cash": 68,
+    "snapshot_market_val": 68,
+    "ohlcv_open": 68,
+    "ohlcv_high": 68,
+    "ohlcv_low": 68,
+    "ohlcv_close": 68,
+    "ohlcv_volume": 68,
+    "ind_sma_5": 68,
+    "ind_sma_20": 68,
+    "ind_rsi_14": 68,
+    "ind_macd": 68,
+    "ind_bb_upper": 68,
+    "ind_bb_lower": 68
+  }
+}

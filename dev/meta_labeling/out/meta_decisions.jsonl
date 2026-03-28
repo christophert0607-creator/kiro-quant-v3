@@ -1,0 +1,7 @@
+{"ts": "2026-03-27T13:03:47.840086Z", "decision": "block", "probability": 0.09066710432072078, "symbol": "AAPL", "confidence": 0.9, "snapshot_total_assets": 100000, "snapshot_cash": 40000, "snapshot_market_val": 60000, "ohlcv_volume": 45000000, "ind_rsi_14": 60.0, "ind_macd": 1.2}
+{"ts": "2026-03-27T13:04:28.037405Z", "decision": "allow", "probability": 0.7, "symbol": "TEST", "confidence": 0.5}
+{"ts": "2026-03-27T13:04:28.040913Z", "decision": "block", "probability": 0.09066710432072078, "symbol": "AAPL", "confidence": 0.9, "snapshot_total_assets": 100000, "snapshot_cash": 40000, "snapshot_market_val": 60000, "ohlcv_volume": 45000000, "ind_rsi_14": 60.0, "ind_macd": 1.2}
+{"ts": "2026-03-27T13:04:46.746201Z", "decision": "allow", "probability": 0.7, "symbol": "TEST", "confidence": 0.5}
+{"ts": "2026-03-27T13:04:46.749742Z", "decision": "block", "probability": 0.09066710432072078, "symbol": "AAPL", "confidence": 0.9, "snapshot_total_assets": 100000, "snapshot_cash": 40000, "snapshot_market_val": 60000, "ohlcv_volume": 45000000, "ind_rsi_14": 60.0, "ind_macd": 1.2}
+{"ts": "2026-03-27T13:04:57.927254Z", "decision": "allow", "probability": 0.7, "symbol": "TEST", "confidence": 0.5}
+{"ts": "2026-03-27T13:04:57.930319Z", "decision": "block", "probability": 0.09066710432072078, "symbol": "AAPL", "confidence": 0.9, "snapshot_total_assets": 100000, "snapshot_cash": 40000, "snapshot_market_val": 60000, "ohlcv_volume": 45000000, "ind_rsi_14": 60.0, "ind_macd": 1.2}

@@ -130,12 +130,42 @@ class FutuConnector:
         import yfinance as yf
 
         session = self._build_yf_session()
-        if session is None:
-            ticker = yf.Ticker(symbol)
-        else:
-            ticker = yf.Ticker(symbol, session=session)
-        hist = ticker.history(period="1d", interval="1m")
-        if hist.empty:
+        ticker = yf.Ticker(symbol, session=session) if session else yf.Ticker(symbol)
+
+        # Primary: fast_info (reliable real-time price for most stocks)
+        price = None
+        try:
+            fi = ticker.fast_info
+            price = float(getattr(fi, "last_price", None) or getattr(fi, "lastPrice", None))
+        except Exception:
+            pass
+
+        if price and price > 0:
+            # fast_info has no OHLCV in one shot; use history for OHLCV + fast_info price
+            try:
+                hist = ticker.history(period="1d", interval="1m")
+                if hist is not None and not hist.empty:
+                    row = hist.iloc[-1]
+                    return self._normalize_quote(
+                        close=float(row.get("Close", price)),
+                        open_p=float(row.get("Open", price)),
+                        high_p=float(row.get("High", price)),
+                        low_p=float(row.get("Low", price)),
+                        volume=float(row.get("Volume", 0.0)),
+                        source="YF_LIVE",
+                    )
+            except Exception:
+                pass
+            # Fallback: return price-only quote (OHLCV=price, volume=0)
+            now = pd.Timestamp.now()
+            return self._normalize_quote(
+                close=price, open_p=price, high_p=price, low_p=price,
+                volume=0.0, source="YF_LIVE",
+            )
+
+        # Secondary: history-based quote
+        hist = ticker.history(period="5d", interval="1d")
+        if hist is None or hist.empty:
             raise RuntimeError(f"yfinance returned empty history for {symbol}")
 
         row = hist.iloc[-1]
@@ -163,14 +193,77 @@ class FutuConnector:
         except Exception as exc:
             self.logger.warning("Failed to parse config.json for futu settings: %s", exc)
 
+    def _resolve_trade_market(self, market_prefix: Optional[str] = None):
+        if self.ft is None:
+            raise RuntimeError("Futu SDK not loaded. Call connect() first.")
+        market_name = (market_prefix or self.config.market_prefix or "US").upper()
+        return getattr(self.ft.TrdMarket, market_name, self.ft.TrdMarket.US)
+
+    def _open_trade_context(self, market_prefix: Optional[str] = None):
+        if self.ft is None:
+            raise RuntimeError("Futu SDK not loaded. Call connect() first.")
+        trade_market = self._resolve_trade_market(market_prefix)
+        return self.ft.OpenSecTradeContext(
+            filter_trdmarket=trade_market,
+            host=self.config.host,
+            port=self.config.port,
+        )
+
+    def set_market_prefix(self, market_prefix: str) -> None:
+        normalized = (market_prefix or "US").upper()
+        old_prefix = (self.config.market_prefix or "US").upper()
+        self.config.market_prefix = normalized
+
+        if self.ft is None or self.quote_ctx is None:
+            return
+        if normalized == old_prefix and self.trade_ctx is not None:
+            return
+
+        old_trade_ctx = self.trade_ctx
+        try:
+            self.trade_ctx = self._open_trade_context(normalized)
+            if old_trade_ctx is not None:
+                try:
+                    old_trade_ctx.close()
+                except Exception:
+                    pass
+            self.logger.info("Switched trade context: %s→%s", old_prefix, normalized)
+            self.discover_accounts()
+        except Exception:
+            self.trade_ctx = old_trade_ctx
+            raise
+
     def connect(self) -> None:
+        # Modes:
+        # - NO_FUTU=1: skip all futu (default YF-only)
+        # - FUTU_TRADE_ONLY=1: connect trade/positions only, keep quotes on YF/efinance
+        no_futu = os.getenv("NO_FUTU", "").strip() == "1"
+        trade_only = os.getenv("FUTU_TRADE_ONLY", "").strip() == "1"
+
+        if no_futu and not trade_only:
+            self.logger.info("NO_FUTU=1 — skipping Futu connection, YF-only mode")
+            self.ft = None
+            self.quote_ctx = None
+            self.trade_ctx = None
+            return
         try:
             import futu as ft
 
             self.ft = ft
-            self.quote_ctx = ft.OpenQuoteContext(host=self.config.host, port=self.config.port)
-            self.trade_ctx = ft.OpenUSTradeContext(host=self.config.host, port=self.config.port)
-            self.logger.info("Connected to Futu OpenD at %s:%s", self.config.host, self.config.port)
+
+            # Safety: block REAL trading unless explicitly allowed.
+            if str(self.config.trd_env).upper() == "REAL" and os.getenv("ALLOW_REAL_TRADING", "").strip() != "1":
+                raise RuntimeError("REAL trading blocked. Set ALLOW_REAL_TRADING=1 to enable.")
+
+            self.quote_ctx = None if trade_only else ft.OpenQuoteContext(host=self.config.host, port=self.config.port)
+            self.trade_ctx = self._open_trade_context(self.config.market_prefix)
+            self.logger.info(
+                "Connected to Futu OpenD at %s:%s (trade_market=%s, trade_only=%s)",
+                self.config.host,
+                self.config.port,
+                self.config.market_prefix,
+                trade_only,
+            )
             self.discover_accounts()
         except Exception as exc:
             self._safe_close_contexts()
@@ -196,10 +289,18 @@ class FutuConnector:
         return getattr(self.ft.TrdEnv, self.config.trd_env, self.ft.TrdEnv.SIMULATE)
 
     def _safe_trade_call(self, method_name: str, **kwargs):
+        """Call trade API safely across futu-api versions.
+
+        Some endpoints (e.g. get_acc_list) do not accept trd_env in newer SDKs.
+        We try with trd_env first, and fall back to calling without it.
+        """
         if self.trade_ctx is None or self.ft is None:
             raise RuntimeError("FutuConnector not connected")
         method = getattr(self.trade_ctx, method_name)
-        ret, data = method(trd_env=self._resolved_trd_env(), **kwargs)
+        try:
+            ret, data = method(trd_env=self._resolved_trd_env(), **kwargs)
+        except TypeError:
+            ret, data = method(**kwargs)
         if ret != self.ft.RET_OK:
             raise RuntimeError(f"{method_name} failed: {data}")
         return data
@@ -222,6 +323,9 @@ class FutuConnector:
         return {"acc_id": int(self.config.target_acc_id)}
 
     def heartbeat(self) -> bool:
+        if self.trade_ctx is None or self.ft is None:
+            # NO_FUTU mode: skip futu heartbeat, rely on YF data
+            return True
         try:
             _ = self._safe_trade_call("accinfo_query", **self._account_kwargs())
             return True
@@ -229,37 +333,73 @@ class FutuConnector:
             self.logger.warning("Futu heartbeat failed: %s", exc)
             return False
 
+    def resolve_symbol(self, symbol: str) -> tuple[str, str]:
+        raw = str(symbol).strip()
+        upper = raw.upper()
+
+        if upper.endswith(".HK"):
+            market_prefix = "HK"
+            base_symbol = upper[:-3]
+            provider_symbol = f"{base_symbol}.HK"
+        elif "." in upper:
+            prefix, rest = upper.split(".", 1)
+            market_prefix = prefix or self.config.market_prefix
+            base_symbol = rest
+            provider_symbol = rest
+            if market_prefix == "HK" and not provider_symbol.endswith(".HK"):
+                provider_symbol = f"{base_symbol}.HK"
+        else:
+            market_prefix = self.config.market_prefix
+            base_symbol = upper
+            provider_symbol = f"{base_symbol}.HK" if market_prefix == "HK" else base_symbol
+
+        base_symbol_futu = base_symbol
+        if market_prefix == "HK" and base_symbol.isdigit() and len(base_symbol) < 5:
+            base_symbol_futu = base_symbol.zfill(5)
+
+        broker_code = f"{market_prefix}.{base_symbol_futu}"
+        return broker_code, provider_symbol
+
     def get_latest_quote(self, symbol: str) -> dict:
-        code = f"{self.config.market_prefix}.{symbol}"
+        code, provider_symbol = self.resolve_symbol(symbol)
         provider_errors: list[str] = []
 
-        for provider in ("yf", "ef", "futu"):
-            try:
-                if provider == "yf":
-                    quote = self._get_latest_quote_yfinance(symbol)
-                elif provider == "ef":
-                    quote = self._get_latest_quote_efinance(symbol)
-                else:
-                    if self.quote_ctx is None or self.ft is None:
-                        raise RuntimeError("not_connected")
-                    ret, df = self.quote_ctx.get_stock_quote([code])
-                    if ret != self.ft.RET_OK or df.empty:
-                        raise RuntimeError(f"failed: {df}")
-                    row = df.iloc[0]
-                    quote = self._normalize_quote(
-                        close=float(row.get("last_price", 0.0)),
-                        open_p=float(row.get("open_price", row.get("last_price", 0.0))),
-                        high_p=float(row.get("high_price", row.get("last_price", 0.0))),
-                        low_p=float(row.get("low_price", row.get("last_price", 0.0))),
-                        volume=float(row.get("volume", 0.0)),
-                        source="FUTU",
-                    )
+        # Retry logic with exponential backoff
+        max_retries = 3
+        providers = ("yf", "ef") if (self.quote_ctx is None or self.ft is None) else ("yf", "ef", "futu")
+        for attempt in range(max_retries):
+            for provider in providers:
+                try:
+                    if provider == "yf":
+                        quote = self._get_latest_quote_yfinance(provider_symbol)
+                    elif provider == "ef":
+                        quote = self._get_latest_quote_efinance(provider_symbol)
+                    else:
+                        if self.quote_ctx is None or self.ft is None:
+                            raise RuntimeError("not_connected")
+                        ret, df = self.quote_ctx.get_stock_quote([code])
+                        if ret != self.ft.RET_OK or df.empty:
+                            raise RuntimeError(f"failed: {df}")
+                        row = df.iloc[0]
+                        quote = self._normalize_quote(
+                            close=float(row.get("last_price", 0.0)),
+                            open_p=float(row.get("open_price", row.get("last_price", 0.0))),
+                            high_p=float(row.get("high_price", row.get("last_price", 0.0))),
+                            low_p=float(row.get("low_price", row.get("last_price", 0.0))),
+                            volume=float(row.get("volume", 0.0)),
+                            source="FUTU",
+                        )
 
-                self._cache_quote(symbol, quote)
-                self._cached_hit_count[symbol] = 0
-                return quote
-            except Exception as exc:
-                provider_errors.append(f"{provider}={exc}")
+                    self._cache_quote(symbol, quote)
+                    self._cached_hit_count[symbol] = 0
+                    return quote
+                except Exception as exc:
+                    provider_errors.append(f"{provider}(att:{attempt})={exc}")
+            
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt
+                self.logger.warning(f"Retrying quote fetch for {symbol} in {wait_time}s...")
+                time.sleep(wait_time)
 
         cached_quote = self._get_cached_quote(symbol)
         if cached_quote is not None:
@@ -270,7 +410,7 @@ class FutuConnector:
 
     def get_order_reference_price(self, symbol: str, side: str, fallback_price: float = 0.0) -> float:
         """Get realistic LIMIT reference price: BUY->ask, SELL->bid."""
-        code = f"{self.config.market_prefix}.{symbol}"
+        code, _ = self.resolve_symbol(symbol)
         side_upper = side.upper()
 
         if self.quote_ctx is not None and self.ft is not None:
@@ -295,6 +435,9 @@ class FutuConnector:
             return float(fallback_price)
 
     def get_sync_assets(self) -> dict:
+        if self.trade_ctx is None or self.ft is None:
+            # NO_FUTU mode: return simulated paper trading assets
+            return {"total_assets": 100000.0, "cash": 100000.0, "power": 100000.0}
         data = self._safe_trade_call("accinfo_query", **self._account_kwargs())
         if data is None or data.empty:
             raise RuntimeError("accinfo_query returned empty dataset")
@@ -302,15 +445,16 @@ class FutuConnector:
         return {"total_assets": float(row.get("total_assets", 0.0)), "cash": float(row.get("cash", 0.0)), "power": float(row.get("power", 0.0))}
 
     def get_sync_positions(self) -> pd.DataFrame:
-        data = self._safe_trade_call("position_list_query", **self._account_kwargs())
-        return pd.DataFrame() if data is None else data.copy()
+        if self.trade_ctx is None or self.ft is None:
+            # NO_FUTU mode: return empty — positions tracked by state.json
+            return pd.DataFrame()
 
     def place_order(self, symbol: str, qty: int, side: str, price: Optional[float] = None) -> object:
         if self.trade_ctx is None or self.ft is None:
             raise RuntimeError("FutuConnector not connected")
         if qty <= 0:
             raise ValueError("qty must be > 0")
-        code = f"{self.config.market_prefix}.{symbol}"
+        code, _ = self.resolve_symbol(symbol)
         limit_price = float(price) if price is not None else self.get_order_reference_price(symbol, side, fallback_price=0.0)
         ret, data = self.trade_ctx.place_order(
             price=limit_price,

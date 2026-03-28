@@ -1,0 +1,6 @@
+{
+  "schema": "kiro.meta_labeling.status.v1",
+  "next_task": "M3.backtest_harness",
+  "last_run_hkt": "2026-03-28T07:55:00+08:00",
+  "notes": "2026-03-28: added baseline_diagnostics.py + organized for GitHub push. All M0-M10 complete."
+}

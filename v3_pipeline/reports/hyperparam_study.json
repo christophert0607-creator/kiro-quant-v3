@@ -1,121 +1,121 @@
 {
   "best": {
-    "trial": 5,
-    "lookback": 30,
-    "learning_rate": 0.005,
+    "trial": 7,
+    "lookback": 60,
     "lstm_layers": 3,
     "attention_heads": 8,
-    "val_mse": 0.0008296784819228131,
-    "engine": "fallback"
+    "learning_rate": 0.001,
+    "val_mse": 0.0007494237243690646,
+    "engine": "optuna"
   },
   "trials": [
     {
       "trial": 0,
-      "lookback": 90,
-      "learning_rate": 0.005,
+      "lookback": 30,
       "lstm_layers": 2,
       "attention_heads": 4,
-      "val_mse": 0.003874374555607901,
-      "engine": "fallback"
+      "learning_rate": 0.0005,
+      "val_mse": 0.004207852560065491,
+      "engine": "optuna"
     },
     {
       "trial": 1,
       "lookback": 30,
-      "learning_rate": 0.0001,
-      "lstm_layers": 4,
+      "lstm_layers": 2,
       "attention_heads": 8,
-      "val_mse": 0.001455176985412051,
-      "engine": "fallback"
+      "learning_rate": 0.0005,
+      "val_mse": 0.002389569568521784,
+      "engine": "optuna"
     },
     {
       "trial": 2,
-      "lookback": 90,
-      "learning_rate": 0.001,
-      "lstm_layers": 2,
+      "lookback": 60,
+      "lstm_layers": 4,
       "attention_heads": 8,
-      "val_mse": 0.0014000406352721513,
-      "engine": "fallback"
+      "learning_rate": 0.0005,
+      "val_mse": 0.003513408846275225,
+      "engine": "optuna"
     },
     {
       "trial": 3,
-      "lookback": 90,
-      "learning_rate": 0.0005,
+      "lookback": 120,
       "lstm_layers": 2,
       "attention_heads": 8,
-      "val_mse": 0.0038323948435206637,
-      "engine": "fallback"
+      "learning_rate": 0.001,
+      "val_mse": 0.001772392748031882,
+      "engine": "optuna"
     },
     {
       "trial": 4,
-      "lookback": 60,
+      "lookback": 120,
+      "lstm_layers": 4,
+      "attention_heads": 4,
       "learning_rate": 0.0005,
-      "lstm_layers": 3,
-      "attention_heads": 8,
-      "val_mse": 0.004967288549023114,
-      "engine": "fallback"
+      "val_mse": 0.003425692116514793,
+      "engine": "optuna"
     },
     {
       "trial": 5,
-      "lookback": 30,
-      "learning_rate": 0.005,
-      "lstm_layers": 3,
-      "attention_heads": 8,
-      "val_mse": 0.0008296784819228131,
-      "engine": "fallback"
+      "lookback": 60,
+      "lstm_layers": 4,
+      "attention_heads": 4,
+      "learning_rate": 0.001,
+      "val_mse": 0.0014194584689252467,
+      "engine": "optuna"
     },
     {
       "trial": 6,
-      "lookback": 30,
+      "lookback": 90,
+      "lstm_layers": 2,
+      "attention_heads": 8,
       "learning_rate": 0.0001,
-      "lstm_layers": 4,
-      "attention_heads": 4,
-      "val_mse": 0.002479416081204073,
-      "engine": "fallback"
+      "val_mse": 0.0033158921611497337,
+      "engine": "optuna"
     },
     {
       "trial": 7,
-      "lookback": 120,
-      "learning_rate": 0.005,
-      "lstm_layers": 4,
+      "lookback": 60,
+      "lstm_layers": 3,
       "attention_heads": 8,
-      "val_mse": 0.0011805470250378473,
-      "engine": "fallback"
+      "learning_rate": 0.001,
+      "val_mse": 0.0007494237243690646,
+      "engine": "optuna"
     },
     {
       "trial": 8,
-      "lookback": 60,
-      "learning_rate": 0.001,
-      "lstm_layers": 4,
+      "lookback": 90,
+      "lstm_layers": 2,
       "attention_heads": 8,
-      "val_mse": 0.003288141189220578,
-      "engine": "fallback"
+      "learning_rate": 0.001,
+      "val_mse": 0.002102598358007937,
+      "engine": "optuna"
     },
     {
       "trial": 9,
-      "lookback": 90,
-      "learning_rate": 0.0001,
-      "lstm_layers": 4,
+      "lookback": 30,
+      "lstm_layers": 2,
       "attention_heads": 4,
-      "val_mse": 0.0015162013194866244,
-      "engine": "fallback"
+      "learning_rate": 0.005,
+      "val_mse": 0.0035325931831312668,
+      "engine": "optuna"
     },
     {
       "trial": 10,
-      "lookback": 90,
-      "learning_rate": 0.0005,
-      "lstm_layers": 2,
+      "lookback": 60,
+      "lstm_layers": 3,
       "attention_heads": 8,
-      "val_mse": 0.0031658105149512646,
-      "engine": "fallback"
+      "learning_rate": 0.005,
+      "val_mse": 0.0034583731920821534,
+      "engine": "optuna"
     },
     {
       "trial": 11,
       "lookback": 60,
-      "learning_rate": 0.0001,
       "lstm_layers": 3,
       "attention_heads": 4,
-      "val_mse": 0.0017697540676130258,
-      "engine": "fallback"
+      "learning_rate": 0.001,
+      "val_mse": 0.002832316253502965,
+      "engine": "optuna"
     }
   ]
 }

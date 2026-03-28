@@ -1,0 +1,14 @@
+{
+  "n_samples": 34,
+  "n_features": 11,
+  "n_positive": 5,
+  "n_negative": 29,
+  "accuracy": 0.9411764705882353,
+  "precision": 0.7142857142857143,
+  "recall": 1.0,
+  "f1": 0.8333333333333334,
+  "auc": 1.0,
+  "average_precision": 1.0,
+  "cv_accuracy_mean": 0.7575757575757575,
+  "cv_accuracy_std": 0.17141982574219333
+}

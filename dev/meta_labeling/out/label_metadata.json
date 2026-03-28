@@ -1,0 +1,42 @@
+{
+  "total_events": 68,
+  "label_counts": {
+    "0": 29,
+    "1": 5
+  },
+  "decision_ts_range": {
+    "first": "2026-03-20T14:37:00+00:00",
+    "last": "2026-03-21T00:01:00+00:00"
+  },
+  "horizon_stats": {
+    "30": {
+      "horizon_minutes": 30,
+      "samples": 34,
+      "positive": 5,
+      "negative": 29,
+      "return_min": -0.025942,
+      "return_max": 0.00257,
+      "return_mean": -0.009308,
+      "positive_rate": 0.1471
+    },
+    "60": {
+      "horizon_minutes": 60,
+      "samples": 31,
+      "positive": 2,
+      "negative": 29,
+      "return_min": -0.029551,
+      "return_max": 0.002369,
+      "return_mean": -0.00998,
+      "positive_rate": 0.0645
+    }
+  },
+  "available_labels": [
+    0,
+    1
+  ],
+  "split_rule_summary": {
+    "train_ratio": 0.7,
+    "val_ratio": 0.15,
+    "test_ratio": 0.15
+  }
+}

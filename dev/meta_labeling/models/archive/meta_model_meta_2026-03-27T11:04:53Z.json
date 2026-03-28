@@ -1,0 +1,17 @@
+{
+  "schema": "kiro.meta_model.meta.v1",
+  "feature_names": [
+    "prediction",
+    "confidence",
+    "sentiment_score",
+    "mc_win_rate",
+    "mc_var95",
+    "risk_pct",
+    "rr",
+    "threshold"
+  ],
+  "threshold": 0.5,
+  "joined_source": "dev/meta_labeling/out/joined_events.jsonl",
+  "rows": 68,
+  "note": "TEMP label is placeholder; replace with forward-return labeling before real evaluation."
+}
