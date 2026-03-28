@@ -1,6 +1,6 @@
 {
   "schema": "kiro.meta_labeling.status.v1",
-  "next_task": "M5.integration_test",
-  "last_run_hkt": "2026-03-28T09:10:00+08:00",
-  "notes": "M4 complete: scaler_params.json now exported by inference.py --export-scalers and baseline_model.py auto-calls it post-training. inference.py prefers scaler_params.json over embedded scaler in model_weights.json."
+  "next_task": "M7.continuous_learning",
+  "last_run_hkt": "2026-03-28T12:13:00+08:00",
+  "notes": "M5 complete: integration_test.py 5/5 passed. M6 live integration done. Ready to run continuous_learning.py with fresh decision data."
 }
