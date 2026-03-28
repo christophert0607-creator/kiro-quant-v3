@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Meta-labeling — baseline model (offline).
+"""Meta-labeling - baseline model (offline).
 
 Milestone: M2.baseline_model
 
@@ -41,7 +41,7 @@ from sklearn.preprocessing import StandardScaler
 FEATURE_KEYS = [
     "confidence",
     "snapshot_total_assets",
-    "snapshot_cash", 
+    "snapshot_cash",
     "snapshot_market_val",
     # OHLCV features (if available)
     "ohlcv_volume",
@@ -85,14 +85,14 @@ def build_feature_matrix(events: list[dict[str, Any]]) -> tuple[np.ndarray, list
     if not feature_names:
         # Fallback: use numeric keys from first event
         sample = events[0]
-        feature_names = [k for k in sample.keys() 
+        feature_names = [k for k in sample.keys()
                         if isinstance(sample[k], (int, float)) and k != "label"]
-    
+
     X = np.zeros((len(events), len(feature_names)))
     for i, ev in enumerate(events):
         for j, feat in enumerate(feature_names):
             X[i, j] = _safe_float(ev.get(feat), 0.0)
-    
+
     return X, feature_names
 
 
@@ -113,25 +113,25 @@ def train_baseline(X: np.ndarray, y: np.ndarray, feature_names: list[str]) -> di
     """Train LogisticRegression baseline and compute metrics."""
     if len(X) < 2:
         return {"error": "Insufficient samples for training", "n_samples": len(X)}
-    
+
     if y.sum() == 0:
         return {"error": "No positive labels", "n_positive": 0}
-    
+
     if y.sum() == len(y):
         return {"error": "No negative labels", "n_negative": 0}
-    
+
     # Scale features
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
-    
+
     # Train model
     model = LogisticRegression(max_iter=200, random_state=42, class_weight="balanced")
     model.fit(X_scaled, y)
-    
+
     # Predictions
     y_pred = model.predict(X_scaled)
     y_proba = model.predict_proba(X_scaled)[:, 1]
-    
+
     # Metrics
     metrics = {
         "n_samples": len(X),
@@ -140,19 +140,19 @@ def train_baseline(X: np.ndarray, y: np.ndarray, feature_names: list[str]) -> di
         "n_negative": int(len(y) - y.sum()),
         "accuracy": float(accuracy_score(y, y_pred)),
     }
-    
+
     # Precision, recall
     prec, rec, f1, _ = precision_recall_fscore_support(y, y_pred, average="binary", zero_division=0)
     metrics["precision"] = float(prec)
     metrics["recall"] = float(rec)
     metrics["f1"] = float(f1)
     metrics["brier_score"] = float(brier_score_loss(y, y_proba))
-    
+
     # AUC (only if both classes present)
     if len(np.unique(y)) == 2:
         metrics["auc"] = float(roc_auc_score(y, y_proba))
         metrics["average_precision"] = float(average_precision_score(y, y_proba))
-    
+
     # Cross-validation (if enough samples)
     if len(X) >= 5:
         try:
@@ -161,11 +161,11 @@ def train_baseline(X: np.ndarray, y: np.ndarray, feature_names: list[str]) -> di
             metrics["cv_accuracy_std"] = float(cv_scores.std())
         except Exception as e:
             metrics["cv_error"] = str(e)
-    
+
     # Feature importance (coefficients)
     weights = {feat: float(coef) for feat, coef in zip(feature_names, model.coef_[0])}
     weights["intercept"] = float(model.intercept_[0])
-    
+
     return {
         "metrics": metrics,
         "weights": weights,
@@ -187,21 +187,21 @@ def main():
                         help="Label horizon (e.g., 30m, 60m)")
     parser.add_argument("--min-samples", "-m", type=int, default=3,
                         help="Minimum samples required")
-    
+
     args = parser.parse_args()
-    
+
     # Load events
     print(f"Loading events from {args.input}...")
     events = load_labeled_events(args.input)
     print(f"Loaded {len(events)} events")
-    
+
     # Filter to valid events (has ohlcv and labels)
     valid_events = [
-        e for e in events 
+        e for e in events
         if not e.get("ohlcv_error") and e.get("labels", {}).get(f"label_{args.horizon}") is not None
     ]
     print(f"Valid events (OHLCV + label): {len(valid_events)}")
-    
+
     if len(valid_events) < args.min_samples:
         print(f"⚠️  Not enough valid samples ({len(valid_events)} < {args.min_samples})")
         print("Building feature matrix anyway with all events...")
@@ -210,25 +210,25 @@ def main():
         if not valid_events:
             valid_events = [e for e in events if e.get("label") is not None]
         print(f"Using {len(valid_events)} events with labels")
-    
+
     # Build feature matrix
     X, feature_names = build_feature_matrix(valid_events)
     y = build_label_vector(valid_events, args.horizon)
-    
+
     print(f"Feature matrix: {X.shape}")
     print(f"Features: {feature_names}")
     print(f"Labels: {y.sum()} positive, {len(y) - y.sum()} negative")
-    
+
     # Train model
     result = train_baseline(X, y, feature_names)
-    
+
     if "error" in result:
         print(f"⚠️  {result['error']}")
         # Save partial result
         with open(args.out_metrics, "w") as f:
             json.dump(result, f, indent=2)
         return
-    
+
     # Print metrics
     print("\n=== Model Metrics ===")
     m = result["metrics"]
@@ -240,22 +240,35 @@ def main():
     print(f"Average Precision: {m.get('average_precision', 'N/A'):.3f}")
     if "cv_accuracy_mean" in m:
         print(f"CV Accuracy: {m['cv_accuracy_mean']:.3f} ± {m['cv_accuracy_std']:.3f}")
-    
+
     # Print top features
     print("\n=== Feature Weights (top 5) ===")
     weights = result["weights"]
     sorted_weights = sorted(weights.items(), key=lambda x: abs(x[1]), reverse=True)
     for feat, w in sorted_weights[:5]:
         print(f"  {feat}: {w:+.4f}")
-    
+
     # Save outputs
     with open(args.out_metrics, "w") as f:
         json.dump(result["metrics"], f, indent=2)
     print(f"\nMetrics saved to {args.out_metrics}")
-    
+
     with open(args.out_weights, "w") as f:
         json.dump(result, f, indent=2, default=list)
     print(f"Weights saved to {args.out_weights}")
+
+    # Also export dedicated scaler_params.json for inference module
+    try:
+        import sys
+        sys.path.insert(0, str(Path(__file__).parent))
+        from inference import export_scaler_params
+        weights_path = Path(args.out_weights)
+        if export_scaler_params(weights_path):
+            print(f"Scaler params exported to scaler_params.json")
+        else:
+            print("Scaler params export failed (non-fatal)")
+    except Exception as e:
+        print(f"Scaler params export skipped: {e}")
 
 
 if __name__ == "__main__":

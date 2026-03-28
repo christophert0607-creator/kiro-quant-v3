@@ -438,3 +438,26 @@ Append-only log of incremental development steps.
   - `python3 dev/meta_labeling/label_metadata.py`
   - `cat dev/meta_labeling/out/label_metadata.json`
   - `cat dev/meta_labeling/out/label_splits.json`
+
+### 2026-03-28 09:10 HKT
+- Step: M4.integration (scaler_params.json)
+- Files changed:
+  - `dev/meta_labeling/inference.py` — `_load_model()` now prefers scaler_params.json, fallback to embedded scaler in model_weights.json
+  - `dev/meta_labeling/inference.py` — added `--export-scalers` CLI flag and functional `export_scaler_params()`
+  - `dev/meta_labeling/baseline_model.py` — auto-calls `export_scaler_params()` after training
+  - `dev/meta_labeling/out/scaler_params.json` — new dedicated scaler metadata file
+  - `dev/meta_labeling/STATUS.json`
+  - `dev/meta_labeling/DEVLOG.md`
+- Done:
+  - scaler params now live in dedicated `scaler_params.json` (schema: `kiro.meta_labeling.scaler_params.v1`)
+  - Live gate and training share the same scaler metadata
+  - `inference.py --export-scalers` works standalone
+  - `baseline_model.py` auto-exports after every training run
+- Validation:
+  - `python3 -m py_compile dev/meta_labeling/inference.py` ✅
+  - `python3 -m py_compile dev/meta_labeling/baseline_model.py` ✅
+  - `python3 dev/meta_labeling/inference.py --list-features` ✅
+  - `python3 dev/meta_labeling/inference.py --export-scalers` ✅
+- How to verify:
+  - `cat dev/meta_labeling/out/scaler_params.json`
+  - `python3 dev/meta_labeling/inference.py --event '{"confidence":0.1,"snapshot_total_assets":1000000,"snapshot_cash":800000,"snapshot_market_val":200000,"ohlcv_volume":1000000,"ind_sma_5":100,"ind_sma_20":99,"ind_rsi_14":50,"ind_macd":0.1,"ind_bb_upper":105,"ind_bb_lower":95}'`

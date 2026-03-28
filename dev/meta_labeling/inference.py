@@ -53,7 +53,11 @@ _feature_names: list[str] | None = None
 
 
 def _load_model() -> tuple[dict | None, dict | None, list[str] | None]:
-    """Load model weights and scaler parameters."""
+    """Load model weights and scaler parameters.
+    
+    Prefers scaler_params.json for scaler, falls back to scaler embedded
+    in model_weights.json for backward compatibility.
+    """
     global _model_weights, _scaler_params, _feature_names
 
     if _model_weights is not None and _scaler_params is not None and _feature_names is not None:
@@ -65,6 +69,18 @@ def _load_model() -> tuple[dict | None, dict | None, list[str] | None]:
             _model_weights = data.get("weights", {})
             raw_features = data.get("feature_names")
             _feature_names = list(raw_features) if raw_features else list(FEATURE_KEYS)
+
+    # Prefer dedicated scaler_params.json, fall back to embedded scaler in weights
+    if SCALER_PARAMS_PATH.exists():
+        with open(SCALER_PARAMS_PATH) as f:
+            sp = json.load(f)
+            _scaler_params = {
+                "mean": sp.get("mean", []),
+                "scale": sp.get("std", []),
+            }
+    elif MODEL_WEIGHTS_PATH.exists():
+        with open(MODEL_WEIGHTS_PATH) as f:
+            data = json.load(f)
             _scaler_params = {
                 "mean": data.get("scaler_mean", []),
                 "scale": data.get("scaler_std", []),
@@ -72,6 +88,10 @@ def _load_model() -> tuple[dict | None, dict | None, list[str] | None]:
     else:
         _model_weights = None
         _scaler_params = None
+        _feature_names = list(FEATURE_KEYS)
+
+    if _model_weights is None:
+        _model_weights = {}
         _feature_names = list(FEATURE_KEYS)
 
     return _model_weights, _scaler_params, _feature_names
@@ -159,23 +179,36 @@ def should_allow_decision(event: dict[str, Any], threshold: float = 0.5) -> bool
     return prob >= threshold
 
 
-def export_scaler_params() -> bool:
-    """Export scaler parameters to JSON for inference module.
+def export_scaler_params(weights_path: Path = MODEL_WEIGHTS_PATH) -> bool:
+    """Export scaler parameters to scaler_params.json for inference module.
 
-    This should be called after training the model to persist scaler state.
+    Reads scaler_mean/scaler_std from model_weights.json and writes a
+    dedicated scaler_params.json so live gating and training share the same
+    scaling metadata.
+
+    Args:
+        weights_path: Path to model_weights.json (for testing)
 
     Returns:
         True if exported successfully
     """
     try:
-        metrics_path = OUT_DIR / "model_metrics.json"
-        if not metrics_path.exists():
+        if not weights_path.exists():
             return False
+        with open(weights_path) as f:
+            data = json.load(f)
 
-        with open(metrics_path) as f:
-            metrics = json.load(f)
+        scaler = {
+            "schema": "kiro.meta_labeling.scaler_params.v1",
+            "feature_names": data.get("feature_names", FEATURE_KEYS),
+            "mean": data.get("scaler_mean", []),
+            "std": data.get("scaler_std", []),
+        }
 
-        return False
+        with open(SCALER_PARAMS_PATH, "w") as f:
+            json.dump(scaler, f, indent=2)
+
+        return True
     except Exception:
         return False
 
@@ -187,9 +220,16 @@ if __name__ == "__main__":
     parser.add_argument("--event", type=str, help="JSON event to score")
     parser.add_argument("--threshold", type=float, default=0.5, help="Threshold")
     parser.add_argument("--list-features", action="store_true", help="Show feature keys")
+    parser.add_argument("--export-scalers", action="store_true", help="Export scaler params to scaler_params.json")
     args = parser.parse_args()
 
-    if args.list_features:
+    if args.export_scalers:
+        ok = export_scaler_params()
+        if ok:
+            print(f"Exported scaler params to {SCALER_PARAMS_PATH}")
+        else:
+            print("Export failed")
+    elif args.list_features:
         _, _, feature_names = _load_model()
         print("Features:", feature_names or FEATURE_KEYS)
     elif args.event:
@@ -201,4 +241,4 @@ if __name__ == "__main__":
             allow = should_allow_decision(event, args.threshold)
             print(f"Probability: {prob:.3f}, Allow: {allow}")
     else:
-        print("Usage: inference.py --event '{...}' or --list-features")
+        print("Usage: inference.py --event '{...}' or --list-features or --export-scalers")

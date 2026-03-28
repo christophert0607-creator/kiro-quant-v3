@@ -1,6 +1,6 @@
 {
   "schema": "kiro.meta_labeling.status.v1",
-  "next_task": "M3.backtest_harness",
-  "last_run_hkt": "2026-03-28T07:55:00+08:00",
-  "notes": "2026-03-28: added baseline_diagnostics.py + organized for GitHub push. All M0-M10 complete."
+  "next_task": "M5.integration_test",
+  "last_run_hkt": "2026-03-28T09:10:00+08:00",
+  "notes": "M4 complete: scaler_params.json now exported by inference.py --export-scalers and baseline_model.py auto-calls it post-training. inference.py prefers scaler_params.json over embedded scaler in model_weights.json."
 }
