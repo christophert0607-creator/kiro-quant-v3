@@ -422,7 +422,22 @@ class LiveTradingLoop:
                 from v3_pipeline.ml import meta_gate as _meta_gate
 
                 if _meta_gate.enabled():
+                    # Build full feature set matching training (confidence, snapshot_*, ohlcv_*, ind_*)
+                    latest = featured.iloc[-1]
+                    # Snapshot proxies from live account state
+                    total_mv = sum(
+                        float(self.position_qty_by_symbol.get(s, 0) or 0) *
+                        float(self.market_buffers.get(s, {}).get("Close", [float(self.account_value)])[-1] or self.account_value)
+                        for s in self.symbols
+                    )
+                    snap_total = float(self.account_value)
+                    snap_mv = float(total_mv)
+                    snap_cash = max(0.0, snap_total - snap_mv)
+                    # OHLCV from current bar
+                    ohlcv_v = float(latest.get("Volume", 0) or 0)
+
                     meta_features = {
+                        # Core decision features (always available)
                         "prediction": float(prediction),
                         "confidence": float(confidence),
                         "sentiment_score": float(getattr(self, "sentiment_score", 0.0) or 0.0),
@@ -432,6 +447,18 @@ class LiveTradingLoop:
                         "risk_pct": float(risk_pct),
                         "rr": float(rr),
                         "threshold": float(symbol_threshold),
+                        # Snapshot features (match training schema)
+                        "snapshot_total_assets": snap_total,
+                        "snapshot_cash": snap_cash,
+                        "snapshot_market_val": snap_mv,
+                        # OHLCV + indicator features (match training schema)
+                        "ohlcv_volume": ohlcv_v,
+                        "ind_sma_5": float(latest.get("SMA_5", 0) or 0),
+                        "ind_sma_20": float(latest.get("SMA_20", 0) or 0),
+                        "ind_rsi_14": float(latest.get("RSI_14", 0) or 0),
+                        "ind_macd": float(latest.get("MACD_HIST", 0) or 0),
+                        "ind_bb_upper": float(latest.get("BB_UPPER", 0) or 0),
+                        "ind_bb_lower": float(latest.get("BB_LOWER", 0) or 0),
                     }
                     p = _meta_gate.score(meta_features)
                     thr = float(os.getenv("META_THRESHOLD", "0.5"))
