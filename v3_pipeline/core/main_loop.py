@@ -423,7 +423,7 @@ class LiveTradingLoop:
 
                 if _meta_gate.enabled():
                     # Build full feature set matching training (confidence, snapshot_*, ohlcv_*, ind_*)
-                    latest = featured.iloc[-1]
+                    latest = latest_ind  # featured.iloc[-1] out-of-scope here; use passed-in latest_ind
                     # Snapshot proxies from live account state
                     total_mv = sum(
                         float(self.position_qty_by_symbol.get(s, 0) or 0) *

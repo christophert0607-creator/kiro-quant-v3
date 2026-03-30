@@ -11,18 +11,75 @@
   "paper_trading": true,
   "v3_live": {
     "symbols_list": [
-      "TSLA",
-      "TSLL",
-      "NVDA"
+      "0700.HK",
+      "9988.HK",
+      "3690.HK",
+      "1024.HK",
+      "2318.HK",
+      "1299.HK",
+      "0939.HK",
+      "0005.HK",
+      "0388.HK",
+      "0960.HK",
+      "1109.HK",
+      "0941.HK",
+      "0175.HK",
+      "1810.HK",
+      "2688.HK",
+      "2269.HK",
+      "1211.HK",
+      "2018.HK",
+      "0688.HK"
     ],
     "prediction_thresholds": {
+      "NVDA": 0.002,
+      "AAPL": 0.002,
+      "GOOGL": 0.002,
+      "AMD": 0.002,
+      "URA": 0.002,
+      "AMZN": 0.0012,
+      "PLTR": 0.0012,
       "TSLA": 0.01,
       "TSLL": 0.01,
-      "NVDA": 0.01
+      "OKLO": 0.01,
+      "META": 0.01,
+      "MSFT": 0.01,
+      "F": 0.01
     },
-    "buy_cooldown_cycles": 3,
-    "polling_seconds": 15,
+    "buy_cooldown_cycles": 2,
+    "polling_seconds": 60,
     "auto_trade": true,
-    "paper_trading": true
+    "paper_trading": true,
+    "max_portfolio_positions": 8,
+    "capital_buckets": {
+      "fractions": {
+        "long": 0.5,
+        "mid": 0.3,
+        "short": 0.1,
+        "reserve": 0.1,
+        "avoid": 0.0
+      },
+      "thresholds": {
+        "long": 0.002,
+        "mid": 0.0015,
+        "short": 0.0012,
+        "avoid": 0.01
+      },
+      "by_symbol": {
+        "NVDA": "long",
+        "AAPL": "long",
+        "GOOGL": "long",
+        "AMD": "long",
+        "URA": "long",
+        "AMZN": "short",
+        "PLTR": "short",
+        "TSLA": "avoid",
+        "TSLL": "avoid",
+        "OKLO": "avoid",
+        "META": "avoid",
+        "MSFT": "avoid",
+        "F": "avoid"
+      }
+    }
   }
 }

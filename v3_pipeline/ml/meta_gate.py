@@ -148,7 +148,11 @@ def score(features: dict[str, Any]) -> float | None:
         
         # Handle sklearn models with predict_proba
         if hasattr(m, "predict_proba"):
-            proba = m.predict_proba(X)
+            X_vals = X.values
+            # Apply scaler if available and fitted (sklearn StandardScaler)
+            if mm.scaler is not None and hasattr(mm.scaler, "mean_") and hasattr(mm.scaler, "scale_"):
+                X_vals = (X_vals - np.array(mm.scaler.mean_)) / np.array(mm.scaler.scale_)
+            proba = m.predict_proba(X_vals)
             return float(proba[0][1])
         
         # Handle sklearn models with just predict

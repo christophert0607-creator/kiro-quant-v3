@@ -3,10 +3,20 @@
 
 import asyncio
 import json
+import os
 from dataclasses import replace
 from datetime import datetime, time
 from pathlib import Path
 from zoneinfo import ZoneInfo
+
+# Load .env manually
+_env_path = Path(__file__).parent / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith("#") and "=" in _line:
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
 
 from v3_pipeline.core.futu_connector import FutuConnector
 from v3_pipeline.core.main_loop import LiveConfig, LiveTradingLoop
