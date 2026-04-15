@@ -1,31 +1,27 @@
 {
-  "timestamp": "2026-03-30T01:32:00HKT",
-  "utc": "2026-03-29T17:32:00Z",
-  "quickcheck": "FAIL",
-  "quickcheck_error": "Connection refused 127.0.0.1:11112",
+  "timestamp": "2026-04-07T01:20:00Z",
+  "score": -0.2,
+  "label": "guarded",
   "prices": {
-    "QQQ": 562.58,
-    "QQQ_chg": -8.23,
-    "SPY": 634.09,
-    "SPY_chg": -8.41,
-    "NVDA": 167.52,
-    "NVDA_chg": -2.48,
-    "TSLA": 361.83,
-    "TSLA_chg": -7.86,
-    "PLTR": 143.06,
-    "PLTR_chg": -2.82
+    "QQQ": 585.53,
+    "SPY": 656.19,
+    "NVDA": 176.47,
+    "TSLA": 346.99,
+    "PLTR": 147.02
   },
-  "sentiment": {
-    "score": -0.65,
-    "label": "bearish",
-    "directional_weight": "macro_down"
-  },
-  "headlines": [
-    "Stocks plunge, extend 5-week skid; Dow drops ~800 pts (CNBC, Mar 27)",
-    "Powell warns on inflation, Fed holds rates (Investopedia, Mar 18)",
-    "Higher oil + spiking Treasury yields weighing on equities (CNBC)",
-    "Cramer: Nvidia in deep correction but looks cheap (CNBC, Mar 27)",
-    "TSLA ~$362, down ~23% from Oct 2025 ATH of $499 (techi.com)"
+  "macro_factors": [
+    {"text": "Vanguard 下修美2026 GDP增速預期至2.3% (-0.2pp)", "direction": -1, "weight": 0.4},
+    {"text": "KKR下修S&P 500年底目標至7300 (from 7600)，EPS增速至8% (from 11%)", "direction": -1, "weight": 0.4},
+    {"text": "JPM預期通脹持續居高 upper-2%，關稅傳導溫和", "direction": -0.5, "weight": 0.2}
   ],
-  "summary": "All tracked tickers down significantly. Market broad-based selling: SPY -8.4, QQQ -8.2, TSLA -7.9. NVDA continuing correction, Cramer calling it 'super cheap' but momentum negative. PLTR holding ~$143 but Wyckoff analysis flags critical support at $135-$140. Macro: Iran war risk + oil spike + Fed inflation hawkishness = risk-off environment. No catalyst for reversal apparent. US sim server offline."
+  "stock_factors": [
+    {"text": "Polymarket + Pyth 進軍TradFi，TSLA/NVDA/PLTR/COIN/AAPL納入預測市場", "direction": 0.3, "weight": 0.6},
+    {"text": "NVDA/TSLA/PLTR 近期走勢缺乏重大催化劑", "direction": 0, "weight": 0.4}
+  ],
+  "headlines": [
+    "📉 Macro: KKR下修S&P 500年底目標至7300，EPS增速預測腰斬至8%",
+    "📉 Macro: Vanguard下修美2026 GDP增速至2.3%，能源價格與關稅傳導為主因",
+    "🤖 NVDA/TSLA/PLTR: Polymarket聯手Pyth進軍TradFi，主流股全納入預測市場"
+  ],
+  "summary_tc": "宏觀偏空（GDP增速、股市目標雙下修），科技股受到Polymarket進軍TradFi輕微支撐，整體情緒偏謹慎防禦。"
 }

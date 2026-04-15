@@ -1,0 +1,62 @@
+{
+  "auto_trade": false,
+  "paper_trading": true,
+  "v3_live": {
+    "symbols_list": [],
+    "prediction_thresholds": {
+      "0700.HK": 0.003202,
+      "9988.HK": 0.002191,
+      "3690.HK": 0.003623
+    },
+    "buy_cooldown_cycles": 1,
+    "swing_buy_confirmation_count": 1,
+    "swing_block_on_model_sell": false,
+    "polling_seconds": 60,
+    "auto_trade": false,
+    "paper_trading": true,
+    "stop_loss_pct": 0.02,
+    "quick_take_profit_pct": 0.02,
+    "max_hold_bars": 30,
+    "max_positions": 15,
+    "market_mode": "AUTO",
+    "rsi_oversold": 30,
+    "rsi_overbought": 80,
+    "macd_signal": 0.005,
+    "xgb_confidence": 0.2,
+    "capital_buckets": {
+      "fractions": {
+        "long": 0.5,
+        "mid": 0.3,
+        "short": 0.1,
+        "reserve": 0.1,
+        "avoid": 0.0
+      },
+      "thresholds": {
+        "long": 0.002,
+        "mid": 0.0015,
+        "short": 0.0012,
+        "avoid": 0.01
+      },
+      "by_symbol": {}
+    },
+    "short_enabled": true,
+    "rsi_deep_overbought": 80,
+    "macd_negative_required": true,
+    "sma_filter_short": true,
+    "short_min_confidence_threshold": 0.2,
+    "short_sentiment_max": 0.1,
+    "short_stop_loss": 0.015,
+    "short_take_profit": 0.02,
+    "short_trailing_stop_trigger": 0.015,
+    "short_trailing_stop_lock": 0.0
+  },
+  "futu": {
+    "target_acc_id": 18526451,
+    "host": "127.0.0.1",
+    "port": 11112,
+    "trd_env": "SIMULATE"
+  },
+  "posture": "risk_on",
+  "posture_timestamp": "2026-04-15T03:01:57+00:00",
+  "posture_rationale": "2800 +0.0099 & 3033 +0.0219 momentum → risk_on"
+}

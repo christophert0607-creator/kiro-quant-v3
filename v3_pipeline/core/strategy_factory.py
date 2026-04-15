@@ -8,6 +8,7 @@ class StrategyProfile:
     name: str
     risk_multiplier: float
     allow_long: bool
+    allow_short: bool = True  # v3 Plan B: allow SHORT entries
 
 
 class StrategyFactory:
@@ -16,20 +17,22 @@ class StrategyFactory:
     def choose_profile(self, vix_value: float, sentiment_score: float = 0.0) -> StrategyProfile:
         # VIX-based base profile
         if vix_value >= 28:
-            profile = StrategyProfile(name="defensive", risk_multiplier=0.35, allow_long=False)
+            profile = StrategyProfile(name="defensive", risk_multiplier=0.35, allow_long=False, allow_short=False)
         elif vix_value >= 20:
-            profile = StrategyProfile(name="cautious", risk_multiplier=0.65, allow_long=True)
+            profile = StrategyProfile(name="cautious", risk_multiplier=0.65, allow_long=True, allow_short=True)
         else:
-            profile = StrategyProfile(name="normal", risk_multiplier=1.0, allow_long=True)
+            profile = StrategyProfile(name="normal", risk_multiplier=1.0, allow_long=True, allow_short=True)
 
         # Sentiment-based adjustment (-1.0 to 1.0)
-        # If sentiment is very bearish (<-0.5), force allow_long to False
+        # If sentiment is very bearish (<-0.5): block LONG, allow SHORT
         if sentiment_score <= -0.5:
             profile.allow_long = False
+            profile.allow_short = True
             profile.risk_multiplier *= 0.5
             profile.name += "_bearish"
-        # If sentiment is very bullish (>0.5), boost risk_multiplier
+        # If sentiment is very bullish (>0.5): block SHORT, allow LONG
         elif sentiment_score >= 0.5:
+            profile.allow_short = False
             profile.risk_multiplier *= 1.2
             profile.name += "_bullish"
 

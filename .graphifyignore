@@ -1,0 +1,43 @@
+# Graphify ignore patterns
+
+# Test files
+test_*.py
+*_test.py
+tests/
+__pycache__/
+.pytest_cache/
+
+# Debug / diagnostics
+debug_*.py
+check_*.py
+diagnose_*.py
+
+# One-off scripts (not part of core pipeline)
+stress_test.py
+debug_yaml.py
+check_positions.py
+check_futu_context.py
+futu_opend_check.py
+
+# Dev-phase files
+dev/
+scripts/futu_opend_check.py
+
+# Build artifacts
+*.pyc
+*.pyo
+dist/
+build/
+*.egg-info/
+
+# Data files
+*.jsonl
+*.csv
+*.parquet
+*.db
+*.sqlite
+
+# Documentation metadata nodes (not code)
+PUBLISH_README.md
+README*.md
+CHANGELOG*.md

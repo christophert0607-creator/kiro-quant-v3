@@ -47,6 +47,16 @@ class TechnicalIndicatorGenerator:
         df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
         df = df.sort_values("Date").reset_index(drop=True)
 
+        # Remove non-numeric/non-indicator columns before processing
+        for col in ["data_source"]:
+            if col in df.columns:
+                df.drop(columns=[col], inplace=True)
+
+        # Ensure Dividends and Stock Splits columns exist (match training data schema)
+        for col in ["Dividends", "Stock Splits"]:
+            if col not in df.columns:
+                df[col] = 0.0
+
         if self.use_talib:
             featured = self._with_talib(df)
         else:

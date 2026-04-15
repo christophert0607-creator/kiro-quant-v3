@@ -1,0 +1,60 @@
+# v3_live.yaml — Strategy v2 config
+lookback: 60
+interval: 30m
+initial_balance: 10000.0
+account_value: 10000.0
+risk_fraction: 0.10
+auto_trade: true
+paper_trading: true
+sentiment_sources:
+  - news
+  - reddit
+  - twitter
+max_position_pct: 0.20
+prediction_threshold: 0.001
+rsi_oversold_threshold: 30
+sentiment_min: 0.0
+monte_carlo_runs: 100
+symbols_list:
+  - 0700.HK
+  - 9988.HK
+  - 3690.HK
+  - 1024.HK
+  - 2318.HK
+  - 1211.HK
+  - 1810.HK
+  - 2688.HK
+  - 2018.HK
+  - 2269.HK
+  - 1109.HK
+  - 603259.HK
+  - 1177.HK
+  - 2628.HK
+  - 139.HK
+  - 883.HK
+  - 0011.HK
+  - 0005.HK
+  - 0388.HK
+  - 0175.HK
+confidence_weights:
+  rsi: 0.2
+  macd: 0.2
+  sentiment: 0.3
+  volatility: 0.3
+
+# ---- Strategy v2 ----
+rsi_oversold_entry: 30
+rsi_deep_oversold: 20
+sma_filter: true
+macd_positive_required: true
+vix_max: 30.0
+sentiment_min_entry: -0.1
+take_profit_rsi20: 0.03
+take_profit_normal: 0.02
+stop_loss: 0.015
+trailing_stop_active: true
+trailing_stop_trigger: 0.015
+min_hold_minutes: 30
+max_hold_minutes: 120
+time_exit_near_entry_pct: 0.003
+max_portfolio_positions: 3

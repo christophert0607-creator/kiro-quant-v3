@@ -31,6 +31,7 @@ class AlphaConfig:
     wfa_window: int = 240
     top_k_factors: int = 20
     min_factor_coverage: float = 0.85
+    use_all_features: bool = False  # If True, skip WFA and use all features
 
 
 class KiroAlphaEngine:
@@ -48,6 +49,11 @@ class KiroAlphaEngine:
         for col in REQUIRED_BASE_COLUMNS:
             if col not in df.columns:
                 df[col] = 0.0 if col != "Date" and col != "data_source" else (pd.Timestamp.utcnow() if col == "Date" else "UNKNOWN")
+
+        # If use_all_features=True, skip WFA and return all features (matching training setup)
+        if self.config.use_all_features:
+            self.logger.info("[WFA][%s] use_all_features=True, returning all %d columns", symbol, len(df.columns))
+            return df
 
         y = df["Close"].pct_change().shift(-1)
         candidate_cols = [

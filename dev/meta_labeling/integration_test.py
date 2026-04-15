@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Meta-labeling — integration test for M5.
+M5_STAGE = "integration_test"  # Pipeline M5: integration test
 
 Tests the complete pipeline from data extraction through inference.
 

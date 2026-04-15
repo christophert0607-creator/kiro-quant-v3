@@ -1,12 +1,4 @@
 {
-  "TSLA": {
-    "buy_price": 380.0,
-    "sell_price": 410.0
-  },
-  "TSLL": {
-    "buy_price": 13.5,
-    "sell_price": 15.0
-  },
   "auto_trade": true,
   "paper_trading": true,
   "v3_live": {
@@ -32,25 +24,32 @@
       "0688.HK"
     ],
     "prediction_thresholds": {
-      "NVDA": 0.002,
+      "NVDA": 0.003,
+      "AMD": 0.003,
+      "AMZN": 0.003,
+      "SMCI": 0.003,
+      "TSLA": 0.005,
       "AAPL": 0.002,
-      "GOOGL": 0.002,
-      "AMD": 0.002,
-      "URA": 0.002,
-      "AMZN": 0.0012,
-      "PLTR": 0.0012,
-      "TSLA": 0.01,
-      "TSLL": 0.01,
-      "OKLO": 0.01,
-      "META": 0.01,
-      "MSFT": 0.01,
-      "F": 0.01
+      "META": 0.003,
+      "MSFT": 0.002,
+      "COIN": 0.005,
+      "NET": 0.004
     },
-    "buy_cooldown_cycles": 2,
+    "buy_cooldown_cycles": 1,
+    "swing_buy_confirmation_count": 1,
+    "swing_block_on_model_sell": false,
     "polling_seconds": 60,
     "auto_trade": true,
     "paper_trading": true,
-    "max_portfolio_positions": 8,
+    "stop_loss_pct": 0.02,
+    "quick_take_profit_pct": 0.02,
+    "max_hold_bars": 30,
+    "max_positions": 15,
+    "market_mode": "AUTO",
+    "rsi_oversold": 30,
+    "rsi_overbought": 77,
+    "macd_signal": 0.005,
+    "xgb_confidence": 0.2,
     "capital_buckets": {
       "fractions": {
         "long": 0.5,
@@ -65,21 +64,26 @@
         "short": 0.0012,
         "avoid": 0.01
       },
-      "by_symbol": {
-        "NVDA": "long",
-        "AAPL": "long",
-        "GOOGL": "long",
-        "AMD": "long",
-        "URA": "long",
-        "AMZN": "short",
-        "PLTR": "short",
-        "TSLA": "avoid",
-        "TSLL": "avoid",
-        "OKLO": "avoid",
-        "META": "avoid",
-        "MSFT": "avoid",
-        "F": "avoid"
-      }
-    }
-  }
+      "by_symbol": {}
+    },
+    "short_enabled": true,
+    "rsi_deep_overbought": 80,
+    "macd_negative_required": true,
+    "sma_filter_short": true,
+    "short_min_confidence_threshold": 0.2,
+    "short_sentiment_max": 0.1,
+    "short_stop_loss": 0.015,
+    "short_take_profit": 0.02,
+    "short_trailing_stop_trigger": 0.015,
+    "short_trailing_stop_lock": 0.0
+  },
+  "futu": {
+    "target_acc_id": 18526451,
+    "host": "127.0.0.1",
+    "port": 11112,
+    "trd_env": "SIMULATE"
+  },
+  "posture": "risk_on",
+  "posture_timestamp": "2026-04-14T08:25:30Z",
+  "posture_rationale": "2800 +0.0031 & 3033 +0.0042 both positive → risk on"
 }

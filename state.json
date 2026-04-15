@@ -1,36 +1,11 @@
 {
-  "date": "2026-03-27",
+  "date": "2026-04-12",
   "daily_pnl": 0.0,
-  "daily_trades": 3,
+  "daily_trades": 0,
   "consecutive_errors": 0,
   "circuit_broken": false,
   "circuit_break_time": null,
-  "last_orders": {
-    "US.NVDA": {
-      "hash": "70dc5b5e31be",
-      "time": 1772786635.1932034,
-      "signal": "SELL",
-      "qty": 545,
-      "price": 179.47
-    },
-    "US.TSLA": {
-      "hash": "1259a1d0f11d",
-      "time": 1773233912.12421,
-      "signal": "BUY",
-      "qty": 5,
-      "price": 250.0
-    },
-    "US.GOOGL": {
-      "time": 1774624222.1066177,
-      "signal": "SELL",
-      "qty": 2,
-      "price": 278.4700012207031,
-      "reason": "model_signal_confirmed"
-    }
-  },
-  "positions": {
-    "US.NVDA": 0,
-    "US.GOOGL": 0
-  },
-  "total_invested": 0.0
+  "positions": {},
+  "last_orders": {},
+  "notes": "State reset by Kiro Quant V3 review on 2026-04-12. Previous state was stale (last update: 2026-04-06). Positions cleared to avoid stale data contaminating risk decisions."
 }

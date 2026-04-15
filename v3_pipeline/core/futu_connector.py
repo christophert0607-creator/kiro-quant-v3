@@ -109,6 +109,25 @@ class FutuConnector:
             self.logger.warning("curl_cffi session unavailable for yfinance, fallback to default session: %s", exc)
             return None
 
+    def _get_latest_quote_alpha_vantage(self, symbol: str) -> dict:
+        """Alpha Vantage via MCP server (real-time, rate-limited to 5 calls/min)."""
+        try:
+            from v3_pipeline.data.mcp_av_connector import get_realtime_quote as _av_quote
+            q = _av_quote(symbol)
+            if q is None:
+                raise RuntimeError(f"MCP AV returned None for {symbol}")
+            return self._normalize_quote(
+                close=q["Close"],
+                open_p=q["Open"],
+                high_p=q["High"],
+                low_p=q["Low"],
+                volume=q["Volume"],
+                source="AV_MCP",
+            )
+        except Exception as exc:
+            self.logger.warning("[AV MCP] Quote error for %s: %s", symbol, exc)
+            raise
+
     def _get_latest_quote_efinance(self, symbol: str) -> dict:
         import efinance as ef
 
@@ -141,9 +160,9 @@ class FutuConnector:
             pass
 
         if price and price > 0:
-            # fast_info has no OHLCV in one shot; use history for OHLCV + fast_info price
+            # Use DAILY bars to match training data (1d) — not 1m which corrupts daily indicators
             try:
-                hist = ticker.history(period="1d", interval="1m")
+                hist = ticker.history(period="5d", interval="1d")
                 if hist is not None and not hist.empty:
                     row = hist.iloc[-1]
                     return self._normalize_quote(
@@ -310,7 +329,14 @@ class FutuConnector:
             data = self._safe_trade_call("get_acc_list")
             self.discovered_accounts = data.copy() if data is not None else pd.DataFrame()
             if self.config.target_acc_id is None and not self.discovered_accounts.empty and "acc_id" in self.discovered_accounts.columns:
-                self.config.target_acc_id = int(self.discovered_accounts.iloc[0]["acc_id"])
+                # Prefer first ACTIVE account over DISABLED
+                active = self.discovered_accounts[self.discovered_accounts["acc_status"] == "ACTIVE"]
+                if not active.empty:
+                    self.config.target_acc_id = int(active.iloc[0]["acc_id"])
+                    self.logger.info("Selected active account: %s (trd_env=%s)", self.config.target_acc_id, active.iloc[0]["trd_env"])
+                else:
+                    self.config.target_acc_id = int(self.discovered_accounts.iloc[0]["acc_id"])
+                    self.logger.warning("All accounts DISABLED, using first: %s", self.config.target_acc_id)
             return self.discovered_accounts
         except Exception as exc:
             self.logger.warning("Account discovery failed: %s", exc)
@@ -318,9 +344,11 @@ class FutuConnector:
             return self.discovered_accounts
 
     def _account_kwargs(self) -> dict[str, Any]:
-        if self.config.target_acc_id is None:
-            return {}
-        return {"acc_id": int(self.config.target_acc_id)}
+        # Note: accinfo_query and position_list_query do NOT accept acc_id param
+        # — the account is bound to the connection context at open time.
+        # Passing acc_id explicitly causes "Nonexisting acc_id" errors.
+        # Always return empty dict; context default account is used.
+        return {}
 
     def heartbeat(self) -> bool:
         if self.trade_ctx is None or self.ft is None:
@@ -366,11 +394,23 @@ class FutuConnector:
 
         # Retry logic with exponential backoff
         max_retries = 3
-        providers = ("yf", "ef") if (self.quote_ctx is None or self.ft is None) else ("yf", "ef", "futu")
+        # Use Alpha Vantage (av) as primary for Elite US symbols due to better realtime accuracy.
+        # But respect the 5 calls/min rate limit by only using it for Elite list.
+        is_elite = symbol.upper() in self.elite_symbols and not symbol.endswith(".HK")
+        
+        if self.quote_ctx is None or self.ft is None:
+            # NO_FUTU mode: AV -> YF -> EF
+            providers = ("av", "yf", "ef") if is_elite else ("yf", "ef")
+        else:
+            # Full mode: AV -> YF -> EF -> FUTU
+            providers = ("av", "yf", "ef", "futu") if is_elite else ("yf", "ef", "futu")
+
         for attempt in range(max_retries):
             for provider in providers:
                 try:
-                    if provider == "yf":
+                    if provider == "av":
+                        quote = self._get_latest_quote_alpha_vantage(provider_symbol)
+                    elif provider == "yf":
                         quote = self._get_latest_quote_yfinance(provider_symbol)
                     elif provider == "ef":
                         quote = self._get_latest_quote_efinance(provider_symbol)
@@ -448,14 +488,33 @@ class FutuConnector:
         if self.trade_ctx is None or self.ft is None:
             # NO_FUTU mode: return empty — positions tracked by state.json
             return pd.DataFrame()
+        try:
+            data = self._safe_trade_call("position_list_query", **self._account_kwargs())
+            if data is None:
+                return pd.DataFrame()
+            return data
+        except Exception as exc:
+            self.logger.warning("Position sync failed (fallback to default acc): %s", exc)
+            try:
+                data = self._safe_trade_call("position_list_query")
+                return data if data is not None else pd.DataFrame()
+            except Exception:
+                return pd.DataFrame()
 
     def place_order(self, symbol: str, qty: int, side: str, price: Optional[float] = None) -> object:
         if self.trade_ctx is None or self.ft is None:
             raise RuntimeError("FutuConnector not connected")
+        qty = int(round(qty))  # Ensure integer qty
         if qty <= 0:
-            raise ValueError("qty must be > 0")
+            self.logger.info("place_order skipped: qty=%d for %s", qty, symbol)
+            return None
+        # HK stocks: enforce minimum 1 full lot (100 shares), skip if less
+        if symbol.endswith(".HK") and qty < 100:
+            self.logger.info("place_order skipped: HK %s qty=%d < 1 lot (100)", symbol, qty)
+            return None
         code, _ = self.resolve_symbol(symbol)
         limit_price = float(price) if price is not None else self.get_order_reference_price(symbol, side, fallback_price=0.0)
+        limit_price = round(limit_price, 2)
         ret, data = self.trade_ctx.place_order(
             price=limit_price,
             qty=qty,

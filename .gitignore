@@ -16,3 +16,13 @@ htmlcov/
 .DS_Store
 .vscode/
 .idea/
+.graphify_*
+graphify-out/
+memory/
+daily/
+v3_pipeline/logs/archive/*.parquet
+self_learn/
+*.parquet
+*.jsonl
+*.bak*
+*.old*

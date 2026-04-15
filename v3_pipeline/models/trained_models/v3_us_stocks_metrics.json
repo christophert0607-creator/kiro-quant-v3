@@ -1,0 +1,39 @@
+{
+  "trained_symbols": [
+    "AAPL",
+    "AMD",
+    "AMZN",
+    "META",
+    "MSFT",
+    "NFLX",
+    "NVDA",
+    "PLTR",
+    "TSLA"
+  ],
+  "total_rows": 33295,
+  "epochs": 8,
+  "final_loss": 0.011930496291449618,
+  "losses": [
+    0.016631855200680477,
+    0.01275501497799442,
+    0.012577325031752623,
+    0.012465344335410803,
+    0.012217836125591209,
+    0.012120978515003883,
+    0.011897760450780864,
+    0.011930496291449618
+  ],
+  "checkpoint": "v3_pipeline/models/trained_models/v3_us_stocks.pth",
+  "backtest": {
+    "total_return": 0.0040978110781790785,
+    "sharpe_ratio": -23.721534435926525,
+    "max_drawdown": 0.16312743016977418,
+    "final_value": 100410.62185861991
+  },
+  "config": {
+    "lookback": 60,
+    "hidden_dim": 96,
+    "batch_size": 64,
+    "lr": 0.001
+  }
+}

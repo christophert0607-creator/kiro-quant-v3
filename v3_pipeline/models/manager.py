@@ -343,40 +343,35 @@ class ModelManager:
 
         return losses
 
-    def _ensure_model_input_dim(self, input_dim: int) -> None:
-        lstm = getattr(self.model, "lstm", None)
-        current_dim = int(getattr(lstm, "input_size", input_dim)) if lstm is not None else input_dim
-        if current_dim == input_dim:
-            return
-
-        self.logger.warning("Input dim drift detected: model=%d new=%d. Rebuilding channels.", current_dim, input_dim)
-
-        if isinstance(self.model, AttentiveKiroLSTM):
-            rebuilt: nn.Module = AttentiveKiroLSTM(
-                input_dim=input_dim,
-                hidden_dim=int(self.model.lstm.hidden_size),
-                num_layers=int(self.model.lstm.num_layers),
-                dropout=float(self.model.dropout.p),
-                output_dim=int(self.model.fc.out_features),
-                attention_heads=int(self.model.attn.num_heads),
-            ).to(self.device)
-        else:
-            rebuilt = KiroLSTM(
-                input_dim=input_dim,
-                hidden_dim=int(self.model.lstm.hidden_size),
-                num_layers=int(self.model.lstm.num_layers),
-                dropout=float(self.model.dropout.p),
-                output_dim=int(self.model.fc.out_features),
-            ).to(self.device)
-
-        self.model = rebuilt
-
     def predict(self, latest_data_window: pd.DataFrame, data_preparer: Optional[DataPreparer] = None) -> float:
-        active_preparer = data_preparer or self.data_preparer
+        # Always use manager's data_preparer (has correct feature_columns from training)
+        # The symbol_preparer's feature_columns may differ from what model was trained on
+        active_preparer = self.data_preparer
         self.model.eval()
         with torch.no_grad():
-            x = active_preparer.transform_for_inference(latest_data_window).to(self.device)
-            self._ensure_model_input_dim(int(x.shape[-1]))
+            clean = latest_data_window.copy()
+            clean["Date"] = pd.to_datetime(clean["Date"], errors="coerce")
+            for col in ["data_source"]:
+                if col in clean.columns:
+                    clean.drop(columns=[col], inplace=True)
+            # Ensure Dividends and Stock Splits exist (model was trained with them)
+            for col in ["Dividends", "Stock Splits"]:
+                if col not in clean.columns:
+                    clean[col] = 0.0
+            # Use the manager's feature columns as reference (correct from training)
+            ref_features = active_preparer.feature_columns
+            if not ref_features:
+                ref_features = [c for c in clean.columns if c != "Date"]
+            # Align: drop extras, add missing
+            extra = [c for c in clean.columns if c != "Date" and c not in ref_features]
+            if extra:
+                clean.drop(columns=extra, inplace=True)
+            for c in ref_features:
+                if c not in clean.columns:
+                    clean[c] = 0.0
+            # Reorder to match reference
+            clean = clean[["Date"] + [c for c in ref_features if c in clean.columns]]
+            x = active_preparer.transform_for_inference(clean).to(self.device)
             scaled_pred = float(self.model(x).cpu().numpy().ravel()[0])
             pred = active_preparer.inverse_scale_target(scaled_pred)
             self.logger.info("Prediction (scaled=%.6f, inverse=%.6f, input_dim=%d)", scaled_pred, pred, int(x.shape[-1]))
@@ -384,6 +379,16 @@ class ModelManager:
 
     def save(self, model_name: str) -> Path:
         target = self.model_dir / f"{model_name}.pth"
+        # Extract architecture from the model
+        model_cfg = {}
+        if hasattr(self.model, "hidden_dim"):
+            model_cfg["hidden_dim"] = self.model.hidden_dim
+        if hasattr(self.model, "num_layers"):
+            model_cfg["num_layers"] = self.model.num_layers
+        if hasattr(self.model, "dropout"):
+            model_cfg["dropout"] = float(self.model.dropout)
+        if hasattr(self.model, "output_dim"):
+            model_cfg["output_dim"] = self.model.output_dim
         payload = {
             "model_state_dict": self.model.state_dict(),
             "lookback": self.data_preparer.lookback,
@@ -394,15 +399,37 @@ class ModelManager:
             "target_min": self.data_preparer.target_min,
             "target_max": self.data_preparer.target_max,
             "model_class": self.model.__class__.__name__,
+            "model_cfg": model_cfg,
         }
         torch.save(payload, target)
-        self.logger.info("Saved model checkpoint to %s", target)
+        self.logger.info("Saved model checkpoint to %s (cfg=%s)", target, model_cfg)
         return target
 
     def load(self, model_name: str) -> None:
         source = self.model_dir / f"{model_name}.pth"
-        payload = torch.load(source, map_location=self.device)
-        self.model.load_state_dict(payload["model_state_dict"])
+        payload = torch.load(source, map_location=self.device, weights_only=False)
+        model_cfg = payload.get("model_cfg", {})
+        state_dict = payload["model_state_dict"]
+
+        # Always rebuild model to match saved state_dict architecture
+        ih_shape = state_dict["lstm.weight_ih_l0"].shape
+        hh_shape = state_dict["lstm.weight_hh_l0"].shape
+        detected_input_dim = ih_shape[1]
+        detected_hidden_dim = hh_shape[0] // 4  # LSTM: weight_hh is 4*hidden_dim
+        layers_set = {int(k.split("_")[2].replace("l", "")) for k in state_dict if k.startswith("lstm.weight_hh_l")}
+        detected_num_layers = max(layers_set) + 1
+        detected_dropout = model_cfg.get("dropout", 0.2)
+        self.logger.info("Auto-detected model architecture: input_dim=%d hidden_dim=%d num_layers=%d",
+                        detected_input_dim, detected_hidden_dim, detected_num_layers)
+        new_model = KiroLSTM(
+            input_dim=detected_input_dim,
+            hidden_dim=detected_hidden_dim,
+            num_layers=detected_num_layers,
+            dropout=detected_dropout,
+            output_dim=1,
+        )
+        self.model = new_model.to(self.device)
+        self.model.load_state_dict(state_dict)
 
         self.data_preparer.lookback = int(payload.get("lookback", self.data_preparer.lookback))
         self.data_preparer.target_col = str(payload.get("target_col", self.data_preparer.target_col))
