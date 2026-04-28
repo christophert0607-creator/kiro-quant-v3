@@ -8,17 +8,22 @@ from pathlib import Path
 import pandas as pd
 
 from v3_pipeline.utils.gpu_monitor import GPUMonitor
+from v3_pipeline.features.indicators import TechnicalIndicatorGenerator
 
 
-def _scan_base_files(base_dir: Path) -> list[Path]:
-    return sorted(base_dir.glob("*_10y_base.parquet"))
+def _scan_base_files(base_dir: Path, pattern: str = "*_10y_base.parquet") -> list[Path]:
+    return sorted(base_dir.glob(pattern))
 
 
-def _prepare_combined_frame(files: list[Path]) -> pd.DataFrame:
+def _prepare_combined_frame(files: list[Path], feature_generator: TechnicalIndicatorGenerator) -> pd.DataFrame:
     frames = []
     for f in files:
         try:
             df = pd.read_parquet(f)
+            if df.empty:
+                continue
+            # Generate technical indicators on-the-fly for training
+            df = feature_generator.generate(df)
             if not df.empty:
                 frames.append(df)
         except Exception:
@@ -32,10 +37,11 @@ def _prepare_combined_frame(files: list[Path]) -> pd.DataFrame:
     return combined
 
 
-def run_once(base_dir: Path, epochs: int = 10, init_batch_size: int = 256) -> dict:
+def run_once(base_dir: Path, epochs: int = 10, init_batch_size: int = 256, model_name: str = "global_all_symbols_best", pattern: str = "*_10y_base.parquet") -> dict:
     monitor = GPUMonitor()
-    files = _scan_base_files(base_dir)
-    combined = _prepare_combined_frame(files)
+    feature_generator = TechnicalIndicatorGenerator()
+    files = _scan_base_files(base_dir, pattern)
+    combined = _prepare_combined_frame(files, feature_generator)
     if combined.empty:
         return {"status": "no_data", "files": 0}
 
@@ -83,7 +89,7 @@ def run_once(base_dir: Path, epochs: int = 10, init_batch_size: int = 256) -> di
         if mean_loss < best_loss - 1e-8:
             best_loss = mean_loss
             stale = 0
-            manager.save("global_all_symbols_best")
+            manager.save(model_name)
         else:
             stale += 1
             if stale >= patience:
@@ -110,15 +116,17 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--every-hours", type=float, default=4.0)
     parser.add_argument("--once", action="store_true")
+    parser.add_argument("--model-name", default="global_all_symbols_best")
+    parser.add_argument("--pattern", default="*_10y_base.parquet")
     args = parser.parse_args()
 
     base_dir = Path(args.base_dir)
     if args.once:
-        print(run_once(base_dir=base_dir, epochs=args.epochs))
+        print(run_once(base_dir=base_dir, epochs=args.epochs, model_name=args.model_name, pattern=args.pattern))
         return
 
     while True:
-        print(run_once(base_dir=base_dir, epochs=args.epochs))
+        print(run_once(base_dir=base_dir, epochs=args.epochs, model_name=args.model_name, pattern=args.pattern))
         time.sleep(max(60.0, args.every_hours * 3600.0))
 
 

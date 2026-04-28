@@ -43,18 +43,20 @@ confidence_weights:
   volatility: 0.3
 
 # ---- Strategy v2 ----
-rsi_oversold_entry: 30
-rsi_deep_oversold: 20
+rsi_oversold_entry: 50  # 2026-04-23: raised from 30
+rsi_extreme_oversold: 35  # 2026-04-23: NEW — forced BUY without confidence gate
 sma_filter: true
 macd_positive_required: true
 vix_max: 30.0
+vix_dynamic_confidence_enabled: true  # 2026-04-23: NEW — VIX<18 → thresh-20%, VIX>25 → thresh+50%
+bb_position_threshold: 0.2  # 2026-04-23: NEW — %B < 0.2 as auxiliary mean-reversion confirm
 sentiment_min_entry: -0.1
 take_profit_rsi20: 0.03
 take_profit_normal: 0.02
 stop_loss: 0.015
 trailing_stop_active: true
 trailing_stop_trigger: 0.015
-min_hold_minutes: 30
+min_hold_minutes: 45  # 2026-04-23: raised from 30
 max_hold_minutes: 120
-time_exit_near_entry_pct: 0.003
+time_exit_near_entry_pct: 0.005  # 2026-04-23: raised from 0.003
 max_portfolio_positions: 3

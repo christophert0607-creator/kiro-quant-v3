@@ -1,0 +1,105 @@
+{
+  "date": "2026-04-20",
+  "daily_pnl": 43372.0,
+  "daily_trades": 199,
+  "consecutive_errors": 0,
+  "circuit_broken": false,
+  "circuit_break_time": null,
+  "positions": {
+    "HK.00960": 0,
+    "HK.00939": 0,
+    "HK.01211": 0,
+    "US.NVDA": 0,
+    "US.COIN": 0,
+    "US.AMD": 0,
+    "US.AMZN": 8,
+    "US.ZS": 16,
+    "US.MDB": 8,
+    "US.SMCI": 0,
+    "US.F": 0,
+    "US.CSCO": 24,
+    "US.NET": 0,
+    "US.AMAT": 5,
+    "US.AAPL": 0
+  },
+  "last_orders": {
+    "HK.00960": {
+      "time": 1776239940.0,
+      "signal": "SELL",
+      "qty": 200,
+      "price": 8.08,
+      "reason": "model_flip_to_short_detected_at_close"
+    },
+    "HK.00939": {
+      "time": 1776239940.0,
+      "signal": "SELL",
+      "qty": 200,
+      "price": 8.53,
+      "reason": "model_flip_to_short_detected_at_close"
+    },
+    "HK.01211": {
+      "time": 1776237509.0,
+      "signal": "SELL",
+      "qty": 400,
+      "price": 108.3,
+      "reason": "model_signal_confirmed"
+    },
+    "US.AMZN": {
+      "time": 1776698379.1158333,
+      "signal": "BUY",
+      "qty": 8,
+      "price": 245.92999267578125,
+      "reason": "model_signal_conf=0.253"
+    },
+    "US.NVDA": {
+      "time": 1776263828.5366504,
+      "signal": "SELL",
+      "qty": 44,
+      "price": 199.765,
+      "reason": "model_signal_confirmed"
+    },
+    "US.CSCO": {
+      "time": 1776261307.8330698,
+      "signal": "BUY",
+      "qty": 24,
+      "price": 81.325,
+      "reason": "model_signal_conf=0.285"
+    },
+    "US.NET": {
+      "time": 1776263828.533303,
+      "signal": "SELL",
+      "qty": 37,
+      "price": 188.98,
+      "reason": "model_signal_confirmed"
+    },
+    "US.AMD": {
+      "time": 1776263828.4532642,
+      "signal": "SELL",
+      "qty": 76,
+      "price": 257.55,
+      "reason": "model_signal_confirmed"
+    },
+    "US.AMAT": {
+      "time": 1776261308.25994,
+      "signal": "BUY",
+      "qty": 5,
+      "price": 385.35,
+      "reason": "model_signal_conf=0.266"
+    },
+    "US.COIN": {
+      "time": 1776263828.459532,
+      "signal": "SELL",
+      "qty": 37,
+      "price": 192.895,
+      "reason": "model_signal_confirmed"
+    },
+    "US.AAPL": {
+      "time": 1776263828.367833,
+      "signal": "SELL",
+      "qty": 1,
+      "price": 260.84,
+      "reason": "model_signal_confirmed"
+    }
+  },
+  "notes": "Bug fix: Forced state.json as source of truth for paper trading."
+}

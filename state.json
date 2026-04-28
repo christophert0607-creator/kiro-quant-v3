@@ -1,11 +1,91 @@
 {
-  "date": "2026-04-12",
-  "daily_pnl": 0.0,
-  "daily_trades": 0,
-  "consecutive_errors": 0,
-  "circuit_broken": false,
-  "circuit_break_time": null,
-  "positions": {},
-  "last_orders": {},
-  "notes": "State reset by Kiro Quant V3 review on 2026-04-12. Previous state was stale (last update: 2026-04-06). Positions cleared to avoid stale data contaminating risk decisions."
+  "date": "2026-04-28",
+  "daily_trades": 9,
+  "positions": {
+    "US.MSFT": 0,
+    "US.AAPL": 7,
+    "US.TSLA": 0,
+    "US.CRM": 0,
+    "US.META": 0,
+    "US.SNOW": 0,
+    "US.QCOM": 0,
+    "US.UBER": 0,
+    "US.RGTI": 0
+  },
+  "short_positions": {
+    "US.MSFT": 0,
+    "US.AAPL": 0,
+    "US.TSLA": 0,
+    "US.CRM": 0,
+    "US.META": 0,
+    "US.SNOW": 0,
+    "US.QCOM": 0,
+    "US.UBER": 0,
+    "US.RGTI": 0
+  },
+  "last_orders": {
+    "US.MSFT": {
+      "time": 1777383004.7366307,
+      "signal": "SELL",
+      "qty": 4,
+      "price": 423.51,
+      "reason": "model_signal_confirmed"
+    },
+    "US.AAPL": {
+      "time": 1777383004.9122107,
+      "signal": "BUY",
+      "qty": 7,
+      "price": 272.57,
+      "reason": "model_signal_conf=0.425"
+    },
+    "US.TSLA": {
+      "time": 1777383005.3612926,
+      "signal": "SELL",
+      "qty": 5,
+      "price": 378.6700134277344,
+      "reason": "model_signal_confirmed"
+    },
+    "US.CRM": {
+      "time": 1777383005.8532355,
+      "signal": "SELL",
+      "qty": 11,
+      "price": 180.18,
+      "reason": "model_signal_confirmed"
+    },
+    "US.META": {
+      "time": 1777383006.086071,
+      "signal": "SELL",
+      "qty": 3,
+      "price": 674.395,
+      "reason": "model_signal_confirmed"
+    },
+    "US.SNOW": {
+      "time": 1777383006.5489674,
+      "signal": "SELL",
+      "qty": 13,
+      "price": 144.25,
+      "reason": "model_signal_confirmed"
+    },
+    "US.QCOM": {
+      "time": 1777383007.0227046,
+      "signal": "SELL",
+      "qty": 14,
+      "price": 145.235,
+      "reason": "model_signal_confirmed"
+    },
+    "US.UBER": {
+      "time": 1777383007.3623405,
+      "signal": "SELL",
+      "qty": 26,
+      "price": 76.27,
+      "reason": "model_signal_confirmed"
+    },
+    "US.RGTI": {
+      "time": 1777383007.75408,
+      "signal": "SELL",
+      "qty": 113,
+      "price": 16.4,
+      "reason": "model_signal_confirmed"
+    }
+  }
 }

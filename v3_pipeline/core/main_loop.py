@@ -87,15 +87,17 @@ class LiveConfig:
     # ---- Hard risk caps (2026-04-12 fix) ----
     max_loss_per_trade: float = 30.0   # Hard cap: never lose more than $30 per trade
     max_position_value: float = 2000.0 # Derived: $30 / 1.5% stop_loss = $2000 max position
-    min_confidence_threshold: float = 0.20  # Base confidence must be >= 20% (2026-04-14: lowered from 0.35 to allow more signals through)
+    min_confidence_threshold: float = 0.10  # 2026-04-23: lowered from 0.20 to allow more momentum signals through
 
     # ---- Strategy v2: Entry gates ----
-    rsi_oversold_entry: int = 30          # RSI < 30 for oversold entry
-    rsi_deep_oversold: int = 20           # RSI < 20 for deep oversold (scale-in)
+    rsi_oversold_entry: int = 50          # 2026-04-23: raised from 30 — RSI<40 is extreme, RSI<50 catches mean-reversion
+    rsi_extreme_oversold: int = 35        # 2026-04-23: NEW — forced BUY without confidence gate (RSI < 35 is rare)
+    bb_position_threshold: float = 0.2     # 2026-04-23: NEW — %B < 0.2 as auxiliary mean-reversion confirm
+    vix_dynamic_confidence_enabled: bool = True  # 2026-04-23: NEW — VIX<18 → thresh-20%, VIX>25 → thresh+50%
     sma_filter: bool = True                # Price must be > SMA_20 for LONG
     macd_positive_required: bool = True   # MACD_HIST > 0 for oversold entry
     vix_max: float = 30.0                  # Block all entries if VIX >= 30
-    sentiment_min_entry: float = -0.1      # Block if sentiment < -0.1
+    sentiment_min_entry: float = -0.5      # 2026-04-15 Fix: Lowered from -0.1 to -0.5 to allow trades in current session
 
     # ---- Strategy v3: SHORT Entry gates (Plan B dual-directional) ----
     short_enabled: bool = True             # Enable SHORT (bearish/RSI overbought entries)
@@ -103,7 +105,7 @@ class LiveConfig:
     rsi_deep_overbought: int = 80          # RSI > 80 for deep overbought (stronger conviction)
     macd_negative_required: bool = True    # MACD_HIST < 0 for SHORT entry
     sma_filter_short: bool = True           # Price must be < SMA_20 for SHORT
-    short_min_confidence_threshold: float = 0.20  # Confidence gate for SHORT entries
+    short_min_confidence_threshold: float = 0.10  # 2026-04-23: lowered from 0.20 to align with long-side
     short_sentiment_max: float = 0.10      # Block SHORT if sentiment > 0.10 (too bullish)
 
     # ---- Strategy v2: Exit ----
@@ -113,9 +115,9 @@ class LiveConfig:
     trailing_stop_active: bool = True
     trailing_stop_trigger: float = 0.015   # Activate trailing after 1.5% profit
     trailing_stop_lock: float = 0.0        # Lock at entry price (0% trailing)
-    min_hold_minutes: int = 30            # Minimum hold before time-exit (was 5)
+    min_hold_minutes: int = 45            # 2026-04-23: raised from 30 — INTC 33min time_exit was premature
     max_hold_minutes: int = 120           # Hard exit after 2 hours
-    time_exit_near_entry_pct: float = 0.003  # Exit if within 0.3% of entry after min_hold
+    time_exit_near_entry_pct: float = 0.005  # 2026-04-23: raised from 0.003 — 0.3% too tight for low-vol
 
     # ---- Strategy v3: SHORT Exit (Plan B) ----
     short_stop_loss: float = 0.015         # 1.5% SL for SHORT positions (price rise = loss)
@@ -171,8 +173,11 @@ class LiveTradingLoop:
         self._short_signal_id_by_symbol: dict[str, str] = {}  # v3: SHORT signal IDs
         self._pred_id_by_symbol: dict[str, str | None] = {}
         self._short_pred_id_by_symbol: dict[str, str | None] = {}  # v3
+        self._entry_pred_price_by_symbol: dict[str, float] = {}  # 2026-04-23: for prediction_error MAE
         self._entry_time_by_symbol: dict[str, datetime] = {}
         self._short_entry_time_by_symbol: dict[str, datetime] = {}  # v3
+        self._short_entry_pred_price_by_symbol: dict[str, float] = {}  # 2026-04-23
+        self._last_sell_time_by_symbol: dict[str, datetime] = {}  # 2026-04-24: prevent re-sync race
         self.account_value = 100000.0
         self.strategy_factory = StrategyFactory()
         self.alpha_engine = KiroAlphaEngine(AlphaConfig(use_all_features=True))  # Use all features (match training)
@@ -218,6 +223,11 @@ class LiveTradingLoop:
         self._sync_sentiment()
         self.logger.info("[RUN_CYCLE] symbols=%d polling_sec=%d", len(self.symbols), self.config.polling_seconds)
 
+        # ── Phase 1: Batch pre-fetch all quotes via cache ─────────────────────
+        # All missing/stale quotes are fetched ONCE at cycle start.
+        # Individual symbol cycles then hit cache (fast, zero network I/O).
+        await self._prefetch_quotes()
+
         # ── Technical Screener: rank and filter symbols ─────────────────────
         if os.getenv("ENABLE_SCREENER", "0") == "1":
             try:
@@ -249,6 +259,102 @@ class LiveTradingLoop:
 
         await asyncio.gather(*(guarded(symbol) for symbol in self.symbols))
 
+    async def _prefetch_quotes(self) -> None:
+        """
+        Batch pre-fetch all quotes at the start of each cycle.
+
+        Two-tier strategy:
+        1. Alltick batch-kline (primary)  — fetches all symbols in batches of 10
+           using the already-integrated alltick_connector. Rate limit: 1 req/10s.
+           Cache TTL=30s means most cycles hit cache — zero network time.
+
+        2. Per-symbol provider fallback (secondary) — only if Alltick fails.
+           Uses FutuConnector.get_latest_quote() with the QuoteCache safety net.
+
+        This replaces the previous pattern where each of the 59 symbol cycles
+        independently called get_latest_quote(), causing 59 concurrent OpenD connections.
+        """
+        symbols = list(self.symbols)
+        cache = self.futu_connector._quote_cache
+
+        missing = cache.get_missing(symbols)
+        if not missing:
+            self.logger.info("[PREFETCH] All %d quotes fresh in cache — no fetch needed", len(symbols))
+            return
+
+        self.logger.info("[PREFETCH] %d/%d quotes stale, fetching now...", len(missing), len(symbols))
+        t0 = time.perf_counter()
+        fetched = 0
+
+        remaining = list(missing)
+
+        # ── Tier 1: iTick batch klines (US only) ───────────────────────────
+        # iTick is a clean replacement for Alltick batch-kline when token is available.
+        #
+        # NOTE: iTick free tier is slow (rate-limited). To keep open-market cycles fast,
+        # we optionally restrict iTick prefetch to a small allowlist and let the
+        # per-symbol providers (YF/AV/Finnhub/ef) fill the rest.
+        #
+        # Env:
+        # - USE_ITICK=0                              (set to 0 to disable iTick entirely)
+        # - ITICK_PREFETCH_SYMBOLS="NVDA,TSLA,AAPL"  (comma-separated)
+        # - ITICK_PREFETCH_MAX=3                     (fallback when list not set)
+        us_missing = [s for s in remaining if not str(s).endswith(".HK")]
+
+        use_itick = os.getenv("USE_ITICK", "1") != "0"
+        itick_allow = os.getenv("ITICK_PREFETCH_SYMBOLS", "").strip()
+
+        if use_itick and us_missing:
+            if itick_allow:
+                allow = {x.strip().upper() for x in itick_allow.split(",") if x.strip()}
+                itick_targets = [s for s in us_missing if str(s).upper() in allow]
+            else:
+                try:
+                    max_n = int(os.getenv("ITICK_PREFETCH_MAX", "3"))
+                except Exception:
+                    max_n = 3
+                itick_targets = us_missing[: max(0, max_n)]
+
+            if itick_targets:
+                try:
+                    self.logger.info(
+                        "[PREFETCH] iTick targets=%d/%d (allow=%s)",
+                        len(itick_targets),
+                        len(us_missing),
+                        itick_allow or f"max:{len(itick_targets)}",
+                    )
+                    itick_results = await asyncio.to_thread(
+                        cache.refresh_batch_itick,
+                        itick_targets,
+                        "US",
+                        1,
+                        2,
+                    )
+                    fetched += len(itick_results)
+                except Exception as exc:
+                    self.logger.warning("[PREFETCH] iTick batch failed, falling back to per-symbol: %s", exc)
+
+        remaining = cache.get_missing(symbols)
+        if remaining:
+            # ── Tier 2: per-symbol providers (futu/av/yf/ef) ───────────────
+            try:
+                results = await cache.refresh_batch_async(
+                    remaining,
+                    lambda s: self.futu_connector.get_latest_quote(s, use_cache=False),
+                    max_concurrency=8,
+                )
+                fetched += len(results)
+            except Exception as exc:
+                self.logger.error("[PREFETCH] Per-symbol fetch failed: %s", exc)
+
+        elapsed = time.perf_counter() - t0
+        still_missing = len(cache.get_missing(symbols))
+        self.logger.info(
+            "[PREFETCH] Completed: %d/%d fetched in %.2fs, still missing: %d",
+            fetched, len(missing), elapsed, still_missing
+        )
+        cache.log_stats()
+
     async def _run_symbol_cycle(self, symbol: str) -> None:
         started = time.perf_counter()
         lookback = int(self.model_manager.data_preparer.lookback)
@@ -265,23 +371,46 @@ class LiveTradingLoop:
             cached = None  # cache miss or stale
         self.logger.info("[CYCLE_START] symbol=%s buffer_len=%d lookback=%d", symbol, len(self.market_buffers.get(symbol, pd.DataFrame())), lookback)
 
-        try:
-            quote = await asyncio.wait_for(
-                asyncio.to_thread(self.futu_connector.get_latest_quote, symbol),
-                timeout=self.config.quote_timeout_seconds,
+        # ── QuoteCache lookup (primary) ───────────────────────────────────────────
+        # QuoteCache TTL=30s: fresh enough for live trading, avoids redundant API calls.
+        # Per-symbol provider (futu/yf/av) is only a fallback when cache misses.
+        cache = self.futu_connector._quote_cache
+        quote = cache.get(symbol)
+        if quote and quote.get("Close", 0) > 0:
+            self.logger.info(
+                "[QUOTE_CACHE][%s] hit: price=%.4f age=%.1fs src=%s",
+                symbol,
+                quote.get("Close"),
+                (time.time() - quote.get("_cached_at", 0)),
+                quote.get("data_source", "?"),
             )
-        except TimeoutError:
-            self.logger.warning("TIMEOUT[%s]: quote fetch exceeded %.1fs, skipping cycle", symbol, self.config.quote_timeout_seconds)
-            return
-        except Exception as exc:
-            self.logger.warning("QuoteFetchFail[%s]: %s", symbol, exc)
-            return
+        else:
+            # Cache miss — fetch directly from per-symbol provider with fallback chain
+            try:
+                quote = await asyncio.wait_for(
+                    asyncio.to_thread(self.futu_connector.get_latest_quote, symbol),
+                    timeout=self.config.quote_timeout_seconds,
+                )
+            except TimeoutError:
+                self.logger.warning("TIMEOUT[%s]: quote fetch exceeded %.1fs, skipping cycle", symbol, self.config.quote_timeout_seconds)
+                return
+            except Exception as exc:
+                self.logger.warning("QuoteFetchFail[%s]: %s", symbol, exc)
+                return
 
         buffer_df = pd.concat([self.market_buffers[symbol], pd.DataFrame([quote])], ignore_index=True)
         buffer_df = self._normalize_market_buffer(buffer_df)
         self.market_buffers[symbol] = buffer_df
 
         self.logger.info("Buffer[%s] size: %d source=%s", symbol, len(buffer_df), quote.get("data_source", "UNKNOWN"))
+
+        # 2026-04-16 FINAL DEBUG: Print buffer boundaries to solve 1950 stagnation
+        if symbol == "AAPL":
+            head_ts = buffer_df.iloc[0]["Date"]
+            tail_ts = buffer_df.iloc[-1]["Date"]
+            self.logger.info("DEBUG[AAPL] HEAD: %s, TAIL: %s, PRICE: %.2f", head_ts, tail_ts, buffer_df.iloc[-1]["Close"])
+            if len(buffer_df) >= 2:
+                self.logger.info("DEBUG[AAPL] PREV_TAIL: %s", buffer_df.iloc[-2]["Date"])
 
         if len(buffer_df) < lookback:
             self.logger.info("Warmup[%s]: waiting for more bars (%d/%d)", symbol, len(buffer_df), lookback)
@@ -320,18 +449,38 @@ class LiveTradingLoop:
             self.logger.info("[CACHE_HIT][%s] Using cached pred=%.4f conf=%.4f (age=%.0fs)", symbol, prediction, confidence, now - cached["ts"])
         else:
             prediction = float(self.model_manager.predict(wfa_frame, data_preparer=symbol_preparer))
-            # 2026-04-14 Fix: Rescale raw price-deviation confidence to meaningful range.
-            # Raw ratio = |pred - price| / price. For most stocks this yields 0.001-0.01.
-            # Multiply by 50x to map into 0.05-0.50 range (aligns with observed win-rate data).
-            # This preserves the directional signal while making thresholds meaningful.
             raw_ratio = abs(prediction - current_price) / max(current_price, 1e-9)
-            confidence = min(1.0, raw_ratio * 50.0)
+
+            # ── 2026-04-23 Fix: MAE-based confidence (replaces raw_ratio×50) ─────────
+            # Fallback to raw_ratio only when no history is available yet.
+            # Once prediction_error accumulates in outcomes DB, MAE-based conf dominates.
+            try:
+                from self_learn.models import get_prediction_accuracy
+                mae, dir_acc = await asyncio.to_thread(get_prediction_accuracy, symbol, window=20)
+            except Exception:
+                mae, dir_acc = 0.0, 0.5  # default if DB unavailable
+
+            if mae > 0 and current_price > 0:
+                # New formula: accuracy = (1 - MAE/price) × directional_accuracy
+                # Perfect prediction (MAE=0, dir_acc=1) → conf = 1.0
+                # No history / uncertain → defaults to raw_ratio approach
+                accuracy_score = max(0.0, 1.0 - mae / current_price) * dir_acc
+                mae_confidence = min(1.0, accuracy_score)
+                # Blend 60% MAE-based + 40% raw_ratio (keeps signal responsive)
+                confidence = 0.6 * mae_confidence + 0.4 * min(1.0, raw_ratio * 50.0)
+                self.logger.info(
+                    "[CONF_NEW][%s] pred=%.4f price=%.4f raw_ratio=%.4f mae=%.4f dir_acc=%.2f → conf=%.4f",
+                    symbol, prediction, current_price, raw_ratio, mae, dir_acc, confidence,
+                )
+            else:
+                # No MAE history yet — fall back to raw deviation (legacy)
+                confidence = min(1.0, raw_ratio * 50.0)
 
         # Provide latest technical indicators snapshot for optional tactical entries
         latest_ind: dict[str, float] = {}
         try:
             latest_row = featured.iloc[-1]
-            for k in ("RSI_14", "MACD_HIST", "SMA_5", "SMA_20", "BB_LOWER", "BB_MIDDLE"):
+            for k in ("RSI_14", "MACD_HIST", "SMA_5", "SMA_20", "BB_LOWER", "BB_MIDDLE", "BB_POSITION"):
                 if k in latest_row.index:
                     v = latest_row.get(k)
                     if v is not None:
@@ -389,6 +538,14 @@ class LiveTradingLoop:
             self._notify(f"🚨 Circuit breaker hit. Equity={self.account_value:.2f}")
             return
 
+        # ---- Prepare thresholds (Move to top to avoid UnboundLocalError) ----
+        bucket = str(self.config.bucket_by_symbol.get(symbol, "mid"))
+        bucket_th = float(self.config.bucket_thresholds.get(bucket, self.config.prediction_threshold))
+        # Priority: per-symbol override > bucket default > global default
+        symbol_threshold = float(self.config.prediction_thresholds.get(symbol, bucket_th))
+        threshold_up = current_price * (1 + symbol_threshold)
+        threshold_down = current_price * (1 - symbol_threshold)
+
         # ---- Strategy v2: Entry Gates ----
         vix = getattr(self, "vix_value", 18.0)
         if vix >= self.config.vix_max:
@@ -415,7 +572,7 @@ class LiveTradingLoop:
                 bars_held = self.bars_held_by_symbol.get(symbol, 0)
 
                 # v2: RSI-gated take profit (3% deep oversold, 2% normal)
-                tp_thresh = self.config.take_profit_rsi20 if entry_rsi <= self.config.rsi_deep_oversold else self.config.take_profit_normal
+                tp_thresh = self.config.take_profit_rsi20 if entry_rsi <= self.config.rsi_extreme_oversold else self.config.take_profit_normal
                 sl_thresh = self.config.stop_loss  # 1.5% hard stop
 
                 if profit_pct >= tp_thresh:
@@ -558,13 +715,6 @@ class LiveTradingLoop:
             # No SHORT position: reset streak
             self.buy_cover_signal_streak_by_symbol[symbol] = 0
 
-        bucket = str(self.config.bucket_by_symbol.get(symbol, "mid"))
-        bucket_th = float(self.config.bucket_thresholds.get(bucket, self.config.prediction_threshold))
-        # Priority: per-symbol override > bucket default > global default
-        symbol_threshold = float(self.config.prediction_thresholds.get(symbol, bucket_th))
-        threshold_up = current_price * (1 + symbol_threshold)
-        threshold_down = current_price * (1 - symbol_threshold)
-
         trace_base = {
             "symbol": symbol,
             "bucket": bucket,
@@ -599,50 +749,69 @@ class LiveTradingLoop:
             bb_lower = float(indicators.get("BB_LOWER", current_price))
 
             # v2: Require MACD positive + (if sma_filter) price > SMA_20
-            macd_ok = not self.config.macd_positive_required or macd_hist > 0.0
+            macd_ok = not self.config.macd_positive_required or macd_hist > (0.0 if symbol.endswith(".HK") else 0.0)
             trend_ok = not self.config.sma_filter or current_price >= sma20
 
-            # Deep oversold RSI: force BUY (RSI-gated TP applied at exit)
-            if rsi <= self.config.rsi_oversold_entry and macd_ok and trend_ok:
+            # ── 2026-04-24: Smart market-aware RSI threshold ──────────────────────
+            market_adj = self._get_market_thresholds(symbol)
+            rsi_entry_threshold = self.config.rsi_oversold_entry + market_adj["rsi_delta"]
+
+            # ── 2026-04-23 Fix: RSI tier — extreme vs moderate ───────────────────────
+            # Extreme oversold (RSI < 35): force BUY bypassing confidence gate
+            rsi_extreme = int(getattr(self.config, 'rsi_extreme_oversold', 35))
+            bb_pos = float(indicators.get("BB_POSITION", 0.5))
+            bb_thresh = float(getattr(self.config, 'bb_position_threshold', 0.2))
+            if rsi <= rsi_extreme and macd_ok and trend_ok:
                 self.logger.info(
-                    "[RSI_OVERSOLD_BUY][%s]: rsi=%.1f macd_hist=%.4f px=%.4f sma20=%.4f trend_ok=%s",
-                    symbol, rsi, macd_hist, current_price, sma20, trend_ok,
+                    "[RSI_EXTREME_BUY][%s]: rsi=%.1f (<= %d) bb_pos=%.2f macd=%.4f px=%.4f — forced entry, no conf gate",
+                    symbol, rsi, rsi_extreme, bb_pos, macd_hist, current_price,
+                )
+                buy_reason = "rsi_extreme_oversold"
+                confidence = max(confidence, 0.60)
+                prediction = current_price * 1.001
+            # Moderate oversold (RSI < rsi_oversold_entry): standard entry with confidence gate
+            # 2026-04-23: add %B < threshold as auxiliary confirm (BB touching lower band = mean-reversion)
+            elif rsi <= rsi_entry_threshold and macd_ok and trend_ok and bb_pos <= bb_thresh:
+                self.logger.info(
+                    "[RSI_OVERSOLD_BUY][%s]: rsi=%.1f bb_pos=%.2f (<= %.2f) macd_hist=%.4f px=%.4f sma20=%.4f trend_ok=%s",
+                    symbol, rsi, bb_pos, bb_thresh, macd_hist, current_price, sma20, trend_ok,
                 )
                 buy_reason = "rsi_oversold_v2"
                 confidence = max(confidence, 0.50)
-                prediction = current_price * 1.001  # predict slightly above current to trigger
-            # Normal tech entry: RSI moderate + MACD positive + price above SMA_5
-            elif bucket == "short" and (rsi <= 35.0) and (macd_hist > 0.0) and (current_price >= sma5) and (current_price <= bb_lower * 1.01) and trend_ok:
-                self.logger.info(
-                    "TECH_BUY[%s]: rsi=%.1f macd_hist=%.4f px=%.4f sma5=%.4f sma20=%.4f",
-                    symbol,
-                    rsi,
-                    macd_hist,
-                    current_price,
-                    sma5,
-                    sma20,
-                )
-                buy_reason = "tech_entry_v2"
-                confidence = max(confidence, 0.35)
-                prediction = threshold_up * 1.0002
+                prediction = current_price * 1.001
+
+        # ── 2026-04-24: Smart market-aware thresholds (HK vs US) ───────────────
+        market_adj = self._get_market_thresholds(symbol)
+        effective_min_conf = float(getattr(self.config, 'min_confidence_threshold', 0.10)) * market_adj["conf_mult"]
+        if getattr(self.config, 'vix_dynamic_confidence_enabled', False):
+            try:
+                vix_now = self._get_vix()  # synchronous; runs in-thread already via to_thread at call site
+                if vix_now < 18:
+                    effective_min_conf *= 0.80
+                    self.logger.info("[VIX_DYNAMIC][%s] VIX=%.1f < 18 → conf thresh %.2f (×0.80)", symbol, vix_now, effective_min_conf)
+                elif vix_now > 25:
+                    effective_min_conf *= 1.50
+                    self.logger.info("[VIX_DYNAMIC][%s] VIX=%.1f > 25 → conf thresh %.2f (×1.50)", symbol, vix_now, effective_min_conf)
+            except Exception:
+                pass
 
         # ── 2026-04-12 Fix: Confidence hard gate ──────────────────────────────────
         # Block if raw confidence is below threshold AND no RSI/MACD entry was triggered.
         # RSI/MACD entries set buy_reason themselves; absence means pure model signal.
         if allow_long and qty == 0:
-            min_conf = float(getattr(self.config, 'min_confidence_threshold', 0.35))
-            raw_conf_ok = confidence >= min_conf
-            is_rsiedge_entry = buy_reason in ("rsi_oversold_v2", "tech_entry_v2")
+            raw_conf_ok = confidence >= effective_min_conf
+            is_rsiedge_entry = buy_reason in ("rsi_oversold_v2", "rsi_extreme_oversold", "tech_entry_v2")
             if not raw_conf_ok and not is_rsiedge_entry:
                 self.logger.info(
-                    "[CONF_GATE][%s] blocked: raw_conf=%.4f < %.2f (no RSI/MACD edge)",
-                    symbol, confidence, min_conf,
+                    "[CONF_GATE][%s] blocked: raw_conf=%.4f < %.2f (no RSI/MACD edge, %s adj)",
+                    symbol, confidence, effective_min_conf, "HK" if symbol.endswith(".HK") else "US",
                 )
                 self._append_decision_trace({
                     **trace_base,
                     "action": "BUY_BLOCKED_LOW_CONF",
                     "raw_confidence": float(confidence),
-                    "min_confidence": min_conf,
+                    "min_confidence": effective_min_conf,
+                    "vix_dynamic": getattr(self.config, 'vix_dynamic_confidence_enabled', False),
                 })
                 return
 
@@ -694,13 +863,14 @@ class LiveTradingLoop:
             and qty == 0
         ):
             # Confidence gate for SHORT
-            min_conf_short = float(getattr(self.config, 'short_min_confidence_threshold', 0.20))
+            market_adj_short = self._get_market_thresholds(symbol)
+            min_conf_short = float(getattr(self.config, 'short_min_confidence_threshold', 0.20)) * market_adj_short["short_conf_mult"]
             raw_conf_short_ok = confidence >= min_conf_short
             is_short_tactical = short_reason in ("rsi_overbought_short_v3",)
             if not raw_conf_short_ok and not is_short_tactical:
                 self.logger.info(
-                    "[SHORT_CONF_GATE][%s] blocked: raw_conf=%.4f < %.2f (no RSI-overbought edge)",
-                    symbol, confidence, min_conf_short,
+                    "[SHORT_CONF_GATE][%s] blocked: raw_conf=%.4f < %.2f (no RSI-overbought edge, %s adj)",
+                    symbol, confidence, min_conf_short, "HK" if symbol.endswith(".HK") else "US",
                 )
                 self._append_decision_trace({
                     **trace_base,
@@ -726,10 +896,40 @@ class LiveTradingLoop:
                 else:
                     active_positions = sum(1 for q in self.position_qty_by_symbol.values() if q > 0)
                     active_short_positions = sum(1 for q in self.short_position_qty_by_symbol.values() if q > 0)
-                    if (active_positions + active_short_positions) >= int(self.config.max_portfolio_positions):
+                    total_positions = active_positions + active_short_positions
+                    max_pos = int(self.config.max_portfolio_positions)
+                    # v3: maintain 80% occupancy — close worst SHORT when >= 80% capacity
+                    threshold_80 = int(max_pos * 0.8)
+                    if total_positions >= max_pos:
                         self.logger.info("[%s] Max positions (%d) reached, skipping SHORT",
-                            symbol, int(self.config.max_portfolio_positions))
-                    else:
+                            symbol, max_pos)
+                    elif total_positions >= threshold_80:
+                        # Find worst SHORT (lowest profit_pct) and close it
+                        worst_sym = None
+                        worst_profit_pct = float('inf')
+                        for s, qty in self.short_position_qty_by_symbol.items():
+                            if qty <= 0:
+                                continue
+                            entry_px = self.short_entry_price_by_symbol.get(s, 0.0)
+                            curr_px = self.last_price_by_symbol.get(s, 0.0)
+                            if entry_px <= 0 or curr_px <= 0:
+                                continue
+                            profit_pct = (entry_px - curr_px) / entry_px
+                            if profit_pct < worst_profit_pct:
+                                worst_profit_pct = profit_pct
+                                worst_sym = s
+                        if worst_sym:
+                            self.logger.info(
+                                "[80PCT_EVICT][%s] worst_SHORT=%s profit=%.2f%% — closing to make room",
+                                symbol, worst_sym, worst_profit_pct * 100,
+                            )
+                            worst_qty = self.short_position_qty_by_symbol[worst_sym]
+                            worst_curr = self.last_price_by_symbol.get(worst_sym, 0.0)
+                            self._execute_short_exit(worst_sym, worst_qty, worst_curr, "80pct_occupancy_evict")
+                            # Re-count after eviction
+                            active_short_positions = sum(1 for q in self.short_position_qty_by_symbol.values() if q > 0)
+                        # Proceed with new SHORT entry
+
                         # SHORT capital allocation: same bucket fractions as LONG
                         bucket = str(self.config.bucket_by_symbol.get(symbol, "mid"))
                         fracs = dict(self.config.bucket_fractions or {})
@@ -781,7 +981,7 @@ class LiveTradingLoop:
                                     "short_reason": str(short_reason),
                                     "risk_pct": float(risk_pct),
                                 })
-                                self._execute_short_entry(symbol, short_alloc_qty, current_price, short_reason, indicators)
+                                self._execute_short_entry(symbol, short_alloc_qty, current_price, short_reason, indicators, prediction)
                             else:
                                 self._append_decision_trace({
                                     **trace_base,
@@ -789,6 +989,20 @@ class LiveTradingLoop:
                                     "alloc": float(alloc),
                                 })
             # Return after processing SHORT to prevent LONG logic from also running
+            return
+
+        # ── Guard: Cannot BUY if short position exists ─────────────────────
+        short_qty = int(self.short_position_qty_by_symbol.get(symbol, 0) or 0)
+        if short_qty > 0:
+            self.logger.warning(
+                "[LONG_BLOCK][%s] Cannot BUY: %d short shares outstanding. Short cover required first.",
+                symbol, short_qty,
+            )
+            self._append_decision_trace({
+                **trace_base,
+                "action": "BUY_BLOCKED_SHORT_EXISTS",
+                "short_qty": short_qty,
+            })
             return
 
         if allow_long and prediction > threshold_up and qty == 0:
@@ -960,9 +1174,9 @@ class LiveTradingLoop:
                         "risk_pct": float(risk_pct),
                     }
                 )
-                self._execute(symbol, "BUY", buy_qty, current_price, buy_reason, indicators)
+                self._execute(symbol, "BUY", buy_qty, current_price, buy_reason, indicators, prediction)
 
-                # ── Self-Learning: log BUY signal ──
+                # Self-Learning: log BUY signal
                 try:
                     from self_learn import hook_on_signal
                     _sig_id = hook_on_signal(
@@ -972,6 +1186,8 @@ class LiveTradingLoop:
                         size=int(buy_qty),
                     )
                     self._signal_id_by_symbol[symbol] = _sig_id
+                    if prediction is not None:
+                        self._entry_pred_price_by_symbol[symbol] = float(prediction)
                     self._entry_time_by_symbol[symbol] = datetime.now(timezone.utc)
                 except Exception:
                     pass
@@ -1028,12 +1244,38 @@ class LiveTradingLoop:
             else:
                 self.sell_signal_streak_by_symbol[symbol] = 0
 
-    def _round_to_lot(self, qty: int, symbol: str) -> int:
-        """Skip HK stocks entirely (complex lot sizes) - HK market not supported yet."""
+    # ── 2026-04-24: Smart market-aware thresholds ───────────────────────────
+    def _get_market_thresholds(self, symbol: str) -> dict:
+        """智能分辨港美市場，動態調整門檻。"""
         if symbol.endswith(".HK"):
-            self.logger.info("SKIP HK symbol %s (lot size complexity not handled)", symbol)
-            return 0  # skip HK stocks
-        return qty  # US stocks: no rounding needed (lot_size=1)
+            # 港股：基於數據質量較差，自動降低門檻
+            return {
+                "conf_mult": 0.40,
+                "rsi_delta": -10,
+                "macd_mult": 0.33,
+                "short_conf_mult": 0.50,
+            }
+
+        # 美股：保持原有嚴格標準
+        return {
+            "conf_mult": 1.0,
+            "rsi_delta": 0,
+            "macd_mult": 1.0,
+            "short_conf_mult": 1.0,
+        }
+
+    # ── End smart thresholds ──────────────────────────────────────────────────
+
+    def _round_to_lot(self, qty: int, symbol: str) -> int:
+        if symbol.endswith(".HK"):
+            # 2026-04-15 Fix: Unlock HK trading with standard 100-share lot size
+            lot_size = 100
+            rounded = (qty // lot_size) * lot_size
+            if rounded < lot_size:
+                # self.logger.info("SKIP HK %s: qty %d below lot size %d", symbol, qty, lot_size)
+                return 0
+            return int(rounded)
+        return int(qty)  # US stocks: lot_size=1
 
     def _normalize_market_buffer(self, df: pd.DataFrame) -> pd.DataFrame:
         out = df.copy()
@@ -1080,58 +1322,112 @@ class LiveTradingLoop:
             self.logger.warning("Heartbeat check failed: %s", exc)
 
     def _sync_broker_state(self) -> None:
-        # In NO_FUTU mode, try to load positions from state.json as fallback
         import os as _os
-        state_file = _os.path.join(_os.path.dirname(__file__), "..", "..", "state.json")
+        import json as _json
+        workspace_root = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..", "..", ".."))
+        state_file = _os.path.join(workspace_root, "state.json")
 
+        # 1. Sync total account value (Broker is always source of truth for buying power)
         try:
             assets = self.futu_connector.get_sync_assets()
             self.account_value = float(assets.get("total_assets", self.account_value))
         except Exception as exc:
             self.logger.warning("Asset sync failed: %s", exc)
 
-        # In auto_trade=True mode: trust local position state maintained by _execute().
-        # In this mode, _execute() immediately updates position_qty_by_symbol after orders,
-        # so we don't need to re-read from FutuOpenD (which may be stale in paper/SIM mode).
-        # _sync_broker_state() still runs to sync assets.
-        if self.config.auto_trade:
-            pass  # positions tracked locally by _execute(), don't overwrite from stale FutuOpenD
-        else:
-            try:
-                positions = self.futu_connector.get_sync_positions()
-                for symbol in self.symbols:
-                    qty = 0
-                    if not positions.empty and "code" in positions.columns:
-                        code, _ = self.futu_connector.resolve_symbol(symbol)
-                        row = positions[positions["code"] == code]
-                        if not row.empty:
-                            qty = int(float(row.iloc[0].get("qty", row.iloc[0].get("can_sell_qty", 0))))
-                    self.position_qty_by_symbol[symbol] = max(0, qty)
-            except Exception as exc:
-                self.logger.warning("Position sync failed: %s", exc)
+        # ── Always sync from Futu broker (source of truth for ALL modes) ─────────────
+        # This includes SIM mode: Futu's SIM account IS the source of truth for positions.
+        # state.json is used ONLY as fallback if broker returns empty.
+        try:
+            positions = self.futu_connector.get_sync_positions()
+            # Reset all to zero before syncing
+            for symbol in self.symbols:
+                self.position_qty_by_symbol[symbol] = 0
+                self.short_position_qty_by_symbol[symbol] = 0
 
-        # NO_FUTU fallback: if positions are all zero, load from state.json
-        if _os.getenv("NO_FUTU") == "1" and _os.path.exists(state_file):
-            all_zero = all(q == 0 for q in self.position_qty_by_symbol.values())
-            if all_zero:
+            if not positions.empty and "code" in positions.columns:
+                for _, row in positions.iterrows():
+                    code = str(row.get("code", ""))
+                    # Match to our symbol list
+                    matched_symbol = None
+                    for sym in self.symbols:
+                        broker_code, _ = self.futu_connector.resolve_symbol(sym)
+                        if broker_code == code:
+                            matched_symbol = sym
+                            break
+                    if matched_symbol is None:
+                        continue
+
+                    qty = int(float(row.get("qty", 0)))
+                    side = str(row.get("position_side", "LONG")).upper()
+
+                    if qty == 0:
+                        continue
+
+                    # 2026-04-24 Fix: Skip sync if we just sold this symbol (race condition)
+                    last_sell = self._last_sell_time_by_symbol.get(matched_symbol)
+                    if last_sell is not None:
+                        seconds_since_sell = (datetime.now(timezone.utc) - last_sell).total_seconds()
+                        if seconds_since_sell < 10:  # 10-second cooldown
+                            self.logger.info(
+                                "Position sync [SKIP][%s]: sold %ds ago, using local state=%d",
+                                matched_symbol, int(seconds_since_sell),
+                                self.position_qty_by_symbol.get(matched_symbol, 0)
+                            )
+                            continue
+
+                    if side == "LONG":
+                        self.position_qty_by_symbol[matched_symbol] = max(0, qty)
+                        self.logger.info("Position sync [BROKER][LONG]: %s = %d", matched_symbol, qty)
+                    elif side == "SHORT":
+                        self.short_position_qty_by_symbol[matched_symbol] = max(0, abs(qty))
+                        self.logger.info("Position sync [BROKER][SHORT]: %s = %d", matched_symbol, abs(qty))
+            else:
+                self.logger.warning("Broker returned empty positions DataFrame")
+        except Exception as exc:
+            self.logger.warning("Broker position sync failed: %s — falling back to state.json", exc)
+            # Fallback: try state.json
+            if _os.path.exists(state_file):
                 try:
-                    import json
-                    state = json.load(open(state_file))
+                    with open(state_file, "r") as f:
+                        state = _json.load(f)
                     positions_map = state.get("positions", {})
                     for symbol in self.symbols:
                         for key, qty in positions_map.items():
                             norm = key.replace("US.", "").replace(".HK", "HK")
                             if symbol.replace(".HK", "HK") == norm or symbol == key:
                                 self.position_qty_by_symbol[symbol] = max(0, int(qty))
-                                self.logger.info("Position sync [state.json]: %s = %d", symbol, int(qty))
                                 break
+                    short_positions_map = state.get("short_positions", {})
+                    for symbol in self.symbols:
+                        for key, sqty in short_positions_map.items():
+                            norm = key.replace("US.", "").replace(".HK", "HK")
+                            if symbol.replace(".HK", "HK") == norm or symbol == key:
+                                self.short_position_qty_by_symbol[symbol] = max(0, int(sqty))
+                                break
+                    self.logger.info("Fallback: positions synced from state.json")
                 except Exception:
                     pass
 
-    def _execute(self, symbol: str, side: str, qty: int, price: float, reason: str, indicators: dict | None = None) -> None:
+    def _execute(self, symbol: str, side: str, qty: int, price: float, reason: str, indicators: dict | None = None, prediction: float | None = None) -> None:
         # Guard: 所有副作用（position mutation + 下單）必須喺同一個 auto_trade block 內
         if not self.config.auto_trade:
             return
+
+        # 2026-04-24 Fix: Double-check broker position before placing order
+        if side == "SELL" and not self.config.paper_trading:
+            try:
+                broker_positions = self.futu_connector.get_sync_positions()
+                if not broker_positions.empty and "code" in broker_positions.columns:
+                    broker_code, _ = self.futu_connector.resolve_symbol(symbol)
+                    actual_qty = broker_positions[broker_positions["code"] == broker_code]["qty"].sum()
+                    if actual_qty < qty:
+                        self.logger.warning(
+                            "[PRE_CHECK][%s] Broker qty=%d < requested=%d — skipping",
+                            symbol, actual_qty, qty
+                        )
+                        return
+            except Exception as exc:
+                self.logger.warning("Pre-check position query failed: %s — proceeding with caution", exc)
 
         reference_price = self.futu_connector.get_order_reference_price(symbol, side, fallback_price=price)
         fill_price = reference_price if reference_price > 0 else price
@@ -1149,6 +1445,15 @@ class LiveTradingLoop:
             return
 
         if side == "BUY":
+            # ── Pre-execution guard: Check for existing short position ───────────────
+            short_qty = int(self.short_position_qty_by_symbol.get(symbol, 0) or 0)
+            if short_qty > 0:
+                self.logger.warning(
+                    "[EXEC_BLOCK][%s] BUY blocked: %d short shares outstanding. Cover short first.",
+                    symbol, short_qty,
+                )
+                return
+
             self.position_qty_by_symbol[symbol] += qty
             self.highest_price_since_entry_by_symbol[symbol] = fill_price
             self.entry_price_by_symbol[symbol] = fill_price
@@ -1156,17 +1461,36 @@ class LiveTradingLoop:
             # v2: Store entry RSI for RSI-gated take profit at exit
             if indicators:
                 self.entry_rsi_by_symbol[symbol] = float(indicators.get("RSI_14", 50.0))
-        else:
+        if side == "SELL":
             self.position_qty_by_symbol[symbol] = max(0, self.position_qty_by_symbol[symbol] - qty)
             if self.position_qty_by_symbol[symbol] == 0:
                 self.highest_price_since_entry_by_symbol[symbol] = 0.0
                 self.bars_held_by_symbol[symbol] = 0
                 self.cycles_since_buy_by_symbol[symbol] = 999999
+                # 2026-04-24 Fix: Mark last sell time to prevent immediate re-sync
+                self._last_sell_time_by_symbol[symbol] = datetime.now(timezone.utc)
 
         if self.config.paper_trading:
             self.logger.info("PAPER_ORDER %s %s qty=%d limit=%.4f type=NORMAL", symbol, side, qty, fill_price)
         else:
-            self.futu_connector.place_order(symbol, qty, side, fill_price)
+            try:
+                self.futu_connector.place_order(symbol, qty, side, fill_price)
+            except Exception as exc:
+                self.logger.error("[%s] Order failed: %s — reverting local state", symbol, exc)
+                # Revert local position state on failure
+                if side == "BUY":
+                    self.position_qty_by_symbol[symbol] = max(0, self.position_qty_by_symbol.get(symbol, 0) - qty)
+                else:
+                    self.position_qty_by_symbol[symbol] += qty
+                self._append_decision_trace({
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                    "symbol": symbol,
+                    "action": "ORDER_FAILED_REVERTED",
+                    "side": side,
+                    "qty": qty,
+                    "error": str(exc),
+                })
+                return  # Graceful exit — do not crash
 
         self.logger.info("EXEC %s %s qty=%d fill=%.4f reason=%s", symbol, side, qty, fill_price, reason)
         
@@ -1205,6 +1529,10 @@ class LiveTradingLoop:
             positions = state.setdefault("positions", {})
             positions[code] = int(self.position_qty_by_symbol.get(symbol, 0))
 
+            # ── Also persist SHORT positions ──────────────────────────────────────
+            short_positions = state.setdefault("short_positions", {})
+            short_positions[code] = int(self.short_position_qty_by_symbol.get(symbol, 0))
+
             last_orders = state.setdefault("last_orders", {})
             last_orders[code] = {
                 "time": time.time(),
@@ -1224,6 +1552,7 @@ class LiveTradingLoop:
         """Record a closed position to self_learn DB (called after SELL execution)."""
         sig_id = self._signal_id_by_symbol.get(symbol)
         entry_price = self.entry_price_by_symbol.get(symbol, 0.0)
+        entry_pred_price = self._entry_pred_price_by_symbol.get(symbol, 0.0)
         entry_time = self._entry_time_by_symbol.get(symbol)
         if not sig_id or entry_price <= 0:
             return
@@ -1232,6 +1561,8 @@ class LiveTradingLoop:
         hold_minutes = 0
         if entry_time:
             hold_minutes = int((datetime.now(timezone.utc) - entry_time).total_seconds() / 60)
+        # 2026-04-23: prediction_error = |predicted_price - exit_price| for rolling MAE
+        prediction_error = abs(entry_pred_price - exit_price) if entry_pred_price > 0 else None
         try:
             from self_learn import on_trade_closed
             on_trade_closed(
@@ -1240,11 +1571,13 @@ class LiveTradingLoop:
                 pnl=float(pnl),
                 pnl_pct=float(pnl_pct),
                 hold_minutes=hold_minutes,
+                prediction_error=prediction_error,
             )
         except Exception:
             pass
         finally:
             self._signal_id_by_symbol.pop(symbol, None)
+            self._entry_pred_price_by_symbol.pop(symbol, None)
             self._entry_time_by_symbol.pop(symbol, None)
 
     # ── Strategy v3 Plan B: SHORT position management ──────────────────────────
@@ -1256,6 +1589,7 @@ class LiveTradingLoop:
         price: float,
         reason: str,
         indicators: dict | None = None,
+        prediction: float | None = None,
     ) -> None:
         """Enter a SHORT position: borrow & sell stock, expecting price to drop."""
         if not self.config.auto_trade:
@@ -1312,6 +1646,8 @@ class LiveTradingLoop:
                 size=int(qty),
             )
             self._short_signal_id_by_symbol[symbol] = _sig_id
+            if prediction is not None:
+                self._short_entry_pred_price_by_symbol[symbol] = float(prediction)
             self._short_entry_time_by_symbol[symbol] = datetime.now(timezone.utc)
         except Exception:
             pass
@@ -1375,6 +1711,7 @@ class LiveTradingLoop:
         """
         sig_id = self._short_signal_id_by_symbol.get(symbol)
         entry_price = self.short_entry_price_by_symbol.get(symbol, 0.0)
+        entry_pred_price = self._short_entry_pred_price_by_symbol.get(symbol, 0.0)
         entry_time = self._short_entry_time_by_symbol.get(symbol)
         if not sig_id or entry_price <= 0:
             return
@@ -1384,6 +1721,7 @@ class LiveTradingLoop:
         hold_minutes = 0
         if entry_time:
             hold_minutes = int((datetime.now(timezone.utc) - entry_time).total_seconds() / 60)
+        prediction_error = abs(entry_pred_price - cover_price) if entry_pred_price > 0 else None
         try:
             from self_learn import on_trade_closed
             on_trade_closed(
@@ -1392,11 +1730,13 @@ class LiveTradingLoop:
                 pnl=float(pnl),
                 pnl_pct=float(pnl_pct),
                 hold_minutes=hold_minutes,
+                prediction_error=prediction_error,
             )
         except Exception:
             pass
         finally:
             self._short_signal_id_by_symbol.pop(symbol, None)
+            self._short_entry_pred_price_by_symbol.pop(symbol, None)
             self._short_entry_time_by_symbol.pop(symbol, None)
 
     def _sync_sentiment(self) -> None:

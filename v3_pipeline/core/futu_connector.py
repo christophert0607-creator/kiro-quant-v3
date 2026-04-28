@@ -10,6 +10,8 @@ from typing import Any, Optional
 
 import pandas as pd
 
+from v3_pipeline.core.quote_cache import QuoteCache, CacheConfig
+
 
 def _build_stderr_logger(name: str) -> logging.Logger:
     logger = logging.getLogger(name)
@@ -51,8 +53,11 @@ class FutuConnector:
 
         self.login_account: Optional[int] = None
         self.discovered_accounts: pd.DataFrame = pd.DataFrame()
-        self._quote_cache: dict[str, dict[str, Any]] = {}
-        self._cached_hit_count: dict[str, int] = {}
+
+        # QuoteCache: centralized TTL cache replacing per-call cache dict
+        cache_ttl = float(os.getenv("QUOTE_CACHE_TTL", "30"))
+        self._quote_cache = QuoteCache(config=CacheConfig(ttl_seconds=cache_ttl))
+        self._logger_cache = _build_stderr_logger("QuoteCache")
 
         self.yf_user_agents = [
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
@@ -65,23 +70,28 @@ class FutuConnector:
         self._load_runtime_config(config_json_path)
 
     def _cache_quote(self, symbol: str, quote: dict[str, Any]) -> None:
-        self._quote_cache[symbol] = {"quote": quote, "ts": time.time()}
+        self._quote_cache.set(symbol, quote, provider=quote.get("data_source", "FUTU"))
 
     def _get_cached_quote(self, symbol: str) -> Optional[dict[str, Any]]:
-        cached = self._quote_cache.get(symbol)
-        if not cached:
-            return None
-        self._cached_hit_count[symbol] = self._cached_hit_count.get(symbol, 0) + 1
-        if symbol.upper() in self.elite_symbols and self._cached_hit_count[symbol] >= 3:
-            self.logger.warning("Cache invalidated for elite symbol %s after 3 consecutive cached hits", symbol)
-            self._quote_cache.pop(symbol, None)
-            self._cached_hit_count[symbol] = 0
-            return None
-        return cached.get("quote")
+        q = self._quote_cache.get(symbol)
+        if q is not None:
+            self._logger_cache.info("[FutuConnector cache hit] %s", symbol)
+        return q
 
-    def _normalize_quote(self, close: float, open_p: float, high_p: float, low_p: float, volume: float, source: str) -> dict:
+    def _normalize_quote(self, close: float, open_p: float, high_p: float, low_p: float, volume: float, source: str, timestamp: Optional[str] = None, symbol: str = "") -> dict:
+        # 2026-04-16 Fix: Market-aware localization to avoid 12h EDT/HKT offset error
+        if timestamp:
+            try:
+                # Detect market timezone
+                tz_name = "Asia/Hong_Kong" if symbol.endswith(".HK") else "America/New_York"
+                now_ts = pd.to_datetime(timestamp).tz_localize(tz_name, ambiguous='infer').tz_convert("UTC")
+            except Exception:
+                now_ts = pd.Timestamp.now(tz="UTC")
+        else:
+            now_ts = pd.Timestamp.now(tz="UTC")
+        
         return {
-            "Date": pd.Timestamp.now(),
+            "Date": now_ts,
             "Open": float(open_p),
             "High": float(high_p),
             "Low": float(low_p),
@@ -110,22 +120,41 @@ class FutuConnector:
             return None
 
     def _get_latest_quote_alpha_vantage(self, symbol: str) -> dict:
-        """Alpha Vantage via MCP server (real-time, rate-limited to 5 calls/min)."""
+        """Alpha Vantage via direct HTTP (bypasses MCP server rate limit)."""
         try:
-            from v3_pipeline.data.mcp_av_connector import get_realtime_quote as _av_quote
+            from v3_pipeline.data.alpha_vantage_connector import get_realtime_quote as _av_quote
             q = _av_quote(symbol)
             if q is None:
-                raise RuntimeError(f"MCP AV returned None for {symbol}")
+                raise RuntimeError(f"Direct AV returned None for {symbol}")
             return self._normalize_quote(
                 close=q["Close"],
                 open_p=q["Open"],
                 high_p=q["High"],
                 low_p=q["Low"],
                 volume=q["Volume"],
-                source="AV_MCP",
+                source="AV_DIRECT",
             )
         except Exception as exc:
-            self.logger.warning("[AV MCP] Quote error for %s: %s", symbol, exc)
+            self.logger.warning("[AV DIRECT] Quote error for %s: %s", symbol, exc)
+            raise
+
+    def _get_latest_quote_finnhub(self, symbol: str) -> dict:
+        """Finnhub via direct HTTP (per-symbol quote)."""
+        try:
+            from v3_pipeline.data.finnhub_connector import get_realtime_quote as _fh_quote
+            q = _fh_quote(symbol)
+            if q is None:
+                raise RuntimeError(f"Finnhub returned None for {symbol}")
+            return self._normalize_quote(
+                close=q["Close"],
+                open_p=q["Open"],
+                high_p=q["High"],
+                low_p=q["Low"],
+                volume=q.get("Volume", 0.0) or 0.0,
+                source="FINNHUB",
+            )
+        except Exception as exc:
+            self.logger.warning("[FINNHUB] Quote error for %s: %s", symbol, exc)
             raise
 
     def _get_latest_quote_efinance(self, symbol: str) -> dict:
@@ -205,10 +234,20 @@ class FutuConnector:
                 return
             data = json.loads(p.read_text(encoding="utf-8"))
             futu_section = data.get("futu", {}) if isinstance(data, dict) else {}
+            
+            # Load port/host/env first so they are ready for connect()
+            if "host" in futu_section:
+                self.config.host = str(futu_section["host"])
+            if "port" in futu_section:
+                self.config.port = int(futu_section["port"])
+            if "trd_env" in futu_section:
+                self.config.trd_env = str(futu_section["trd_env"])
+                
             target = futu_section.get("target_acc_id")
-            if target is not None and self.config.target_acc_id is None:
+            if target is not None:
                 self.config.target_acc_id = int(target)
-                self.logger.info("Loaded target_acc_id from config.json: %s", self.config.target_acc_id)
+                self.logger.info("Loaded target_acc_id from config.json: %s (port=%s, host=%s)", 
+                                 self.config.target_acc_id, self.config.port, self.config.host)
         except Exception as exc:
             self.logger.warning("Failed to parse config.json for futu settings: %s", exc)
 
@@ -252,15 +291,34 @@ class FutuConnector:
             self.trade_ctx = old_trade_ctx
             raise
 
-    def connect(self) -> None:
+    def subscribe_symbols(self, symbols: list[str]) -> None:
+        if self.quote_ctx is None or self.ft is None:
+            return
+        
+        # Convert to broker codes
+        codes = [self.resolve_symbol(s)[0] for s in symbols]
+        try:
+            # Subscribe to Quote and OrderBook (optional)
+            ret, data = self.quote_ctx.subscribe(codes, [self.ft.SubType.QUOTE], subscribe_push=False)
+            if ret != self.ft.RET_OK:
+                self.logger.warning(f"Futu subscription failed: {data}")
+            else:
+                self.logger.info(f"Subscribed to {len(codes)} symbols for real-time quotes")
+        except Exception as exc:
+            self.logger.warning(f"Error during Futu subscription: {exc}")
+
+    def connect(self, symbols: Optional[list[str]] = None) -> None:
         # Modes:
-        # - NO_FUTU=1: skip all futu (default YF-only)
-        # - FUTU_TRADE_ONLY=1: connect trade/positions only, keep quotes on YF/efinance
+        # - NO_FUTU=1            : skip ALL futu (行情+交易, YF only)
+        # - NO_FUTU_QUOTE=1      : skip Futu quote context only (行情走Alltick/YF, 交易保留trd_ctx)
+        # - FUTU_TRADE_ONLY=1    : legacy alias for NO_FUTU_QUOTE=1
         no_futu = os.getenv("NO_FUTU", "").strip() == "1"
+        no_futu_quote = os.getenv("NO_FUTU_QUOTE", "").strip() == "1"
         trade_only = os.getenv("FUTU_TRADE_ONLY", "").strip() == "1"
+        skip_quote = no_futu_quote or trade_only
 
         if no_futu and not trade_only:
-            self.logger.info("NO_FUTU=1 — skipping Futu connection, YF-only mode")
+            self.logger.info("NO_FUTU=1 — skipping all Futu, YF-only mode")
             self.ft = None
             self.quote_ctx = None
             self.trade_ctx = None
@@ -274,15 +332,22 @@ class FutuConnector:
             if str(self.config.trd_env).upper() == "REAL" and os.getenv("ALLOW_REAL_TRADING", "").strip() != "1":
                 raise RuntimeError("REAL trading blocked. Set ALLOW_REAL_TRADING=1 to enable.")
 
-            self.quote_ctx = None if trade_only else ft.OpenQuoteContext(host=self.config.host, port=self.config.port)
+            # Quote context: skip entirely when NO_FUTU_QUOTE=1 (行情已全由 Alltick/YF 提供)
+            self.quote_ctx = None if skip_quote else ft.OpenQuoteContext(
+                host=self.config.host, port=self.config.port
+            )
             self.trade_ctx = self._open_trade_context(self.config.market_prefix)
             self.logger.info(
-                "Connected to Futu OpenD at %s:%s (trade_market=%s, trade_only=%s)",
+                "Connected to Futu OpenD at %s:%s (trade_market=%s, quote_ctx=%s)",
                 self.config.host,
                 self.config.port,
                 self.config.market_prefix,
-                trade_only,
+                "DISABLED (NO_FUTU_QUOTE)" if skip_quote else "enabled",
             )
+
+            if self.quote_ctx and symbols:
+                self.subscribe_symbols(symbols)
+
             self.discover_accounts()
         except Exception as exc:
             self._safe_close_contexts()
@@ -388,39 +453,60 @@ class FutuConnector:
         broker_code = f"{market_prefix}.{base_symbol_futu}"
         return broker_code, provider_symbol
 
-    def get_latest_quote(self, symbol: str) -> dict:
+    def get_latest_quote(self, symbol: str, use_cache: bool = True) -> dict:
+        """
+        Fetch latest quote for a symbol, respecting TTL cache.
+
+        Priority: Cache (if fresh) → Futu → AlphaVantage → yfinance → eFinance
+        All successful results are written to the shared QuoteCache (TTL = 30s default).
+        """
+        if use_cache:
+            cached = self._quote_cache.get(symbol)
+            if cached is not None and cached.get("Close", 0) > 0:
+                return cached
+
         code, provider_symbol = self.resolve_symbol(symbol)
         provider_errors: list[str] = []
+        max_retries = 2   # reduced from 3 — cache is now the safety net
 
-        # Retry logic with exponential backoff
-        max_retries = 3
-        # Use Alpha Vantage (av) as primary for Elite US symbols due to better realtime accuracy.
-        # But respect the 5 calls/min rate limit by only using it for Elite list.
         is_elite = symbol.upper() in self.elite_symbols and not symbol.endswith(".HK")
-        
-        if self.quote_ctx is None or self.ft is None:
-            # NO_FUTU mode: AV -> YF -> EF
-            providers = ("av", "yf", "ef") if is_elite else ("yf", "ef")
-        else:
-            # Full mode: AV -> YF -> EF -> FUTU
-            providers = ("av", "yf", "ef", "futu") if is_elite else ("yf", "ef", "futu")
+        is_hk = symbol.endswith(".HK")
 
-        for attempt in range(max_retries):
+        if self.quote_ctx is None or self.ft is None:
+            # NO_FUTU_QUOTE=1 mode: Futu quote context not initialized.
+            # Providers chain for US: yf → av → finnhub → ef
+            providers = ("yf", "av", "fh", "ef") if is_elite else ("yf", "ef")
+        else:
+            # Full mode: provider order differs by market
+            if is_elite:
+                # US stocks (no Futu sub): yf → AV → Finnhub → ef (avoid futu unless you have US entitlement)
+                providers = ("yf", "av", "fh", "ef")
+            else:
+                # HK stocks: futu → AV → yf → ef
+                providers = ("futu", "av", "yf", "ef")
+
+        for attempt in range(1, max_retries + 1):
             for provider in providers:
                 try:
                     if provider == "av":
                         quote = self._get_latest_quote_alpha_vantage(provider_symbol)
                     elif provider == "yf":
                         quote = self._get_latest_quote_yfinance(provider_symbol)
+                    elif provider == "fh":
+                        quote = self._get_latest_quote_finnhub(provider_symbol)
                     elif provider == "ef":
                         quote = self._get_latest_quote_efinance(provider_symbol)
+                    elif self.quote_ctx is None or self.ft is None:
+                        raise RuntimeError("not_connected")
                     else:
-                        if self.quote_ctx is None or self.ft is None:
-                            raise RuntimeError("not_connected")
+                        # Futu provider
                         ret, df = self.quote_ctx.get_stock_quote([code])
-                        if ret != self.ft.RET_OK or df.empty:
+                        if ret != self.ft.RET_OK:
                             raise RuntimeError(f"failed: {df}")
+                        if df.empty:
+                            raise RuntimeError("empty_df")
                         row = df.iloc[0]
+                        ts_val = row.get("data_time") or row.get("update_time")
                         quote = self._normalize_quote(
                             close=float(row.get("last_price", 0.0)),
                             open_p=float(row.get("open_price", row.get("last_price", 0.0))),
@@ -428,23 +514,27 @@ class FutuConnector:
                             low_p=float(row.get("low_price", row.get("last_price", 0.0))),
                             volume=float(row.get("volume", 0.0)),
                             source="FUTU",
+                            timestamp=ts_val,
+                            symbol=symbol,
                         )
 
+                    # Write to shared QuoteCache
                     self._cache_quote(symbol, quote)
-                    self._cached_hit_count[symbol] = 0
                     return quote
+
                 except Exception as exc:
                     provider_errors.append(f"{provider}(att:{attempt})={exc}")
-            
-            if attempt < max_retries - 1:
+
+            if attempt < max_retries:
                 wait_time = 2 ** attempt
-                self.logger.warning(f"Retrying quote fetch for {symbol} in {wait_time}s...")
+                self.logger.warning("Retrying %s (attempt %d/%d) in %.0fs...", symbol, attempt, max_retries, wait_time)
                 time.sleep(wait_time)
 
-        cached_quote = self._get_cached_quote(symbol)
-        if cached_quote is not None:
-            cached_quote = {**cached_quote, "data_source": "CACHED"}
-            return cached_quote
+        # Final fallback: return stale cache if available (better than nothing)
+        stale = self._quote_cache.get(symbol)
+        if stale is not None:
+            self.logger.warning("[%s] All providers failed — returning stale cache (age=%.1fs)", symbol, stale.get("data_source", ""))
+            return stale
 
         raise RuntimeError(f"Quote query failed for {code}. Providers exhausted: {'; '.join(provider_errors)}")
 

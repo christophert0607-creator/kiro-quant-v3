@@ -10,7 +10,7 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-AV_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY", "Q50IO1T42SYDP0M9")
+AV_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY", "Q81E7UZE4J71VEZN")
 AV_RATE_LIMIT = 5  # 5 calls/minute on free tier
 _last_av_call = 0.0
 

@@ -129,11 +129,17 @@ class TechnicalIndicatorGenerator:
         df["MACD_SIGNAL"] = signal
         df["MACD_HIST"] = macd - signal
 
-        mid = close.rolling(20).mean()
+        # mid = close.rolling(20).mean()
+        # std = close.rolling(20).std()
+        # df["BB_UPPER"] = mid + 2 * std
+        # df["BB_MIDDLE"] = mid
+        # df["BB_LOWER"] = mid - 2 * std
+        # bb_range = df["BB_UPPER"] - df["BB_LOWER"]
+        # df["BB_POSITION"] = (close - df["BB_LOWER"]) / bb_range.replace(0, np.nan)
+        df["BB_MIDDLE"] = close.rolling(20).mean()
         std = close.rolling(20).std()
-        df["BB_UPPER"] = mid + 2 * std
-        df["BB_MIDDLE"] = mid
-        df["BB_LOWER"] = mid - 2 * std
+        df["BB_UPPER"] = df["BB_MIDDLE"] + 2 * std
+        df["BB_LOWER"] = df["BB_MIDDLE"] - 2 * std
 
         tr_components = pd.concat(
             [(high - low), (high - close.shift()).abs(), (low - close.shift()).abs()],

@@ -11,9 +11,9 @@ pkill -f "FutuOpenD" || true
 sleep 1
 
 cd "$OPEND_DIR"
-nohup ./FutuOpenD > "$LOG" 2>&1 &
+nohup ./FutuOpenD -api_port=11115 > "$LOG" 2>&1 &
 
 sleep 2
 
 echo "✅ FutuOpenD started"
-ss -tlnp | grep 11112 || true
+ss -tlnp | grep 11115 || true

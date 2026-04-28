@@ -4,11 +4,14 @@
 import asyncio
 import json
 import os
+import time  # 2026-04-24: for cooldown
 import argparse
 import logging
+import pandas as pd
 from dataclasses import replace
-from datetime import datetime, time
+from datetime import datetime, time, timezone
 from pathlib import Path
+from typing import Optional
 from zoneinfo import ZoneInfo
 
 # Load .env manually
@@ -27,6 +30,30 @@ from v3_pipeline.models.manager import DataPreparer, ModelManager
 from v3_pipeline.risk.manager import RiskController
 
 HK_TZ = ZoneInfo("Asia/Hong_Kong")
+_CRASH_COUNT_FILE = Path(__file__).parent / ".crash_count"
+
+
+def _get_crash_count() -> int:
+    try:
+        return int(_CRASH_COUNT_FILE.read_text().strip())
+    except Exception:
+        return 0
+
+
+def _save_crash_count(n: int) -> None:
+    try:
+        _CRASH_COUNT_FILE.write_text(str(n))
+    except Exception:
+        pass
+
+
+def _reset_crash_count() -> None:
+    try:
+        _CRASH_COUNT_FILE.unlink(missing_ok=True)
+    except Exception:
+        pass
+
+
 HK_SYMBOLS = [
     "0700.HK", "9988.HK", "3690.HK", "1024.HK", "2318.HK", "1299.HK", "0939.HK",
     "0005.HK", "0388.HK", "0960.HK", "1109.HK", "0941.HK", "0175.HK", "1810.HK",
@@ -113,16 +140,14 @@ US_SYMBOLS = [
     "WRB", "WSM", "WTW", "WYNN", "XMSR", "XTO", "XYZ", "ZM",
     "ZS",
 ]
-# Top 100 most liquid US stocks for IDLE precompute (focused, fast)
+# Top 30 most liquid US stocks for IDLE precompute (Optimized 2026-04-15)
 TOP_PRECOMPUTE_US = [
     "AAPL","MSFT","GOOGL","AMZN","NVDA","META","TSLA","AMD","AVGO","ORCL",
     "CRM","ADBE","CSCO","ACN","IBM","INTC","QCOM","TXN","AMAT","MU",
     "NFLX","COIN","MSTR","UBER","DASH","SNOW","PANW","CRWD","ZS","NET",
-    "DDOG","OKTA","MDB","PLTR","ARM","HOOD","RBLX","F","TSLL","SMCI",
-    "JPM","BAC","WFC","GS","MS","V","MA","PYPL","COST",
-    "LLY","UNH","JNJ","PFE","ABT","TMO","DHR","ABBV","MRK","AMGN"
+    "QBTS","RGTI"
 ]
-IDLE_COLLECTION_SYMBOLS = HK_SYMBOLS + TOP_PRECOMPUTE_US  # focus on top 50 for now
+IDLE_COLLECTION_SYMBOLS = HK_SYMBOLS + TOP_PRECOMPUTE_US
 
 
 def _read_config(config_path: str = "config.json") -> tuple[dict, Path]:
@@ -149,7 +174,6 @@ def _base_live_config(config_path: str = "config.json") -> LiveConfig:
 
     return LiveConfig(
         symbols_list=v3_live.get("symbols_list", US_SYMBOLS.copy()),
-        # yfinance primary OHLCV is 1m; polling faster than 60s tends to repeat the same candle
         polling_seconds=int(v3_live.get("polling_seconds", 60)),
         prediction_threshold=0.01,
         prediction_thresholds=v3_live.get(
@@ -163,15 +187,23 @@ def _base_live_config(config_path: str = "config.json") -> LiveConfig:
         bucket_by_symbol=bucket_by_symbol,
         bucket_thresholds=bucket_thresholds,
         max_portfolio_positions=int(v3_live.get("max_positions", 8)),
-        # ---- Strategy v3: SHORT Entry gates (Plan B dual-directional) ----
+        min_confidence_threshold=float(v3_live.get("xgb_confidence", 0.10)),  # 2026-04-23: default 0.10
+        rsi_oversold_entry=int(v3_live.get("rsi_oversold", 50)),  # 2026-04-23: default 50
+        rsi_extreme_oversold=int(v3_live.get("rsi_extreme_oversold", 35)),  # 2026-04-23: NEW
+        bb_position_threshold=float(v3_live.get("bb_position_threshold", 0.2)),  # 2026-04-23: NEW
+        vix_dynamic_confidence_enabled=bool(v3_live.get("vix_dynamic_confidence_enabled", True)),  # 2026-04-23: NEW
+        min_hold_minutes=int(v3_live.get("min_hold_minutes", 45)),  # 2026-04-23: default 45
+        time_exit_near_entry_pct=float(v3_live.get("time_exit_near_entry_pct", 0.005)),  # 2026-04-23: default 0.005
+        sentiment_min_entry=float(v3_live.get("sentiment_min_entry", -0.5)),
+        stop_loss=float(v3_live.get("stop_loss_pct", 0.015)),
+        take_profit_normal=float(v3_live.get("quick_take_profit_pct", 0.02)),
         short_enabled=bool(v3_live.get("short_enabled", True)),
         rsi_overbought_entry=int(v3_live.get("rsi_overbought", 70)),
         rsi_deep_overbought=int(v3_live.get("rsi_deep_overbought", 80)),
         macd_negative_required=bool(v3_live.get("macd_negative_required", True)),
         sma_filter_short=bool(v3_live.get("sma_filter_short", True)),
-        short_min_confidence_threshold=float(v3_live.get("short_min_confidence_threshold", 0.20)),
+        short_min_confidence_threshold=float(v3_live.get("short_min_confidence_threshold", 0.10)),  # 2026-04-23: default 0.10
         short_sentiment_max=float(v3_live.get("short_sentiment_max", 0.10)),
-        # ---- Strategy v3: SHORT Exit (Plan B) ----
         short_stop_loss=float(v3_live.get("short_stop_loss", 0.015)),
         short_take_profit=float(v3_live.get("short_take_profit", 0.02)),
         short_trailing_stop_trigger=float(v3_live.get("short_trailing_stop_trigger", 0.015)),
@@ -192,10 +224,18 @@ def _in_range(now_t: time, start: time, end: time) -> bool:
 def resolve_market_mode(now: datetime | None = None) -> str:
     now = now or datetime.now(HK_TZ)
     hk_time = now.timetz().replace(tzinfo=None)
-    if _in_range(hk_time, time(9, 0), time(16, 0)):
+    
+    # Simple and Robust Market detection based on HK Time
+    # HK Market: 09:30 - 12:00, 13:00 - 16:00
+    is_hk_trading = (time(9, 30) <= hk_time <= time(12, 0)) or (time(13, 0) <= hk_time <= time(16, 0))
+    if is_hk_trading:
         return "HK"
-    if _in_range(hk_time, time(21, 30), time(4, 0)):
+        
+    # US Market (approx HKT): 21:30 - 04:00 (next day)
+    is_us_trading = (hk_time >= time(21, 30)) or (hk_time <= time(4, 0))
+    if is_us_trading:
         return "US"
+        
     return "IDLE"
 
 
@@ -203,9 +243,6 @@ def _symbols_for_mode(mode: str) -> list[str]:
     if mode == "HK":
         return HK_SYMBOLS.copy()
     if mode == "US":
-        # US full universe is huge and contains many delisted tickers, which can
-        # cause slow/unstable runs. Default to the smaller liquid universe unless
-        # explicitly overridden.
         us_universe = str(os.getenv("US_UNIVERSE", "top")).strip().lower()
         if us_universe in {"top", "liquid", "small"}:
             return TOP_PRECOMPUTE_US.copy()
@@ -222,7 +259,7 @@ def _write_market_config(mode: str, config_path: str = "config.json") -> None:
     path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def _ensure_symbol_state(loop: LiveTradingLoop, symbol: str) -> None:
+def _ensure_symbol_state(loop: "LiveTradingLoop", symbol: str) -> None:
     import pandas as pd
 
     loop.market_buffers.setdefault(
@@ -243,7 +280,27 @@ def _ensure_symbol_state(loop: LiveTradingLoop, symbol: str) -> None:
     )
 
 
-def _apply_market_mode(loop: LiveTradingLoop, base_cfg: LiveConfig, mode: str, prev_mode: str | None) -> None:
+def _load_market_model(loop: "LiveTradingLoop", mode: str) -> None:
+    """Load the appropriate model for the current market mode."""
+    model_name = "v3_us_stocks"
+    if mode == "HK":
+        model_name = "v3_hk_stocks"
+    
+    try:
+        loop.logger.info("Switching model for market %s: %s", mode, model_name)
+        loop.model_manager.load(model_name)
+    except Exception as exc:
+        loop.logger.warning("Failed to load model %s for market %s: %s", model_name, mode, exc)
+        # Fallback to US model if HK missing
+        if mode == "HK" and model_name != "v3_us_stocks":
+            try:
+                loop.model_manager.load("v3_us_stocks")
+                loop.logger.info("Fallback to v3_us_stocks for HK market")
+            except Exception:
+                pass
+
+
+def _apply_market_mode(loop: "LiveTradingLoop", base_cfg: "LiveConfig", mode: str, prev_mode: str | None) -> None:
     symbols = _symbols_for_mode(mode)
     auto_trade = mode in {"HK", "US"} and base_cfg.auto_trade
     market_prefix = "HK" if mode == "HK" else "US"
@@ -251,14 +308,26 @@ def _apply_market_mode(loop: LiveTradingLoop, base_cfg: LiveConfig, mode: str, p
     loop.config = replace(base_cfg, symbols_list=symbols, auto_trade=auto_trade)
     loop.symbols = symbols
     loop.futu_connector.set_market_prefix(market_prefix)
+    
+    # New: Ensure we are subscribed to the current symbol list for real-time quotes
+    sub_targets = symbols if mode != "IDLE" else IDLE_COLLECTION_SYMBOLS
+    loop.futu_connector.subscribe_symbols(sub_targets)
 
     for symbol in symbols:
         _ensure_symbol_state(loop, symbol)
+
+    if prev_mode != mode:
+        _load_market_model(loop, mode)
 
     if prev_mode is None:
         loop.logger.info("[MARKET_INIT:%s] symbols=%s auto_trade=%s", mode, symbols, auto_trade)
     elif prev_mode != mode:
         loop.logger.info("[MARKET_SWITCH: %s→%s] symbols=%s auto_trade=%s", prev_mode, mode, symbols, auto_trade)
+
+    # 2026-04-15 Fix: Ensure ALL collection symbols have buffers, even in IDLE mode
+    init_targets = symbols if mode != "IDLE" else IDLE_COLLECTION_SYMBOLS
+    for symbol in init_targets:
+        _ensure_symbol_state(loop, symbol)
 
     if mode == "IDLE":
         loop.logger.info(
@@ -268,150 +337,60 @@ def _apply_market_mode(loop: LiveTradingLoop, base_cfg: LiveConfig, mode: str, p
         )
 
 
-async def _collect_only_cycle(loop: LiveTradingLoop, symbols: list[str]) -> None:
-    loop._check_heartbeat()
-    loop._sync_broker_state()
-
-    async def collect(symbol: str) -> None:
-        _ensure_symbol_state(loop, symbol)
+async def _collect_only_cycle(loop: "LiveTradingLoop", symbols: list[str]) -> None:
+    """During IDLE: only fetch latest bars to keep buffers warm, no trades."""
+    loop.logger.info("[IDLE_COLLECT] Syncing %d symbols...", len(symbols))
+    for i in range(0, len(symbols), 20):
+        batch = symbols[i : i + 20]
         try:
-            quote = await asyncio.wait_for(
-                asyncio.to_thread(loop.futu_connector.get_latest_quote, symbol),
-                timeout=loop.config.quote_timeout_seconds,
-            )
-        except TimeoutError:
-            loop.logger.warning("COLLECT_TIMEOUT[%s]: quote fetch exceeded %.1fs", symbol, loop.config.quote_timeout_seconds)
-            return
+            # Batch fetch to save time — use asyncio.to_thread to avoid blocking event loop
+            for sym in batch:
+                quote = await asyncio.to_thread(loop.futu_connector.get_latest_quote, sym)
+                if quote:
+                    loop.market_buffers[sym] = loop._normalize_market_buffer(
+                        pd.concat([loop.market_buffers[sym], pd.DataFrame([quote])])
+                    )
         except Exception as exc:
-            loop.logger.warning("COLLECT_FAIL[%s]: %s", symbol, exc)
-            return
+            loop.logger.warning("Idle collect batch failed: %s", exc)
 
-        import pandas as pd
 
-        buffer_df = pd.concat([loop.market_buffers[symbol], pd.DataFrame([quote])], ignore_index=True)
-        buffer_df = loop._normalize_market_buffer(buffer_df)
-        # Don't regenerate indicators on every quote (wasteful) — just ffill NaN
-        buffer_df = buffer_df.ffill().bfill()
-        loop.market_buffers[symbol] = buffer_df
-        loop.logger.info(
-            "COLLECT_ONLY[%s] size=%d source=%s",
-            symbol,
-            len(loop.market_buffers[symbol]),
-            quote.get("data_source", "UNKNOWN"),
-        )
-
-    await asyncio.gather(*(collect(symbol) for symbol in symbols))
-
-    # ── One-time history priming during IDLE ───────────────────────────────────
-    # Fill market_buffers with enough historical bars for the screener to work
-    if not getattr(loop, "_idle_primed", False):
+def _idle_precompute(loop: "LiveTradingLoop", symbols: list[str]) -> None:
+    """During HK session: pre-compute predictions for liquid US stocks."""
+    loop.logger.info("[IDLE_PRECOMPUTE] Scoring %d US candidates...", len(symbols))
+    for sym in symbols:
         try:
-            loop.logger.info("[IDLE_PRIMER] Priming %d symbols with history...", len(symbols))
-            primed = await loop.history_primer.prime_symbols(symbols)
-            for symbol, df in primed.items():
-                if df is not None and not df.empty:
-                    buf = loop._normalize_market_buffer(df)
-                    # Generate technical indicators for screener to use
-                    feat = loop.feature_generator.generate(buf)
-                    buf = feat.ffill().bfill()
-                    loop.market_buffers[symbol] = buf
-            loop.logger.info("[IDLE_PRIMER] Primed %d symbols (with indicators)", len(primed))
-            loop._idle_primed = True
-        except Exception as exc:
-            loop.logger.warning("[IDLE_PRIMER] Failed: %s", exc)
-
-    # ── Idle-time pre-screening: score ALL symbols, predict top candidates ─────
-    # This runs every cycle during IDLE to keep signals warm for next market open
-    if os.getenv("IDLE_PRECOMPUTE", "1") == "1":
-        _idle_precompute(loop, symbols)
-
-
-def _idle_precompute(loop: LiveTradingLoop, symbols: list[str]) -> None:
-    """During IDLE: score all symbols and pre-compute predictions for top-N candidates."""
-    try:
-        from v3_pipeline.features.screener import ScreenConfig, score_symbols
-        cfg = ScreenConfig.from_env()
-
-        # Score all symbols (exclude HK - lot size issues make them untradeable)
-        tradeable_symbols = [s for s in symbols if not s.endswith('.HK')]
-        ranked = score_symbols(loop.market_buffers, {}, {s: 0.0 for s in tradeable_symbols}, cfg)
-        if not ranked:
-            # Debug: check buffer columns and RSI values
-            sample_buf = next((v for v in loop.market_buffers.values() if v is not None and not v.empty), None)
-            if sample_buf is not None:
-                cols = list(sample_buf.columns)
-                rsi_col = 'RSI_14' if 'RSI_14' in cols else ('rsi_14' if 'rsi_14' in cols else 'NOT FOUND')
-                _rsi_raw = sample_buf.iloc[-1].get('RSI_14', sample_buf.iloc[-1].get('rsi_14', 50.0))
-                if isinstance(_rsi_raw, str) and _rsi_raw.upper() in ('N/A', 'NAN', '', 'NONE'):
-                    latest_rsi = 50.0
-                else:
-                    try:
-                        latest_rsi = float(_rsi_raw)
-                    except (TypeError, ValueError):
-                        latest_rsi = 50.0
-                loop.logger.info("[IDLE_PRECOMPUTE] Debug: ranked=[] cols=%s rsi_col=%s rsi_val=%s", cols[:15], rsi_col, latest_rsi)
-        top_candidates = [sym for sym, _ in ranked[:100]]  # pre-compute top 100
-
-        # Pre-compute predictions for top candidates (skip if already cached recently)
-        now_ts = __import__('time').time()
-        cached = getattr(loop, "_idle_pred_cache", {})
-        fresh = {k: v for k, v in cached.items() if now_ts - v["ts"] < 300}  # < 5 min = fresh
-        stale = [s for s in top_candidates if s not in fresh]
-
-        if stale:
-            loop.logger.info("[IDLE_PRECOMPUTE] Scoring %d stale symbols (cached: %d)", len(stale), len(fresh))
-            for symbol in stale[:30]:  # max 30 per cycle to avoid timeouts
-                try:
-                    import pandas as pd
-                    buf = loop.market_buffers.get(symbol)
-                    if buf is None or len(buf) < 60:
-                        continue
-                    lookback = int(loop.model_manager.data_preparer.lookback)
-                    if len(buf) < lookback:
-                        continue
-
-                    # Buffers already have indicators (generated during priming)
-                    featured = buf.ffill().bfill().dropna().reset_index(drop=True)
-                    if len(featured) <= lookback:
-                        continue
-
-                    wfa_frame = loop.alpha_engine.select_features(symbol, featured)
-                    preparer = loop.data_preparers_by_symbol.get(symbol)
-                    if preparer is None:
-                        continue
-
-                    current_price = float(wfa_frame.iloc[-1]["Close"])
-                    prediction = float(loop.model_manager.predict(wfa_frame, data_preparer=preparer))
-                    confidence = min(1.0, abs(prediction - current_price) / max(current_price, 1e-9))
-                    fresh[symbol] = {"pred": prediction, "conf": confidence, "ts": now_ts}
-                    loop.logger.info("[IDLE_PRECOMPUTE][%s] pred=%.4f conf=%.4f", symbol, prediction, confidence)
-                except Exception as exc:
-                    loop.logger.debug("[IDLE_PRECOMPUTE] %s failed: %s", symbol, exc)
-
-        loop._idle_pred_cache = fresh
-        loop.logger.info("[IDLE_PRECOMPUTE] Cache size: %d symbols | top: %s", len(fresh), list(fresh.keys())[:5])
-    except Exception as exc:
-        loop.logger.warning("[IDLE_PRECOMPUTE] Failed: %s", exc)
+            df = loop.market_buffers.get(sym)
+            if df is None or len(df) < 60:
+                continue
+            
+            # 2026-04-15 Fix: Must pass local data_preparer to avoid global scaling bias
+            local_preparer = loop.data_preparers_by_symbol.get(sym)
+            if local_preparer:
+                # Predict and log results for pre-market screening
+                pred = loop.model_manager.predict(df, data_preparer=local_preparer)
+                loop.logger.info("[PRECOMPUTE] symbol=%s pred=%.4f", sym, pred)
+            else:
+                # Fallback to global if local context missing (rare)
+                pred = loop.model_manager.predict(df)
+                loop.logger.info("[PRECOMPUTE_GLOBAL] symbol=%s pred=%.4f", sym, pred)
+        except Exception:
+            pass
 
 
 def _enable_dry_run_log_prefix() -> None:
     """Prefix all log records with [DRY-RUN] for this process."""
-    old_factory = logging.getLogRecordFactory()
-
-    def record_factory(*args, **kwargs):  # type: ignore[no-untyped-def]
-        record = old_factory(*args, **kwargs)
-        try:
-            if isinstance(record.msg, str) and not record.msg.startswith("[DRY-RUN]"):
-                record.msg = "[DRY-RUN] " + record.msg
-        except Exception:
-            pass
-        return record
-
-    logging.setLogRecordFactory(record_factory)
+    class DryRunFilter(logging.Filter):
+        def filter(self, record):
+            record.msg = f"[DRY-RUN] {record.msg}"
+            return True
+    
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers:
+        handler.addFilter(DryRunFilter())
 
 
 async def _run_market_aware(
-    loop: LiveTradingLoop,
+    loop: "LiveTradingLoop",
     config_path: str = "config.json",
     *,
     once: bool = False,
@@ -436,16 +415,27 @@ async def _run_market_aware(
                     if not df.empty:
                         loop.market_buffers[symbol] = loop._normalize_market_buffer(df)
                 loop.logger.info("History priming completed for %d symbols in %s mode", len(loop.symbols), mode)
+            
+            # Execute primary trading cycle (HK/US active)
             await loop.run_one_cycle()
-            # Also pre-compute US signals during HK hours for warm signals at US open
+            
+            # Non-blocking background precompute for US stocks during HK session
+            # 2026-04-15 Fix: Only precompute every 3 cycles to save CPU
             if mode == "HK":
-                # Prime US stock buffers asynchronously (needed for scoring)
-                us_primed = await loop.history_primer.prime_symbols(TOP_PRECOMPUTE_US)
-                for sym, df in us_primed.items():
-                    if not df.empty:
-                        loop.market_buffers[sym] = loop._normalize_market_buffer(df)
-                loop.logger.info("[HK_BG] Primed %d US symbols for precompute", len(us_primed))
-                _idle_precompute(loop, [s for s in TOP_PRECOMPUTE_US if not s.endswith('.HK')])
+                cycle_count = getattr(loop, "_precompute_cycle_count", 0)
+                setattr(loop, "_precompute_cycle_count", cycle_count + 1)
+                
+                if cycle_count % 3 == 0:
+                    # Only prime once per session to save bandwidth
+                    if prev_mode != mode:
+                        us_primed = await loop.history_primer.prime_symbols(TOP_PRECOMPUTE_US)
+                        for sym, df in us_primed.items():
+                            if not df.empty:
+                                loop.market_buffers[sym] = loop._normalize_market_buffer(df)
+                        loop.logger.info("[HK_BG] Primed %d US symbols for precompute", len(us_primed))
+                    
+                    # Move synchronous precompute to a background thread to avoid blocking loop
+                    asyncio.create_task(asyncio.to_thread(_idle_precompute, loop, [s for s in TOP_PRECOMPUTE_US if not s.endswith('.HK')]))
         else:
             await _collect_only_cycle(loop, IDLE_COLLECTION_SYMBOLS)
 
@@ -466,17 +456,12 @@ def run_kiro_v35(*, dry_run: bool = False, once: bool = False, config_path: str 
     if disable_trade:
         live_cfg = replace(live_cfg, auto_trade=False)
 
-    preparer = DataPreparer(lookback=60, target_col="Close")  # Must match training lookback
-    model = KiroLSTM(input_dim=24, hidden_dim=64, num_layers=2, dropout=0.2, output_dim=1)
+    preparer = DataPreparer(lookback=60, target_col="Close")
+    # Read input_dim from config, default 26 (US model feature count)
+    cfg, _ = _read_config(config_path)
+    model_input_dim = int(cfg.get("model", {}).get("input_dim", 26))
+    model = KiroLSTM(input_dim=model_input_dim, hidden_dim=64, num_layers=2, dropout=0.2, output_dim=1)
     manager = ModelManager(model=model, data_preparer=preparer)
-
-    # Load trained model if available
-    import sys as _sys
-    try:
-        manager.load("v3_us_stocks")
-        print("Loaded trained model: v3_us_stocks", file=_sys.stderr)
-    except Exception as exc:
-        print(f"WARNING: No trained model found (using random weights): {exc}", file=_sys.stderr)
 
     loop = LiveTradingLoop(
         model_manager=manager,
@@ -485,33 +470,89 @@ def run_kiro_v35(*, dry_run: bool = False, once: bool = False, config_path: str 
         config=live_cfg,
     )
 
+    now = datetime.now(HK_TZ)
+    initial_mode = resolve_market_mode(now)
+    _load_market_model(loop, initial_mode)
+
     if dry_run:
         _enable_dry_run_log_prefix()
 
-    loop.futu_connector.connect()
-    try:
-        asyncio.run(_run_market_aware(loop, config_path, once=once, disable_trade=disable_trade))
-    finally:
-        loop._archive_market_data()
-        loop.futu_connector.close()
+    loop.futu_connector.connect(symbols=loop.config.symbols_list)
+    _reset_crash_count()  # Reset crash counter on clean startup
+    
+    # 2026-04-24 Fix: Graceful crash recovery with cooldown
+    max_crashes = 5
+    cooldown_seconds = 30
+    
+    for attempt in range(1, max_crashes + 1):
+        try:
+            asyncio.run(_run_market_aware(loop, config_path, once=once, disable_trade=disable_trade))
+            break  # Normal exit (e.g. once=True)
+        except Exception as exc:
+            crash_count = _get_crash_count() + 1
+            _save_crash_count(crash_count)
+            
+            # Check if this is a non-fatal order error
+            error_str = str(exc).lower()
+            is_non_fatal = any(keyword in error_str for keyword in [
+                "持仓不足", "insufficient position", "position not enough",
+                "order placement failed", "quantity exceeds"
+            ])
+            
+            if is_non_fatal:
+                loop.logger.warning("Non-fatal order error (attempt %d/%d): %s — cooling down %ds", 
+                                    attempt, max_crashes, exc, cooldown_seconds)
+            else:
+                loop.logger.error("V3 crash (count=%d, attempt %d/%d): %s", 
+                                  crash_count, attempt, max_crashes, exc)
+            
+            # Reconnect Futu contexts
+            try:
+                loop.futu_connector.close()
+                time.sleep(cooldown_seconds)
+                loop.futu_connector.connect(symbols=loop.config.symbols_list)
+                loop.logger.info("Reconnected after cooldown, resuming...")
+            except Exception as reconnect_err:
+                loop.logger.error("Reconnection failed: %s — aborting", reconnect_err)
+                raise
+            
+            # Only escalate after max crashes
+            if attempt >= max_crashes:
+                try:
+                    import urllib.request
+                    import json as _json
+                    gateway_port = os.getenv("OPENCLAW_GATEWAY_PORT", "18989")
+                    gateway_host = os.getenv("OPENCLAW_GATEWAY_HOST", "127.0.0.1")
+                    url = f"http://{gateway_host}:{gateway_port}/api/v1/agent/main/invoke"
+                    payload = _json.dumps({
+                        "message": (
+                            f"🚨 V3 CRASH ALERT 🚨\n"
+                            f"V3 has crashed {crash_count} times — AUTO-ESCALATING to MAIN AGENT\n"
+                            f"Error: {exc}\n"
+                            f"Time: {datetime.now(HK_TZ).isoformat()}"
+                        )
+                    }).encode()
+                    req = urllib.request.Request(
+                        url, data=payload, headers={"Content-Type": "application/json"}
+                    )
+                    urllib.request.urlopen(req, timeout=10)
+                except Exception as notify_err:
+                    loop.logger.warning("Main agent alert via Gateway API failed: %s", notify_err)
+                    loop._notify(
+                        f"🚨 V3 CRASH ALERT 🚨 (agent alert failed: {notify_err})\n"
+                        f"Crash count: {crash_count} | Error: {exc}"
+                    )
+                raise
+    
+    # Cleanup on normal exit or after max attempts
+    loop._archive_market_data()
+    loop.futu_connector.close()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Kiro V3 live launcher")
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Start engine but never place orders. Prefix logs with [DRY-RUN].",
-    )
-    parser.add_argument(
-        "--once",
-        action="store_true",
-        help="Run exactly one polling cycle (fetch→predict→decision log→NO trade) then exit 0.",
-    )
-    parser.add_argument(
-        "--config",
-        default="config.json",
-        help="Path to config.json (default: config.json)",
-    )
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--once", action="store_true")
+    parser.add_argument("--config", default="config.json")
     args = parser.parse_args()
     run_kiro_v35(dry_run=args.dry_run, once=args.once, config_path=args.config)

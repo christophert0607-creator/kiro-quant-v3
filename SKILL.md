@@ -1,6 +1,6 @@
 ---
-name: GPU Training Expansion (Issue 25)
-description: Workflow and setup guide for the RTX 3060 long-term training pipeline.
+name: Kiro Quant V3 — Training & Monitoring
+description: GPU training pipeline and production monitoring guide for KiroQuant V3.
 ---
 
 # GPU Training Expansion
@@ -29,3 +29,35 @@ This skill outlines how to expand data, utilize GPU optimizations effectively, a
 - Force Single Trainer Run: `python trainer_v4_2_gpu.py --epochs 20`
 - See tmux sessions: `tmux ls`
 - Kill session (Hard stop): `tmux kill-session -t quant_pretrain`
+
+---
+
+# Production Monitoring & Self-Heal
+
+## 5. Decision Trace Collection
+- **Status**: ✅ Active (US SIM mode)
+- **Location**: `learning/us_sim/decision_trace_us_sim.jsonl`
+- **Frequency**: Every trading cycle
+- **Also**: `learning/us_sim/account_snap_us_sim.jsonl` — 5-minute account snapshots
+
+## 6. Cron Health Monitoring
+
+| Job | Schedule | Checks | Model |
+|-----|----------|--------|-------|
+| `selfheal-detect` | every 4h | Cron failures → issue insertion + `oa collect` | antigravity/gemini-3-flash |
+| `selfheal-fix` | 02/08/14/20h | Auto-fix detected issues | antigravity/gemini-3-flash |
+| `health-check (quant)` | every 15m | V3 engine alive + restart if dead | antigravity/gemini-3-flash |
+| `system-daily-health-check` | daily 09:00 HKT | OpenClaw status + daily check | antigravity/gemini-3-flash |
+| `kiro-quant graphify rebuild` | daily 05:00 HKT | Codebase graph update | antigravity/gemini-3-flash |
+| `Kiro Quant Daily Research` | daily 23:00 HKT | Research + Wiki ingest | antigravity/gemini-3-flash |
+
+## 7. Alert Destination
+All cron reports → Telegram `625655860`
+
+## 8. V3 Auto-Restart
+`V3 Heartbeat - Monitor & Restart if Dead` cron checks:
+```bash
+ps aux | grep 'v3_launcher\|python.*quant_v2' | grep -v grep
+```
+If process dead → restart via `nohup python3 v3_launcher.py`
+If restart fails → Telegram alert "🔴 V3 重啟失敗，需手動介入"
