@@ -994,16 +994,18 @@ class LiveTradingLoop:
         # ── Guard: Cannot BUY if short position exists ─────────────────────
         short_qty = int(self.short_position_qty_by_symbol.get(symbol, 0) or 0)
         if short_qty > 0:
-            self.logger.warning(
-                "[LONG_BLOCK][%s] Cannot BUY: %d short shares outstanding. Short cover required first.",
+            self.logger.info(
+                "[FLIP_DETECTED][%s] Short position exists (%d). Triggering automatic cover before BUY.",
                 symbol, short_qty,
             )
+            # Trigger short exit to clear the way for a LONG position
+            self._execute_short_exit(symbol, short_qty, current_price, "AUTO_FLIP_FOR_LONG")
             self._append_decision_trace({
                 **trace_base,
-                "action": "BUY_BLOCKED_SHORT_EXISTS",
+                "action": "AUTO_COVER_FOR_LONG",
                 "short_qty": short_qty,
             })
-            return
+            return # Wait for next cycle to confirm cover and enter LONG
 
         if allow_long and prediction > threshold_up and qty == 0:
             returns = self.market_buffers[symbol]["Close"].pct_change().dropna()

@@ -2,14 +2,47 @@
   "auto_trade": true,
   "paper_trading": false,
   "v3_live": {
-    "symbols_list": [],
+    "symbols_list": [
+      "AAPL",
+      "MSFT",
+      "GOOGL",
+      "AMZN",
+      "NVDA",
+      "META",
+      "TSLA",
+      "AMD",
+      "AVGO",
+      "ORCL",
+      "CRM",
+      "ADBE",
+      "CSCO",
+      "ACN",
+      "IBM",
+      "INTC",
+      "QCOM",
+      "TXN",
+      "AMAT",
+      "MU",
+      "NFLX",
+      "COIN",
+      "MSTR",
+      "UBER",
+      "DASH",
+      "SNOW",
+      "PANW",
+      "CRWD",
+      "ZS",
+      "NET",
+      "QBTS",
+      "RGTI"
+    ],
     "prediction_thresholds": {
-      "0700.HK": 0.00254,
-      "9988.HK": 0.00254,
-      "3690.HK": 0.00254
+      "0700.HK": 0.01,
+      "9988.HK": 0.01,
+      "3690.HK": 0.01
     },
-    "buy_cooldown_cycles": 0,
-    "swing_buy_confirmation_count": 1,
+    "buy_cooldown_cycles": 5,
+    "swing_buy_confirmation_count": 3,
     "swing_block_on_model_sell": false,
     "polling_seconds": 60,
     "auto_trade": true,
@@ -19,8 +52,8 @@
     "max_hold_bars": 30,
     "max_positions": 15,
     "market_mode": "AUTO",
-    "rsi_oversold": 43.0,
-    "rsi_overbought": 82,
+    "rsi_oversold": 35,
+    "rsi_overbought": 72.1,
     "macd_signal": 0.005,
     "xgb_confidence": 0.1,
     "min_hold_minutes": 45,
@@ -34,7 +67,7 @@
         "mid": 0.3,
         "short": 0.1,
         "reserve": 0.1,
-        "avoid": 0.0
+        "avoid": 0
       },
       "thresholds": {
         "long": 0.002,
@@ -53,7 +86,7 @@
     "short_stop_loss": 0.015,
     "short_take_profit": 0.02,
     "short_trailing_stop_trigger": 0.015,
-    "short_trailing_stop_lock": 0.0
+    "short_trailing_stop_lock": 0
   },
   "futu": {
     "target_acc_id": 18526451,
@@ -61,7 +94,7 @@
     "port": 11112,
     "trd_env": "SIMULATE"
   },
-  "posture": "risk_on",
-  "posture_timestamp": "2026-04-29T16:32:03.917958",
-  "posture_rationale": "Risk-on: 2800.HK (0.0023) & 3033.HK (0.0029) momentum > 0"
+  "posture": "risk_off",
+  "posture_timestamp": "2026-05-01T08:32:51.584818Z",
+  "posture_rationale": "2800.HK momentum: -0.0015, 3033.HK momentum: -0.0013. Result: risk_off"
 }

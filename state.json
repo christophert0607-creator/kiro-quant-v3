@@ -1,16 +1,29 @@
 {
-  "date": "2026-04-28",
-  "daily_trades": 9,
+  "date": "2026-05-02",
+  "daily_trades": 121,
   "positions": {
     "US.MSFT": 0,
-    "US.AAPL": 7,
+    "US.AAPL": 0,
     "US.TSLA": 0,
     "US.CRM": 0,
-    "US.META": 0,
+    "US.META": 3,
     "US.SNOW": 0,
     "US.QCOM": 0,
     "US.UBER": 0,
-    "US.RGTI": 0
+    "US.RGTI": 0,
+    "US.NVDA": 9,
+    "US.AMAT": 0,
+    "US.ORCL": 0,
+    "US.CRWD": 0,
+    "US.QBTS": 0,
+    "US.NET": 0,
+    "US.ZS": 0,
+    "US.IBM": 0,
+    "US.ADBE": 0,
+    "US.AMZN": 0,
+    "US.ACN": 0,
+    "US.DASH": 0,
+    "US.PANW": 0
   },
   "short_positions": {
     "US.MSFT": 0,
@@ -21,50 +34,63 @@
     "US.SNOW": 0,
     "US.QCOM": 0,
     "US.UBER": 0,
-    "US.RGTI": 0
+    "US.RGTI": 0,
+    "US.NVDA": 0,
+    "US.AMAT": 0,
+    "US.ORCL": 0,
+    "US.CRWD": 0,
+    "US.QBTS": 0,
+    "US.NET": 0,
+    "US.ZS": 0,
+    "US.IBM": 0,
+    "US.ADBE": 0,
+    "US.AMZN": 0,
+    "US.ACN": 0,
+    "US.DASH": 0,
+    "US.PANW": 0
   },
   "last_orders": {
     "US.MSFT": {
-      "time": 1777383004.7366307,
+      "time": 1777733442.8583887,
       "signal": "SELL",
       "qty": 4,
-      "price": 423.51,
+      "price": 414.44,
       "reason": "model_signal_confirmed"
     },
     "US.AAPL": {
-      "time": 1777383004.9122107,
-      "signal": "BUY",
+      "time": 1777558176.9909322,
+      "signal": "SELL",
       "qty": 7,
-      "price": 272.57,
-      "reason": "model_signal_conf=0.425"
+      "price": 271.30999755859375,
+      "reason": "model_signal_confirmed"
     },
     "US.TSLA": {
-      "time": 1777383005.3612926,
+      "time": 1777561867.2320397,
       "signal": "SELL",
-      "qty": 5,
-      "price": 378.6700134277344,
+      "qty": 15,
+      "price": 377.3450927734375,
       "reason": "model_signal_confirmed"
     },
     "US.CRM": {
-      "time": 1777383005.8532355,
+      "time": 1777561508.2726805,
       "signal": "SELL",
       "qty": 11,
-      "price": 180.18,
-      "reason": "model_signal_confirmed"
+      "price": 176.74000549316406,
+      "reason": "time_exit_v2"
     },
     "US.META": {
-      "time": 1777383006.086071,
-      "signal": "SELL",
+      "time": 1777578474.5359504,
+      "signal": "BUY",
       "qty": 3,
-      "price": 674.395,
-      "reason": "model_signal_confirmed"
+      "price": 616.3300170898438,
+      "reason": "model_signal_conf=0.754"
     },
     "US.SNOW": {
-      "time": 1777383006.5489674,
+      "time": 1777561509.7199404,
       "signal": "SELL",
-      "qty": 13,
-      "price": 144.25,
-      "reason": "model_signal_confirmed"
+      "qty": 14,
+      "price": 136.74000549316406,
+      "reason": "time_exit_v2"
     },
     "US.QCOM": {
       "time": 1777383007.0227046,
@@ -85,6 +111,97 @@
       "signal": "SELL",
       "qty": 113,
       "price": 16.4,
+      "reason": "model_signal_confirmed"
+    },
+    "US.NVDA": {
+      "time": 1777576850.7574012,
+      "signal": "BUY",
+      "qty": 9,
+      "price": 201.05999755859375,
+      "reason": "model_signal_conf=0.236"
+    },
+    "US.AMAT": {
+      "time": 1777561509.3745131,
+      "signal": "SELL",
+      "qty": 5,
+      "price": 389.80999755859375,
+      "reason": "time_exit_v2"
+    },
+    "US.ORCL": {
+      "time": 1777733442.5670047,
+      "signal": "SELL",
+      "qty": 12,
+      "price": 171.83,
+      "reason": "model_signal_confirmed"
+    },
+    "US.CRWD": {
+      "time": 1777561508.8142729,
+      "signal": "SELL",
+      "qty": 4,
+      "price": 446.20001220703125,
+      "reason": "time_exit_v2"
+    },
+    "US.QBTS": {
+      "time": 1777558180.2764745,
+      "signal": "SELL",
+      "qty": 97,
+      "price": 18.920000076293945,
+      "reason": "model_signal_confirmed"
+    },
+    "US.NET": {
+      "time": 1777561868.0758493,
+      "signal": "SELL",
+      "qty": 18,
+      "price": 205.65499877929688,
+      "reason": "model_signal_confirmed"
+    },
+    "US.ZS": {
+      "time": 1777561868.2178187,
+      "signal": "SELL",
+      "qty": 30,
+      "price": 131.60000610351562,
+      "reason": "model_signal_confirmed"
+    },
+    "US.IBM": {
+      "time": 1777561868.3605623,
+      "signal": "SELL",
+      "qty": 8,
+      "price": 228.97999572753906,
+      "reason": "model_signal_confirmed"
+    },
+    "US.ADBE": {
+      "time": 1777561869.1149538,
+      "signal": "SELL",
+      "qty": 8,
+      "price": 242.4199981689453,
+      "reason": "model_signal_confirmed"
+    },
+    "US.AMZN": {
+      "time": 1777733443.4444432,
+      "signal": "SELL",
+      "qty": 21,
+      "price": 268.26,
+      "reason": "model_signal_confirmed"
+    },
+    "US.ACN": {
+      "time": 1777563322.64667,
+      "signal": "SELL",
+      "qty": 11,
+      "price": 177.84620666503906,
+      "reason": "model_signal_confirmed"
+    },
+    "US.DASH": {
+      "time": 1777563324.1150303,
+      "signal": "SELL",
+      "qty": 11,
+      "price": 170.03250122070312,
+      "reason": "model_signal_confirmed"
+    },
+    "US.PANW": {
+      "time": 1777563470.8428574,
+      "signal": "SELL",
+      "qty": 11,
+      "price": 177.5,
       "reason": "model_signal_confirmed"
     }
   }

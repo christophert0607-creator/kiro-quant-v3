@@ -9,7 +9,7 @@ import argparse
 import logging
 import pandas as pd
 from dataclasses import replace
-from datetime import datetime, time, timezone
+from datetime import datetime, time as dt_time, timezone
 from pathlib import Path
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -215,7 +215,7 @@ def build_live_config(config_path: str = "config.json") -> LiveConfig:
     return _base_live_config(config_path)
 
 
-def _in_range(now_t: time, start: time, end: time) -> bool:
+def _in_range(now_t: dt_time, start: dt_time, end: dt_time) -> bool:
     if start <= end:
         return start <= now_t <= end
     return now_t >= start or now_t <= end
@@ -227,12 +227,12 @@ def resolve_market_mode(now: datetime | None = None) -> str:
     
     # Simple and Robust Market detection based on HK Time
     # HK Market: 09:30 - 12:00, 13:00 - 16:00
-    is_hk_trading = (time(9, 30) <= hk_time <= time(12, 0)) or (time(13, 0) <= hk_time <= time(16, 0))
+    is_hk_trading = (dt_time(9, 30) <= hk_time <= dt_time(12, 0)) or (dt_time(13, 0) <= hk_time <= dt_time(16, 0))
     if is_hk_trading:
         return "HK"
         
     # US Market (approx HKT): 21:30 - 04:00 (next day)
-    is_us_trading = (hk_time >= time(21, 30)) or (hk_time <= time(4, 0))
+    is_us_trading = (hk_time >= dt_time(21, 30)) or (hk_time <= dt_time(4, 0))
     if is_us_trading:
         return "US"
         
