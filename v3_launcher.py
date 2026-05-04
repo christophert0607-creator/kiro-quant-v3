@@ -144,7 +144,7 @@ def resolve_runtime_profile(config_path: str = "config.json", override: Optional
     return RUNTIME_PROFILES["lite"]
 
 
-def run_kiro_v35(config_path: str = "config.json", profile_override: Optional[str] = None, dry_run: bool = False) -> None:
+def run_kiro_v36(config_path: str = "config.json", profile_override: Optional[str] = None, dry_run: bool = False) -> None:
     live_cfg_data = build_live_config(config_path)
     profile = resolve_runtime_profile(config_path=config_path, override=profile_override)
 
@@ -201,4 +201,4 @@ if __name__ == "__main__":
     parser.add_argument("--profile", choices=sorted(RUNTIME_PROFILES.keys()), help="Runtime profile override")
     parser.add_argument("--dry-run", action="store_true", help="Print resolved runtime and exit")
     args = parser.parse_args()
-    run_kiro_v35(config_path=args.config, profile_override=args.profile, dry_run=args.dry_run)
+    run_kiro_v36(config_path=args.config, profile_override=args.profile, dry_run=args.dry_run)

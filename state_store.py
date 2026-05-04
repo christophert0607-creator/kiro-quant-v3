@@ -9,6 +9,7 @@ Quant Engine v2 - State Store
 """
 
 import json
+import os
 import time
 import logging
 import hashlib
@@ -91,7 +92,6 @@ def save(state: dict):
     tmp_path = f"{STATE_PATH}.tmp"
     with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump(state, f, indent=2, ensure_ascii=False)
-    import os
     os.replace(tmp_path, STATE_PATH)
 
 
