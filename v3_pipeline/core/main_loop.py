@@ -127,6 +127,15 @@ class LiveConfig:
 
 
 class LiveTradingLoop:
+    @property
+    def telegram(self):
+        class TelegramProxy:
+            def __init__(self, loop):
+                self.loop = loop
+            async def send_message(self, text):
+                from notifier import send_tg_msg
+                await asyncio.to_thread(send_tg_msg, text)
+        return TelegramProxy(self)
     def __init__(
         self,
         model_manager: ModelManager,
@@ -142,7 +151,23 @@ class LiveTradingLoop:
         self.config = config or LiveConfig()
         self.logger = _build_stderr_logger(self.__class__.__name__)
 
-        self.symbols = self.config.symbols_list or [self.config.symbol]
+        # [V3-Dynamic-Screener] Priority: dynamic_watchlist.json
+        watchlist_path = Path("dynamic_watchlist.json")
+        symbols = []
+        if watchlist_path.exists():
+            try:
+                import json
+                with open(watchlist_path, "r") as f:
+                    wdata = json.load(f)
+                    if wdata.get("picks"):
+                        symbols = wdata["picks"]
+                        self.logger.info("[SCREENER] Today's top picks: %s", symbols)
+            except Exception as e:
+                self.logger.warning("Failed to load dynamic watchlist: %s", e)
+        
+        if not symbols:
+            self.symbols = self.config.symbols_list or [self.config.symbol]
+        self.symbols = symbols
         self.market_buffers: dict[str, pd.DataFrame] = {
             s: pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume", "data_source"]) for s in self.symbols
         }
@@ -167,6 +192,10 @@ class LiveTradingLoop:
         self.sentiment_summary = "N/A"
 
         self.equity_peak = 0.0
+
+        # Macro Analysis results
+        self.risk_mode = "neutral"
+        self.risk_multiplier = 1.0
 
         # ── Self-Learning: track open signal IDs per symbol ──
         self._signal_id_by_symbol: dict[str, str] = {}
@@ -206,6 +235,21 @@ class LiveTradingLoop:
             self._archive_market_data()
             self.futu_connector.close()
 
+
+    def _should_terminate_session(self) -> bool:
+        from datetime import datetime, time as dt_time
+        # Simplified market check (US hours HKT: 21:15-04:15)
+        now = datetime.now()
+        weekday = now.weekday()
+        # Weekend check: Sat=5, Sun=6
+        if weekday >= 5:
+            return True  # Always terminate on weekend, let launcher re-evaluate
+        cur_time = now.time()
+        is_open = cur_time >= dt_time(21, 15) or cur_time <= dt_time(4, 15)
+        if self.config.auto_trade and not is_open: return True
+        if not self.config.auto_trade and is_open: return True
+        return False
+
     async def _run_forever(self) -> None:
         primed = await self.history_primer.prime_symbols(self.symbols)
         for symbol, df in primed.items():
@@ -214,8 +258,13 @@ class LiveTradingLoop:
         self.logger.info("History priming completed for %d symbols", len(self.symbols))
 
         while True:
+            if self._should_terminate_session():
+                self.logger.info("Market session changed. Terminating loop for launcher to re-evaluate.")
+                break
             await self.run_one_cycle()
-            await asyncio.sleep(self.config.polling_seconds)
+            # [V3-Dynamic-Screener] Slow down polling in IDLE/sync mode
+            sleep_sec = self.config.polling_seconds if self.config.auto_trade else 300
+            await asyncio.sleep(sleep_sec)
 
     async def run_one_cycle(self) -> None:
         self._check_heartbeat()
@@ -534,6 +583,11 @@ class LiveTradingLoop:
         allow_short: bool = True,  # v3 Plan B: allow SHORT entries
     ) -> None:
         self.equity_peak = max(self.equity_peak, self.account_value)
+        # ---- Macro Risk Filter ----
+        if self.risk_mode == "risk_off":
+            # Reduce position size or tighten stops if macro is bad
+            risk_multiplier *= self.risk_multiplier  # reduce size
+            self.logger.info(f"[MACRO_FILTER] Risk Off: applying multiplier {self.risk_multiplier}")
         if self.risk_controller.circuit_breaker_triggered(self.equity_peak, self.account_value):
             self._notify(f"🚨 Circuit breaker hit. Equity={self.account_value:.2f}")
             return

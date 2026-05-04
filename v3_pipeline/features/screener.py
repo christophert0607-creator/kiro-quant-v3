@@ -275,3 +275,86 @@ if __name__ == "__main__":
     config = ScreenConfig.from_env()
     ranked = score_symbols(buffers, confidence, sentiment, config)
     print_screener_report(ranked, buffers, confidence, sentiment, config)
+
+# ── V3-Dynamic-Screener (Funnel Logic) ──────────────────────────────────
+import json
+from datetime import datetime
+
+class V3FunnelScreener:
+    """
+    移植自 openStock 的選股漏斗邏輯。
+    全市場股票 -> [業績成長] -> [估值合理] -> [短期趨勢] -> 今日潛力名單
+    """
+    def __init__(self, watchlist_path="dynamic_watchlist.json"):
+        from pathlib import Path
+        base_dir = Path(__file__).parent.parent.parent
+        self.watchlist_path = base_dir / watchlist_path
+
+    def fetch_data(self, symbols: list[str]) -> pd.DataFrame:
+        import yfinance as yf
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        data = []
+        failed = []
+        print(f"[V3FunnelScreener] Fetching data for {len(symbols)} symbols (concurrent)...")
+        
+        def _fetch_one(s):
+            try:
+                t = yf.Ticker(s)
+                info = t.info
+                return {
+                    "symbol": s,
+                    "pe": info.get("forwardPE"),
+                    "eps_growth": info.get("earningsQuarterlyGrowth"),
+                    "rev_growth": info.get("revenueGrowth"),
+                    "peg": info.get("pegRatio"),
+                    "price": info.get("currentPrice"),
+                    "ma50": info.get("fiftyDayAverage"),
+                }
+            except Exception as e:
+                return {"_failed": s, "_error": str(e)}
+        
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = {executor.submit(_fetch_one, s): s for s in symbols}
+            for future in as_completed(futures):
+                result = future.result()
+                if "_failed" in result:
+                    failed.append({"symbol": result["_failed"], "error": result["_error"]})
+                    print(f"[V3FunnelScreener] Warning: Failed to fetch {result['_failed']}: {result['_error']}")
+                else:
+                    data.append(result)
+        self._failed_symbols = failed
+        return pd.DataFrame(data)
+
+    def filter_by_growth(self, df: pd.DataFrame) -> pd.DataFrame:
+        if df.empty: return df
+        mask = (df['eps_growth'].fillna(0) > 0.1) | (df['rev_growth'].fillna(0) > 0.1)
+        return df[mask]
+
+    def filter_by_valuation(self, df: pd.DataFrame) -> pd.DataFrame:
+        if df.empty: return df
+        mask = (df['pe'].fillna(999) < 30) | (df['peg'].fillna(999) < 2)
+        return df[mask]
+
+    def filter_by_trend(self, df: pd.DataFrame) -> pd.DataFrame:
+        if df.empty: return df
+        mask = df['price'] > df['ma50']
+        return df[mask]
+
+    def run(self, symbols: list[str]):
+        df = self.fetch_data(symbols)
+        df = self.filter_by_growth(df)
+        df = self.filter_by_valuation(df)
+        df = self.filter_by_trend(df)
+        
+        results = {
+            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "picks": df['symbol'].tolist(),
+            "details": df.to_dict(orient="records"),
+            "failed_symbols": getattr(self, '_failed_symbols', [])
+        }
+        
+        with open(self.watchlist_path, "w") as f:
+            json.dump(results, f, indent=4)
+        
+        print(f"[V3FunnelScreener] Screening complete. {len(results['picks'])} picks saved to {self.watchlist_path}")
+        return results['picks']

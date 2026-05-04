@@ -9,7 +9,7 @@ import argparse
 import logging
 import pandas as pd
 from dataclasses import replace
-from datetime import datetime, time as dt_time, timezone
+from datetime import datetime, time as dt_time_cls, timezone
 from pathlib import Path
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -28,6 +28,8 @@ from v3_pipeline.core.main_loop import LiveConfig, LiveTradingLoop
 from v3_pipeline.models.brain import KiroLSTM
 from v3_pipeline.models.manager import DataPreparer, ModelManager
 from v3_pipeline.risk.manager import RiskController
+from v3_pipeline.core.market_analyzer import MarketAnalyzer
+from v3_pipeline.features.screener import V3FunnelScreener
 
 HK_TZ = ZoneInfo("Asia/Hong_Kong")
 _CRASH_COUNT_FILE = Path(__file__).parent / ".crash_count"
@@ -140,12 +142,13 @@ US_SYMBOLS = [
     "WRB", "WSM", "WTW", "WYNN", "XMSR", "XTO", "XYZ", "ZM",
     "ZS",
 ]
-# Top 30 most liquid US stocks for IDLE precompute (Optimized 2026-04-15)
+# Top 50 most liquid US stocks for IDLE precompute (Stabilized 2026-05-04)
 TOP_PRECOMPUTE_US = [
-    "AAPL","MSFT","GOOGL","AMZN","NVDA","META","TSLA","AMD","AVGO","ORCL",
-    "CRM","ADBE","CSCO","ACN","IBM","INTC","QCOM","TXN","AMAT","MU",
-    "NFLX","COIN","MSTR","UBER","DASH","SNOW","PANW","CRWD","ZS","NET",
-    "QBTS","RGTI"
+    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "AMD", "AVGO", "ORCL",
+    "CRM", "ADBE", "CSCO", "ACN", "IBM", "INTC", "QCOM", "TXN", "AMAT", "MU",
+    "NFLX", "COIN", "MSTR", "UBER", "DASH", "SNOW", "PANW", "CRWD", "ZS", "NET",
+    "PLTR", "ARM", "SMCI", "TSM", "V", "MA", "JPM", "BAC", "LLY", "UNH",
+    "WMT", "COST", "PG", "JNJ", "HD", "XOM", "CVX", "MRK", "ABBV", "KO"
 ]
 IDLE_COLLECTION_SYMBOLS = HK_SYMBOLS + TOP_PRECOMPUTE_US
 
@@ -212,10 +215,20 @@ def _base_live_config(config_path: str = "config.json") -> LiveConfig:
 
 
 def build_live_config(config_path: str = "config.json") -> LiveConfig:
-    return _base_live_config(config_path)
+    base_cfg = _base_live_config(config_path)
+    watchlist_path = Path(__file__).parent / 'dynamic_watchlist.json'
+    if watchlist_path.exists():
+        try:
+            wdata = json.loads(watchlist_path.read_text())
+            if wdata.get('picks'):
+                picks = wdata['picks']
+                print(f'[launcher] Injecting Dynamic Watchlist: {picks}')
+                base_cfg = replace(base_cfg, symbols_list=picks)
+        except: pass
+    return base_cfg
 
 
-def _in_range(now_t: dt_time, start: dt_time, end: dt_time) -> bool:
+def _in_range(now_t: dt_time_cls, start: dt_time_cls, end: dt_time_cls) -> bool:
     if start <= end:
         return start <= now_t <= end
     return now_t >= start or now_t <= end
@@ -223,17 +236,31 @@ def _in_range(now_t: dt_time, start: dt_time, end: dt_time) -> bool:
 
 def resolve_market_mode(now: datetime | None = None) -> str:
     now = now or datetime.now(HK_TZ)
+    weekday = now.weekday()  # 0=Monday, 6=Sunday
     hk_time = now.timetz().replace(tzinfo=None)
     
-    # Simple and Robust Market detection based on HK Time
+    # Weekend: Always IDLE
+    if weekday >= 5:
+        return "IDLE"
+    
     # HK Market: 09:30 - 12:00, 13:00 - 16:00
-    is_hk_trading = (dt_time(9, 30) <= hk_time <= dt_time(12, 0)) or (dt_time(13, 0) <= hk_time <= dt_time(16, 0))
+    is_hk_trading = (dt_time_cls(9, 30) <= hk_time <= dt_time_cls(12, 0)) or (dt_time_cls(13, 0) <= hk_time <= dt_time_cls(16, 0))
     if is_hk_trading:
         return "HK"
         
     # US Market (approx HKT): 21:30 - 04:00 (next day)
-    is_us_trading = (hk_time >= dt_time(21, 30)) or (hk_time <= dt_time(4, 0))
+    # Special case: US markets are closed on Saturday (HK time) after 04:00
+    is_us_trading = (hk_time >= dt_time_cls(21, 30)) or (hk_time <= dt_time_cls(4, 0))
     if is_us_trading:
+        # US market is open Sunday night (HK time) through Friday morning (HK time)
+        # If it's Saturday morning (weekday=5) before 04:00, it's still US Friday session.
+        # If it's Saturday after 04:00, it's IDLE.
+        # If it's Sunday before 21:30, it's IDLE.
+        # If it's Sunday after 21:30, it's US Monday session.
+        if weekday == 5 and hk_time > dt_time_cls(4, 0):
+            return "IDLE"
+        if weekday == 6 and hk_time < dt_time_cls(21, 30):
+            return "IDLE"
         return "US"
         
     return "IDLE"
@@ -300,7 +327,7 @@ def _load_market_model(loop: "LiveTradingLoop", mode: str) -> None:
                 pass
 
 
-def _apply_market_mode(loop: "LiveTradingLoop", base_cfg: "LiveConfig", mode: str, prev_mode: str | None) -> None:
+async def _apply_market_mode(loop: "LiveTradingLoop", base_cfg: "LiveConfig", mode: str, prev_mode: str | None) -> None:
     symbols = _symbols_for_mode(mode)
     auto_trade = mode in {"HK", "US"} and base_cfg.auto_trade
     market_prefix = "HK" if mode == "HK" else "US"
@@ -330,6 +357,22 @@ def _apply_market_mode(loop: "LiveTradingLoop", base_cfg: "LiveConfig", mode: st
         _ensure_symbol_state(loop, symbol)
 
     if mode == "IDLE":
+        loop.logger.info("[MARKET_IDLE] Running market analysis...")
+        try:
+            analyzer = MarketAnalyzer(loop)
+            report, analysis = await analyzer.generate_market_report()
+            risk_mode, risk_mult = analyzer.compute_risk_factor(analysis)
+            
+            # Send Telegram report
+            await loop.telegram.send_message(report)
+            
+            # Update loop risk attributes
+            loop.risk_mode = risk_mode
+            loop.risk_multiplier = risk_mult
+            loop.logger.info(f"[MARKET_IDLE] Risk updated: {risk_mode} (x{risk_mult})")
+        except Exception as e:
+            loop.logger.warning(f"[MARKET_IDLE] Macro analysis failed: {e}")
+
         loop.logger.info(
             "[MARKET_IDLE] Outside HK/US trading hours; collect_only=%d auto_trade=%s",
             len(IDLE_COLLECTION_SYMBOLS),
@@ -340,16 +383,22 @@ def _apply_market_mode(loop: "LiveTradingLoop", base_cfg: "LiveConfig", mode: st
 async def _collect_only_cycle(loop: "LiveTradingLoop", symbols: list[str]) -> None:
     """During IDLE: only fetch latest bars to keep buffers warm, no trades."""
     loop.logger.info("[IDLE_COLLECT] Syncing %d symbols...", len(symbols))
-    for i in range(0, len(symbols), 20):
-        batch = symbols[i : i + 20]
+    for i in range(0, len(symbols), 5):  # Extremely small batch size to avoid rate limits
+        batch = symbols[i : i + 5]
         try:
-            # Batch fetch to save time — use asyncio.to_thread to avoid blocking event loop
             for sym in batch:
-                quote = await asyncio.to_thread(loop.futu_connector.get_latest_quote, sym)
+                quote = await asyncio.wait_for(
+                    asyncio.to_thread(loop.futu_connector.get_latest_quote, sym),
+                    timeout=15.0 # Even more generous timeout
+                )
                 if quote:
                     loop.market_buffers[sym] = loop._normalize_market_buffer(
                         pd.concat([loop.market_buffers[sym], pd.DataFrame([quote])])
                     )
+            # Significant sleep between batches to be very gentle with the API
+            await asyncio.sleep(2.0)
+        except asyncio.TimeoutError:
+            loop.logger.warning("[IDLE_COLLECT] Batch timeout occurred, skipping current batch")
         except Exception as exc:
             loop.logger.warning("Idle collect batch failed: %s", exc)
 
@@ -401,12 +450,32 @@ async def _run_market_aware(
     async def one_iteration() -> None:
         nonlocal prev_mode
         now = datetime.now(HK_TZ)
+        # [V3-Dynamic-Screener] Daily Funnel at 08:00 HKT
+        today_str = now.strftime('%Y-%m-%d')
+        last_screen = getattr(loop, '_last_funnel_date', '')
+        if now.hour == 8 and now.minute < 15 and today_str != last_screen:
+            print('[launcher] TRIGGER: Daily Stock Screening Funnel (08:00 HKT)')
+            try:
+                screener = V3FunnelScreener(watchlist_path='dynamic_watchlist.json')
+                cfg_for_screener, _ = _read_config(config_path)
+                v3_live_cfg = cfg_for_screener.get("v3_live", {})
+                initial_universe = v3_live_cfg.get("screener_universe", ['AAPL', 'NVDA', 'TSLA', 'MSFT', 'GOOGL', 'AMD', 'META', 'AVGO', 'NFLX', 'TSM', 'PLTR', 'MSTR', 'COIN'])
+                screener.run(initial_universe)
+                setattr(loop, '_last_funnel_date', today_str)
+            except Exception as e:
+                err_msg = f"🚨 Screener Error: {e}"
+                print(f'[launcher] {err_msg}')
+                try:
+                    loop._notify(err_msg)
+                except Exception:
+                    pass
+
         mode = resolve_market_mode(now)
         _write_market_config(mode, config_path)
         base_cfg = _base_live_config(config_path)
         if disable_trade:
             base_cfg = replace(base_cfg, auto_trade=False)
-        _apply_market_mode(loop, base_cfg, mode, prev_mode)
+        await _apply_market_mode(loop, base_cfg, mode, prev_mode)
 
         if loop.symbols:
             if prev_mode != mode:
@@ -508,8 +577,9 @@ def run_kiro_v35(*, dry_run: bool = False, once: bool = False, config_path: str 
             
             # Reconnect Futu contexts
             try:
+                import time as _time
                 loop.futu_connector.close()
-                time.sleep(cooldown_seconds)
+                _time.sleep(cooldown_seconds)
                 loop.futu_connector.connect(symbols=loop.config.symbols_list)
                 loop.logger.info("Reconnected after cooldown, resuming...")
             except Exception as reconnect_err:
