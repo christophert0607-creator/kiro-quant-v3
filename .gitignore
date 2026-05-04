@@ -1,10 +1,44 @@
+# Kiro Quant V3
+# Runtime data
+*.log
+*.log.*
+*.out
+nohup.out
+.env
+
+# Backup files
+*.bak*
+*.bak
+config.json.bak*
+config.bak*
+
+# Data files
+*.parquet
+*.db
+*.sqlite
+*.sqlite3
+trading_bot.db
+
+# Logs & archives
+logs/
+logs_archive/
+v3_pipeline/logs/
+v3_pipeline/logs/archive/
+daily/
+
+# Graphify output
+graphify-out/
+graphify-out-filtered/
+v3_pipeline/graphify-out/
+
+# Patch scripts (temporary)
+patch_*.py
+
+# OS
 __pycache__/
 *.pyc
-*.pyo
-*.log
-*.svg
-*.json
-!config.json
-!state.json
-v3_pipeline/models/trained_models/
+.DS_Store
 
+# State (sensitive)
+state.json
+trades.jsonl

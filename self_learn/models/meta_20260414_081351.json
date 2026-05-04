@@ -1,0 +1,13 @@
+{
+  "filename": "model_20260414_081351.pkl",
+  "metrics": {
+    "accuracy": 0.54,
+    "win_rate": 0.37,
+    "train_size": 400,
+    "test_size": 100,
+    "total_samples": 500,
+    "actual_iterations": 1,
+    "early_stopped": true
+  },
+  "created_at": "2026-04-14T00:13:51.442045+00:00"
+}

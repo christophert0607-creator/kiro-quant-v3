@@ -1,0 +1,11 @@
+{
+  "filename": "model_20260407_040010.pkl",
+  "metrics": {
+    "accuracy": 1.0,
+    "win_rate": 0.2034,
+    "train_size": 94,
+    "test_size": 24,
+    "total_samples": 118
+  },
+  "created_at": "2026-04-06T20:00:10.519192+00:00"
+}
