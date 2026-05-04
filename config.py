@@ -49,7 +49,7 @@ def _detect_opend_host() -> str:
 # Infoway & Data Priority Config
 # ============================================================
 INFOWAY_CONFIG = {
-    "API_KEY": "9d122d7ab6fd4965bb45e28e9cf00435",
+    "API_KEY": os.environ.get("INFOWAY_API_KEY", ""),
     "WS_URL": "wss://data.infoway.io/ws?business=stock",
 }
 DATA_PRIORITY = ["INFOWAY", "FUTU", "MASSIVE", "YFINANCE"]
@@ -179,7 +179,7 @@ DATA_DIR   = os.path.join(BASE_DIR, "data")      # Market data
 BACKUP_DIR = os.path.join(BASE_DIR, "backups")    # System backups
 
 # Daily trading output (paper trading records, PnL reports)
-DAILY_DIR  = "/home/tsukii0607/.openclaw/workspace/kiro_quant_daily"
+DAILY_DIR  = os.environ.get("KIRO_DAILY_DIR", os.path.join(BASE_DIR, "daily"))
 
 # ============================================================
 # Helper

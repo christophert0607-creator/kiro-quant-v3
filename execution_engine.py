@@ -14,6 +14,7 @@ import logging
 import time
 import state_store as ss
 from risk_guard_v36 import RiskGuardV36
+from notifier import send_tg_msg
 from config import (
     OPEND_HOST, OPEND_PORT, TRADE_PWD, TRADE_MODE, MARKET, ORDER_COOLDOWN_HOURS,
     EMERGENCY_DAILY_LOSS_PCT, MIN_TOTAL_ASSETS_ALERT
@@ -408,11 +409,9 @@ class ExecutionEngine:
             last = state.get("last_orders", {}).get(code, {})
             last_signal = last.get("signal", "")
             last_time = last.get("time", 0)
-            import time as _time
-            # 同一交易日內已有 BUY 紀錄 → 跳過（冷卻時間可配置，默認 1 小時）
             cooldown_secs = ORDER_COOLDOWN_HOURS * 3600
-            if last_signal == "BUY" and (_time.time() - last_time) < cooldown_secs:
-                log.info(f"⏸ {code} 今日已下 BUY（{int((_time.time()-last_time)/60)} 分鐘前），等待成交確認")
+            if last_signal == "BUY" and (time.time() - last_time) < cooldown_secs:
+                log.info(f"⏸ {code} 今日已下 BUY（{int((time.time()-last_time)/60)} 分鐘前），等待成交確認")
                 return {"status": "SKIP", "reason": "OrderPending"}
 
         # 3. 風控檢查

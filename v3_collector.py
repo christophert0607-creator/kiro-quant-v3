@@ -88,8 +88,11 @@ class DataCollector:
                 to_fetch_new.append(sym)
                 continue
             
-            # Simple check: if less than X days of data, it might have a gap or be incomplete
-            # (Note: This is a heuristic. A more complex check would look for interior date gaps)
+            if not stats["end"]:
+                logger.info(f"Target [{sym}]: No end timestamp. Adding to repair.")
+                to_repair_gap.append(sym)
+                continue
+
             last_date = datetime.strptime(stats["end"].split(".")[0], "%Y-%m-%d %H:%M:%S")
             days_old = (datetime.now() - last_date).days
             
