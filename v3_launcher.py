@@ -620,7 +620,7 @@ def run_kiro_v35(*, dry_run: bool = False, once: bool = False, config_path: str 
                 loop.logger.error("V3 crash (count=%d, attempt %d/%d): %s", 
                                   crash_count, attempt, max_crashes, exc)
             
-            # Reconnect Futu contexts
+            # Reconnect Futu contexts (non-fatal — system degrades to collect-only if Futu is offline)
             try:
                 import time as _time
                 loop.futu_connector.close()
@@ -628,8 +628,10 @@ def run_kiro_v35(*, dry_run: bool = False, once: bool = False, config_path: str 
                 _safe_connector_connect(loop.futu_connector, loop.config.symbols_list)
                 loop.logger.info("Reconnected after cooldown, resuming...")
             except Exception as reconnect_err:
-                loop.logger.error("Reconnection failed: %s — aborting", reconnect_err)
-                raise
+                loop.logger.warning(
+                    "Reconnection failed: %s — continuing in degraded (collect-only) mode",
+                    reconnect_err,
+                )
             
             # Only escalate after max crashes
             if attempt >= max_crashes:

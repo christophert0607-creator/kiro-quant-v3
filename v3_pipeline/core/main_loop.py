@@ -166,7 +166,7 @@ class LiveTradingLoop:
                 self.logger.warning("Failed to load dynamic watchlist: %s", e)
         
         if not symbols:
-            self.symbols = self.config.symbols_list or [self.config.symbol]
+            symbols = self.config.symbols_list or [self.config.symbol]
         self.symbols = symbols
         self.market_buffers: dict[str, pd.DataFrame] = {
             s: pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume", "data_source"]) for s in self.symbols
