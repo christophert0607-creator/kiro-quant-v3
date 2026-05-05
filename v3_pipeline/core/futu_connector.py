@@ -157,6 +157,24 @@ class FutuConnector:
                 return
             data = json.loads(p.read_text(encoding="utf-8"))
             futu_section = data.get("futu", {}) if isinstance(data, dict) else {}
+
+            # host / port — only override if NOT already set via env-var.
+            env_host = os.getenv("FUTU_OPEND_HOST")
+            env_port = os.getenv("FUTU_OPEND_PORT")
+            cfg_host = futu_section.get("host")
+            cfg_port = futu_section.get("port")
+            if cfg_host and not env_host:
+                self.config.host = str(cfg_host)
+                self.logger.info("Loaded Futu host from config.json: %s", self.config.host)
+            if cfg_port is not None and not env_port:
+                self.config.port = int(cfg_port)
+                self.logger.info("Loaded Futu port from config.json: %s", self.config.port)
+
+            trd_env = futu_section.get("trd_env")
+            if trd_env and not os.getenv("FUTU_TRD_ENV"):
+                self.config.trd_env = str(trd_env)
+                self.logger.info("Loaded Futu trd_env from config.json: %s", self.config.trd_env)
+
             target = futu_section.get("target_acc_id")
             if target is not None and self.config.target_acc_id is None:
                 self.config.target_acc_id = int(target)
