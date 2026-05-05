@@ -307,44 +307,89 @@ def _ensure_symbol_state(loop: "LiveTradingLoop", symbol: str) -> None:
     )
 
 
-def _load_market_model(loop: "LiveTradingLoop", mode: str) -> None:
-    """Load the appropriate model for the current market mode."""
-    model_name = "v3_us_stocks"
-    if mode == "HK":
-        model_name = "v3_hk_stocks"
-    
+_DEFAULT_MARKET_MODELS = {
+    "HK": "v3_hk_stocks",
+    "US": "v3_us_stocks",
+    "IDLE": "v3_us_stocks",
+}
+
+
+def _model_name_for_market(mode: str, config_path: str = "config.json") -> str:
+    """Resolve the logical model name for ``mode`` from config, with a default."""
+    cfg, _ = _read_config(config_path)
+    markets = (cfg.get("model") or {}).get("markets") or {}
+    return str(markets.get(mode) or _DEFAULT_MARKET_MODELS.get(mode, "v3_us_stocks"))
+
+
+def _load_market_model(loop: "LiveTradingLoop", mode: str, config_path: str = "config.json") -> None:
+    """Load the appropriate model for the current market mode.
+
+    Resolution chain (first success wins):
+        1. config.json -> model.markets[mode]
+        2. Built-in default (HK -> v3_hk_stocks, US/IDLE -> v3_us_stocks)
+        3. Sibling market's model (HK falls through to US, and vice versa)
+        4. Registry default in models_registry.json
+
+    Steps 1–3 produce a logical name; the ModelManager / ModelRegistry then
+    resolves that to an actual checkpoint file via aliases. This means the
+    user can swap models by editing config.json or models_registry.json
+    without touching code.
+    """
+    primary = _model_name_for_market(mode, config_path)
+    fallback_mode = "US" if mode == "HK" else "HK" if mode == "US" else None
+    fallback = _model_name_for_market(fallback_mode, config_path) if fallback_mode else None
+
+    candidates = [primary] + ([fallback] if fallback and fallback != primary else [])
+
+    last_exc: Optional[Exception] = None
+    for name in candidates:
+        try:
+            loop.logger.info("Switching model for market %s: %s", mode, name)
+            loop.model_manager.load(name)
+            if name != primary:
+                loop.logger.info("Loaded fallback model %s for market %s", name, mode)
+            return
+        except Exception as exc:
+            last_exc = exc
+            loop.logger.warning("Failed to load model %s for market %s: %s", name, mode, exc)
+
+    loop.logger.error(
+        "No usable model for market %s after trying %s; continuing without weights. Last error: %s",
+        mode, candidates, last_exc,
+    )
+
+
+def _safe_connector_connect(connector, symbols: list[str] | None = None) -> None:
+    """Connector compatibility shim for old/new FutuConnector signatures."""
     try:
-        loop.logger.info("Switching model for market %s: %s", mode, model_name)
-        loop.model_manager.load(model_name)
-    except Exception as exc:
-        loop.logger.warning("Failed to load model %s for market %s: %s", model_name, mode, exc)
-        # Fallback to US model if HK missing
-        if mode == "HK" and model_name != "v3_us_stocks":
-            try:
-                loop.model_manager.load("v3_us_stocks")
-                loop.logger.info("Fallback to v3_us_stocks for HK market")
-            except Exception:
-                pass
+        if symbols is not None:
+            connector.connect(symbols=symbols)
+        else:
+            connector.connect()
+    except TypeError:
+        connector.connect()
 
 
-async def _apply_market_mode(loop: "LiveTradingLoop", base_cfg: "LiveConfig", mode: str, prev_mode: str | None) -> None:
+async def _apply_market_mode(loop: "LiveTradingLoop", base_cfg: "LiveConfig", mode: str, prev_mode: str | None, config_path: str = "config.json") -> None:
     symbols = _symbols_for_mode(mode)
     auto_trade = mode in {"HK", "US"} and base_cfg.auto_trade
     market_prefix = "HK" if mode == "HK" else "US"
 
     loop.config = replace(base_cfg, symbols_list=symbols, auto_trade=auto_trade)
     loop.symbols = symbols
-    loop.futu_connector.set_market_prefix(market_prefix)
+    if hasattr(loop.futu_connector, "set_market_prefix"):
+        loop.futu_connector.set_market_prefix(market_prefix)
     
     # New: Ensure we are subscribed to the current symbol list for real-time quotes
     sub_targets = symbols if mode != "IDLE" else IDLE_COLLECTION_SYMBOLS
-    loop.futu_connector.subscribe_symbols(sub_targets)
+    if hasattr(loop.futu_connector, "subscribe_symbols"):
+        loop.futu_connector.subscribe_symbols(sub_targets)
 
     for symbol in symbols:
         _ensure_symbol_state(loop, symbol)
 
     if prev_mode != mode:
-        _load_market_model(loop, mode)
+        _load_market_model(loop, mode, config_path)
 
     if prev_mode is None:
         loop.logger.info("[MARKET_INIT:%s] symbols=%s auto_trade=%s", mode, symbols, auto_trade)
@@ -475,7 +520,7 @@ async def _run_market_aware(
         base_cfg = _base_live_config(config_path)
         if disable_trade:
             base_cfg = replace(base_cfg, auto_trade=False)
-        await _apply_market_mode(loop, base_cfg, mode, prev_mode)
+        await _apply_market_mode(loop, base_cfg, mode, prev_mode, config_path)
 
         if loop.symbols:
             if prev_mode != mode:
@@ -541,12 +586,12 @@ def run_kiro_v35(*, dry_run: bool = False, once: bool = False, config_path: str 
 
     now = datetime.now(HK_TZ)
     initial_mode = resolve_market_mode(now)
-    _load_market_model(loop, initial_mode)
+    _load_market_model(loop, initial_mode, config_path)
 
     if dry_run:
         _enable_dry_run_log_prefix()
 
-    loop.futu_connector.connect(symbols=loop.config.symbols_list)
+    _safe_connector_connect(loop.futu_connector, loop.config.symbols_list)
     _reset_crash_count()  # Reset crash counter on clean startup
     
     # 2026-04-24 Fix: Graceful crash recovery with cooldown
@@ -580,7 +625,7 @@ def run_kiro_v35(*, dry_run: bool = False, once: bool = False, config_path: str 
                 import time as _time
                 loop.futu_connector.close()
                 _time.sleep(cooldown_seconds)
-                loop.futu_connector.connect(symbols=loop.config.symbols_list)
+                _safe_connector_connect(loop.futu_connector, loop.config.symbols_list)
                 loop.logger.info("Reconnected after cooldown, resuming...")
             except Exception as reconnect_err:
                 loop.logger.error("Reconnection failed: %s — aborting", reconnect_err)

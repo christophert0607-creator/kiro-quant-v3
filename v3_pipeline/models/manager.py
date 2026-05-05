@@ -24,6 +24,7 @@ except ImportError:
 from v3_pipeline.data.downloader import HistoricalDataDownloader
 from v3_pipeline.features.indicators import TechnicalIndicatorGenerator
 from v3_pipeline.models.brain import KiroLSTM
+from v3_pipeline.models.registry import ModelRegistry
 
 PATTERN_LABELS = [
     "Unknown",
@@ -372,6 +373,7 @@ class ModelManager:
         data_preparer: DataPreparer,
         device: Optional[str] = None,
         model_dir: str = "v3_pipeline/models/trained_models",
+        registry: Optional[ModelRegistry] = None,
     ) -> None:
         self.logger = _build_stderr_logger(self.__class__.__name__)
         self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
@@ -379,6 +381,7 @@ class ModelManager:
         self.data_preparer = data_preparer
         self.model_dir = Path(model_dir)
         self.model_dir.mkdir(parents=True, exist_ok=True)
+        self.registry = registry or ModelRegistry.from_file(self.model_dir)
 
     @classmethod
     def build_global_pretraining_manager(cls, sample_frame: pd.DataFrame, config: Optional[GlobalPretrainConfig] = None) -> "ModelManager":
@@ -645,10 +648,105 @@ class ModelManager:
         self.logger.info("Saved model checkpoint to %s", target)
         return target
 
+    def _infer_lstm_dims(self, state_dict: dict) -> tuple[int, int, int]:
+        """Read ``input_dim``, ``hidden_dim``, ``num_layers`` from an LSTM state_dict."""
+        # nn.LSTM stores weight_ih_l{i} with shape [4*hidden_dim, input_dim].
+        weight_ih = state_dict.get("lstm.weight_ih_l0")
+        if weight_ih is None:
+            raise ValueError("Checkpoint missing 'lstm.weight_ih_l0' — incompatible with KiroLSTM/AttentiveKiroLSTM.")
+        four_h, input_dim = int(weight_ih.shape[0]), int(weight_ih.shape[1])
+        hidden_dim = four_h // 4
+        num_layers = sum(1 for k in state_dict if k.startswith("lstm.weight_ih_l"))
+        return input_dim, hidden_dim, max(1, num_layers)
+
+    def _load_state_dict_compat(self, state_dict: dict) -> None:
+        """Load a state_dict, rebuilding the model if architecture differs.
+
+        Handles two real cases:
+          1. Saved as AttentiveKiroLSTM (has ``attn.*``/``norm.*`` keys), current
+             model is plain KiroLSTM — rebuild as AttentiveKiroLSTM.
+          2. Input dim mismatch — rebuild with the saved input dim.
+        """
+        try:
+            input_dim, hidden_dim, num_layers = self._infer_lstm_dims(state_dict)
+        except ValueError:
+            # Unknown layout — best effort, non-strict.
+            self.model.load_state_dict(state_dict, strict=False)
+            return
+
+        has_attn = any(k.startswith("attn.") for k in state_dict)
+        has_norm = any(k.startswith("norm.") for k in state_dict)
+
+        # Probe current fc to keep output_dim consistent.
+        fc = getattr(self.model, "fc", None)
+        output_dim = int(fc.out_features) if fc is not None else 1
+        # Read dropout off current model if present.
+        existing_dropout = getattr(self.model, "dropout", None)
+        dropout_p = float(existing_dropout.p) if existing_dropout is not None else 0.2
+
+        needs_rebuild = (
+            (has_attn or has_norm) and not isinstance(self.model, AttentiveKiroLSTM)
+        ) or (
+            getattr(self.model, "lstm", None) is not None
+            and int(self.model.lstm.input_size) != input_dim
+        )
+
+        if needs_rebuild:
+            if has_attn or has_norm:
+                # Infer attention head count from in_proj_weight shape if available.
+                attn_heads = 4
+                self.logger.info(
+                    "Rebuilding model as AttentiveKiroLSTM(input=%d, hidden=%d, layers=%d, heads=%d)",
+                    input_dim, hidden_dim, num_layers, attn_heads,
+                )
+                self.model = AttentiveKiroLSTM(
+                    input_dim=input_dim,
+                    hidden_dim=hidden_dim,
+                    num_layers=num_layers,
+                    dropout=dropout_p,
+                    output_dim=output_dim,
+                    attention_heads=attn_heads,
+                ).to(self.device)
+            else:
+                self.logger.info(
+                    "Rebuilding model as KiroLSTM(input=%d, hidden=%d, layers=%d)",
+                    input_dim, hidden_dim, num_layers,
+                )
+                self.model = KiroLSTM(
+                    input_dim=input_dim,
+                    hidden_dim=hidden_dim,
+                    num_layers=num_layers,
+                    dropout=dropout_p,
+                    output_dim=output_dim,
+                ).to(self.device)
+
+        missing, unexpected = self.model.load_state_dict(state_dict, strict=False)
+        if missing or unexpected:
+            self.logger.warning(
+                "load_state_dict non-strict: missing=%d unexpected=%d",
+                len(missing), len(unexpected),
+            )
+
     def load(self, model_name: str) -> None:
-        source = self.model_dir / f"{model_name}.pth"
+        source = self.registry.resolve(model_name) if self.registry else None
+        if source is None:
+            tried = [str(p) for p in (self.registry.candidates(model_name) if self.registry else [self.model_dir / f"{model_name}.pth"])]
+            raise FileNotFoundError(
+                f"No checkpoint found for '{model_name}'. Tried: {tried}. "
+                f"Edit v3_pipeline/models/models_registry.json to add an alias."
+            )
+
+        if source.stem != model_name:
+            self.logger.info("Resolved model '%s' -> %s", model_name, source.name)
+
         payload = torch.load(source, map_location=self.device)
-        self.model.load_state_dict(payload["model_state_dict"])
+        # Tolerate both wrapped checkpoints and raw state_dicts.
+        if isinstance(payload, dict) and "model_state_dict" in payload:
+            state_dict = payload["model_state_dict"]
+        else:
+            state_dict = payload
+            payload = {}
+        self._load_state_dict_compat(state_dict)
 
         self.data_preparer.lookback = int(payload.get("lookback", self.data_preparer.lookback))
         self.data_preparer.target_col = str(payload.get("target_col", self.data_preparer.target_col))

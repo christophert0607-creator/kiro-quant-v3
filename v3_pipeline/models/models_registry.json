@@ -1,0 +1,8 @@
+{
+  "_comment": "Logical-name -> checkpoint-stem mapping. Edit aliases to swap models without code changes. 'default' is used when neither an alias nor a direct file matches.",
+  "default": "global_state_v4_1_best",
+  "aliases": {
+    "v3_us_stocks": "global_state_v4_1_best",
+    "v3_hk_stocks": "global_state_v4_1_best"
+  }
+}
