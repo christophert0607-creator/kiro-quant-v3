@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -6,9 +7,103 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 import pandas as pd
+
+
+class QuoteCache:
+    """Quote cache with TTL, batch-fetch, and get_missing() support.
+
+    Replaces the plain dict that was previously used as _quote_cache so that
+    main_loop._prefetch_quotes() can call the structured methods it expects.
+
+    Storage format (internal): symbol -> {"quote": {...}, "ts": float}
+    get() / get_missing() honour a 30-second TTL by default.
+    """
+
+    TTL_SECONDS: float = 30.0
+
+    def __init__(self) -> None:
+        self._data: dict[str, dict] = {}
+        self._hit_count: dict[str, int] = {}
+
+    # ── dict-compatible interface (used by _cache_quote / _get_cached_quote) ──
+
+    def __setitem__(self, symbol: str, value: Any) -> None:
+        """Store a quote.  Accepts both raw-quote dicts and {"quote":…,"ts":…} wrappers."""
+        if isinstance(value, dict) and "quote" in value and "ts" in value:
+            self._data[symbol] = value
+        else:
+            self._data[symbol] = {"quote": value, "ts": time.time()}
+
+    def __contains__(self, symbol: object) -> bool:
+        return symbol in self._data
+
+    def pop(self, symbol: str, *args: Any) -> Any:
+        return self._data.pop(symbol, *args)
+
+    def get(self, symbol: str, default: Any = None) -> Any:
+        """Return the inner quote dict (with _cached_at) if fresh, else default.
+
+        main_loop._run_symbol_cycle expects quote.get("Close"), quote.get("_cached_at"), …
+        """
+        entry = self._data.get(symbol)
+        if not entry:
+            return default
+        age = time.time() - entry.get("ts", 0)
+        if age > self.TTL_SECONDS:
+            return default
+        inner: dict = dict(entry.get("quote") or entry)
+        inner.setdefault("_cached_at", entry.get("ts", 0))
+        return inner
+
+    # ── structured interface used by main_loop._prefetch_quotes ───────────────
+
+    def get_missing(self, symbols: List[str]) -> List[str]:
+        """Return symbols whose cache entry is absent or older than TTL_SECONDS."""
+        now = time.time()
+        return [
+            s for s in symbols
+            if s not in self._data or (now - self._data[s].get("ts", 0)) > self.TTL_SECONDS
+        ]
+
+    def refresh_batch_itick(self, symbols: List[str], market: str, *args: Any) -> dict:
+        """Stub: iTick batch fetch not wired up; returns empty dict."""
+        return {}
+
+    async def refresh_batch_async(
+        self,
+        symbols: List[str],
+        fetcher: Any,
+        max_concurrency: int = 8,
+    ) -> dict:
+        """Fetch quotes for ``symbols`` concurrently via ``fetcher(symbol)`` (sync callable).
+
+        Populates cache and returns a mapping of symbol -> quote for successful fetches.
+        """
+        results: dict = {}
+        sem = asyncio.Semaphore(max_concurrency)
+
+        async def _fetch(sym: str) -> None:
+            async with sem:
+                try:
+                    quote = await asyncio.to_thread(fetcher, sym)
+                    if quote:
+                        self[sym] = {"quote": quote, "ts": time.time()}
+                        results[sym] = quote
+                except Exception:
+                    pass
+
+        await asyncio.gather(*(_fetch(s) for s in symbols))
+        return results
+
+    def log_stats(self) -> None:
+        total = len(self._data)
+        now = time.time()
+        fresh = sum(1 for v in self._data.values() if (now - v.get("ts", 0)) <= self.TTL_SECONDS)
+        logger = logging.getLogger("QuoteCache")
+        logger.debug("[CACHE_STATS] total=%d fresh=%d stale=%d", total, fresh, total - fresh)
 
 
 def _build_stderr_logger(name: str) -> logging.Logger:
@@ -52,7 +147,7 @@ class FutuConnector:
 
         self.login_account: Optional[int] = None
         self.discovered_accounts: pd.DataFrame = pd.DataFrame()
-        self._quote_cache: dict[str, dict[str, Any]] = {}
+        self._quote_cache: QuoteCache = QuoteCache()
         self._cached_hit_count: dict[str, int] = {}
 
         # Degraded-mode tracking: after _FUTU_FAIL_THRESHOLD consecutive trade_ctx
@@ -76,7 +171,7 @@ class FutuConnector:
         self._quote_cache[symbol] = {"quote": quote, "ts": time.time()}
 
     def _get_cached_quote(self, symbol: str) -> Optional[dict[str, Any]]:
-        cached = self._quote_cache.get(symbol)
+        cached = self._quote_cache.get(symbol)  # returns inner quote or None (TTL-aware)
         if not cached:
             return None
         self._cached_hit_count[symbol] = self._cached_hit_count.get(symbol, 0) + 1
@@ -85,7 +180,7 @@ class FutuConnector:
             self._quote_cache.pop(symbol, None)
             self._cached_hit_count[symbol] = 0
             return None
-        return cached.get("quote")
+        return cached
 
     def _normalize_quote(self, close: float, open_p: float, high_p: float, low_p: float, volume: float, source: str) -> dict:
         return {
