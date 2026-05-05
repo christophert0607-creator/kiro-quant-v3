@@ -55,6 +55,13 @@ class FutuConnector:
         self._quote_cache: dict[str, dict[str, Any]] = {}
         self._cached_hit_count: dict[str, int] = {}
 
+        # Degraded-mode tracking: after _FUTU_FAIL_THRESHOLD consecutive trade_ctx
+        # failures, mark as degraded so callers skip Futu broker operations entirely
+        # and rely on yfinance + state.json. Resets on a successful trade call.
+        self._futu_fail_count: int = 0
+        self._FUTU_FAIL_THRESHOLD: int = 3
+        self._futu_degraded: bool = False
+
         self.yf_user_agents = [
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
@@ -211,6 +218,11 @@ class FutuConnector:
         self.quote_ctx = None
         self.trade_ctx = None
 
+    @property
+    def is_connected(self) -> bool:
+        """True when both quote and trade contexts are alive."""
+        return self.quote_ctx is not None and self.trade_ctx is not None and self.ft is not None
+
     def _resolved_trd_env(self):
         if self.ft is None:
             raise RuntimeError("Futu SDK not loaded. Call connect() first.")
@@ -218,12 +230,34 @@ class FutuConnector:
 
     def _safe_trade_call(self, method_name: str, **kwargs):
         if self.trade_ctx is None or self.ft is None:
+            self._futu_fail_count += 1
+            if self._futu_fail_count >= self._FUTU_FAIL_THRESHOLD and not self._futu_degraded:
+                self._futu_degraded = True
+                self.logger.warning(
+                    "[FUTU_DEGRADED] %d consecutive trade failures — switching to yfinance/state.json fallback mode",
+                    self._futu_fail_count,
+                )
             raise RuntimeError("FutuConnector not connected")
-        method = getattr(self.trade_ctx, method_name)
-        ret, data = method(trd_env=self._resolved_trd_env(), **kwargs)
-        if ret != self.ft.RET_OK:
-            raise RuntimeError(self._build_trade_error(f"{method_name} failed", data))
-        return data
+        try:
+            method = getattr(self.trade_ctx, method_name)
+            ret, data = method(trd_env=self._resolved_trd_env(), **kwargs)
+            if ret != self.ft.RET_OK:
+                raise RuntimeError(self._build_trade_error(f"{method_name} failed", data))
+            # Successful call — reset degraded state
+            if self._futu_degraded:
+                self.logger.info("[FUTU_RECOVERED] Trade call succeeded — exiting degraded mode")
+                self._futu_degraded = False
+            self._futu_fail_count = 0
+            return data
+        except Exception:
+            self._futu_fail_count += 1
+            if self._futu_fail_count >= self._FUTU_FAIL_THRESHOLD and not self._futu_degraded:
+                self._futu_degraded = True
+                self.logger.warning(
+                    "[FUTU_DEGRADED] %d consecutive trade failures — switching to yfinance/state.json fallback mode",
+                    self._futu_fail_count,
+                )
+            raise
 
     def _safe_trade_call_legacy(self, method_name: str, **kwargs):
         """Fallback for SDK methods that do not accept `trd_env`."""
@@ -301,6 +335,47 @@ class FutuConnector:
         except Exception as exc:
             self.logger.warning("Futu heartbeat failed: %s", exc)
             return False
+
+    def resolve_symbol(self, symbol: str) -> tuple[str, str]:
+        """Resolve a logical symbol to a Futu broker code and market prefix.
+
+        HK symbols (ending in '.HK') always use the 'HK' prefix regardless of
+        current market_prefix. All others use self.config.market_prefix.
+
+        Returns:
+            (broker_code, market_prefix), e.g.
+            'AAPL'    -> ('US.AAPL',    'US')
+            '0700.HK' -> ('HK.0700.HK', 'HK')
+        """
+        if str(symbol).upper().endswith(".HK"):
+            prefix = "HK"
+        else:
+            prefix = self.config.market_prefix or "US"
+        return f"{prefix}.{symbol}", prefix
+
+    def set_market_prefix(self, prefix: str) -> None:
+        """Update the active market prefix (called when switching HK ↔ US session)."""
+        self.config.market_prefix = str(prefix).upper()
+        self.logger.info("Market prefix set to %s", self.config.market_prefix)
+
+    def subscribe_symbols(self, symbols: list[str]) -> None:
+        """Subscribe to real-time quotes for the given symbol list.
+
+        No-op if Futu quote context is not connected — the system falls back to
+        yfinance for quote data, so this is non-fatal.
+        """
+        if self.quote_ctx is None or self.ft is None:
+            self.logger.debug("subscribe_symbols: quote_ctx not connected, skipping")
+            return
+        codes = [self.resolve_symbol(s)[0] for s in symbols]
+        try:
+            ret, err = self.quote_ctx.subscribe(codes, [self.ft.SubType.QUOTE], subscribe_push=True)
+            if ret == self.ft.RET_OK:
+                self.logger.info("Subscribed to real-time quotes for %d symbols", len(codes))
+            else:
+                self.logger.warning("Quote subscription failed: %s", err)
+        except Exception as exc:
+            self.logger.warning("subscribe_symbols error (non-fatal): %s", exc)
 
     def reconnect(self, max_retries: int = 10, base_delay_seconds: int = 5) -> None:
         hard_attempt_cap = 3
@@ -411,6 +486,9 @@ class FutuConnector:
             return float(fallback_price)
 
     def get_sync_assets(self) -> dict:
+        if self._futu_degraded:
+            self.logger.debug("get_sync_assets: degraded mode — returning empty assets")
+            return {"total_assets": 0.0, "cash": 0.0, "power": 0.0}
         data = self._safe_trade_call("accinfo_query", **self._account_kwargs())
         if data is None or data.empty:
             raise RuntimeError("accinfo_query returned empty dataset")
@@ -418,6 +496,9 @@ class FutuConnector:
         return {"total_assets": float(row.get("total_assets", 0.0)), "cash": float(row.get("cash", 0.0)), "power": float(row.get("power", 0.0))}
 
     def get_sync_positions(self) -> pd.DataFrame:
+        if self._futu_degraded:
+            self.logger.debug("get_sync_positions: degraded mode — returning empty positions")
+            return pd.DataFrame()
         data = self._safe_trade_call("position_list_query", **self._account_kwargs())
         return pd.DataFrame() if data is None else data.copy()
 
