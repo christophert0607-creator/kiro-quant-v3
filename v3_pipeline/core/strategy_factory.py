@@ -8,12 +8,13 @@ class StrategyProfile:
     name: str
     risk_multiplier: float
     allow_long: bool
+    allow_short: bool = False
 
 
 class StrategyFactory:
     """Builds dynamic strategy controls based on volatility regime and confidence."""
 
-    def choose_profile(self, vix_value: float) -> StrategyProfile:
+    def choose_profile(self, vix_value: float, sentiment_score: float = 0.0) -> StrategyProfile:
         if vix_value >= 28:
             return StrategyProfile(name="defensive", risk_multiplier=0.35, allow_long=False)
         if vix_value >= 20:

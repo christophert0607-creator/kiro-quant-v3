@@ -209,7 +209,7 @@ class LiveTradingLoop:
         self._last_sell_time_by_symbol: dict[str, datetime] = {}  # 2026-04-24: prevent re-sync race
         self.account_value = 100000.0
         self.strategy_factory = StrategyFactory()
-        self.alpha_engine = KiroAlphaEngine(AlphaConfig(use_all_features=True))  # Use all features (match training)
+        self.alpha_engine = KiroAlphaEngine(AlphaConfig())
         self.monte_carlo = MonteCarloSimulator()
         self.history_primer = HistoryPrimer(
             self.logger,
