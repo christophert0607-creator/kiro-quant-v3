@@ -478,14 +478,6 @@ class LiveTradingLoop:
 
         self.logger.info("Buffer[%s] size: %d source=%s", symbol, len(buffer_df), quote.get("data_source", "UNKNOWN"))
 
-        # 2026-04-16 FINAL DEBUG: Print buffer boundaries to solve 1950 stagnation
-        if symbol == "AAPL":
-            head_ts = buffer_df.iloc[0]["Date"]
-            tail_ts = buffer_df.iloc[-1]["Date"]
-            self.logger.info("DEBUG[AAPL] HEAD: %s, TAIL: %s, PRICE: %.2f", head_ts, tail_ts, buffer_df.iloc[-1]["Close"])
-            if len(buffer_df) >= 2:
-                self.logger.info("DEBUG[AAPL] PREV_TAIL: %s", buffer_df.iloc[-2]["Date"])
-
         if len(buffer_df) < lookback:
             self.logger.info("Warmup[%s]: waiting for more bars (%d/%d)", symbol, len(buffer_df), lookback)
             return

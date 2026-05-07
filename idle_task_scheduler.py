@@ -8,6 +8,9 @@ Runs during each market's off-hours with a configurable budget:
 
 Rate limits come from config.json["idle_scheduler"]; never uses hardcoded quotas.
 Gracefully stops 30 minutes before the next market open.
+
+Singleton protection: at most one scheduler task runs per IDLE session.
+All yfinance access is routed through v3_pipeline.data.yf_provider.
 """
 
 from __future__ import annotations
@@ -126,6 +129,20 @@ def _emit(logger: logging.Logger, event_type: str, **fields) -> None:
         pass
 
 
+def _emit_fd_health(logger: logging.Logger, mode: str = "check") -> None:
+    """Emit a structured fd_health event."""
+    try:
+        from v3_pipeline.data.yf_provider import fd_health_event
+        health = fd_health_event(mode)
+        record = {
+            "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            **health,
+        }
+        logger.info(json.dumps(record, ensure_ascii=False))
+    except Exception:
+        pass
+
+
 # ── Task implementations ──────────────────────────────────────────────────────
 
 async def _run_historical_backfill(
@@ -135,7 +152,9 @@ async def _run_historical_backfill(
     rate_limiter: IdleRateLimiter,
     logger: logging.Logger,
 ) -> int:
-    """Fetch daily K-lines for all symbols in config-sized batches."""
+    """Fetch daily K-lines for all symbols using the centralized yf_provider."""
+    from v3_pipeline.data.yf_provider import download_history
+
     processed = 0
     for i in range(0, len(symbols), cfg.max_concurrent_symbols):
         if not rate_limiter.check_budget():
@@ -144,20 +163,17 @@ async def _run_historical_backfill(
         batch = symbols[i : i + cfg.max_concurrent_symbols]
         t0 = time.time()
         try:
-            for sym in batch:
-                try:
-                    import yfinance as yf
-                    hist = await asyncio.to_thread(
-                        lambda s=sym: yf.Ticker(s).history(period="60d", interval="1d")
-                    )
-                    if not hist.empty:
-                        hist.index.name = "Date"
-                        hist = hist.reset_index()
-                        if sym in loop.market_buffers and loop.market_buffers[sym].empty:
-                            loop.market_buffers[sym] = hist
-                        processed += 1
-                except Exception as exc:
-                    logger.warning("[backfill][%s] failed: %s", sym, exc)
+            history_map = await asyncio.to_thread(
+                download_history, batch, "60d", "1d"
+            )
+            for sym, hist in history_map.items():
+                if not hist.empty:
+                    hist = hist.reset_index()
+                    if sym in loop.market_buffers and loop.market_buffers[sym].empty:
+                        loop.market_buffers[sym] = hist
+                    processed += 1
+                else:
+                    logger.warning("[backfill][%s] empty history from yf_provider", sym)
             duration_ms = int((time.time() - t0) * 1000)
             _emit(
                 logger,
@@ -245,14 +261,36 @@ def _build_readiness_report(
     return report
 
 
+# ── Singleton guard ───────────────────────────────────────────────────────────
+
+# Tracks running IdleTaskScheduler tasks by a session key to prevent double-start.
+_active_idle_sessions: set[str] = set()
+_active_idle_lock = asyncio.Lock() if False else None  # created lazily per event loop
+
+
+def _get_active_lock() -> asyncio.Lock:
+    global _active_idle_lock
+    if _active_idle_lock is None:
+        _active_idle_lock = asyncio.Lock()
+    return _active_idle_lock
+
+
 # ── Scheduler ─────────────────────────────────────────────────────────────────
 
 class IdleTaskScheduler:
     """
     Off-hours task scheduler. Call `run()` once per IDLE session.
 
+    Singleton protection: if `run()` is already in progress for the same
+    session key, subsequent calls return immediately without starting a
+    second batch of tasks.
+
     Usage in v3_launcher.py:
-        scheduler = IdleTaskScheduler(loop, cfg=IdleSchedulerConfig.from_config_json())
+        scheduler = IdleTaskScheduler(
+            loop,
+            cfg=IdleSchedulerConfig.from_config_json(),
+            idle_symbols=IDLE_COLLECTION_SYMBOLS,
+        )
         asyncio.create_task(scheduler.run())
     """
 
@@ -261,11 +299,17 @@ class IdleTaskScheduler:
         loop: "LiveTradingLoop",
         cfg: IdleSchedulerConfig | None = None,
         config_path: str = "config.json",
+        idle_symbols: list[str] | None = None,
+        session_key: str | None = None,
     ) -> None:
         self.loop = loop
         self.cfg = cfg or IdleSchedulerConfig.from_config_json(config_path)
         self.logger = _build_idle_logger()
         self._stop_event = asyncio.Event()
+        # Fallback symbol universe when loop.symbols is empty in IDLE mode
+        self._idle_symbols = idle_symbols or []
+        # Session key for singleton protection (default: daily UTC date)
+        self._session_key = session_key or datetime.now(timezone.utc).strftime("idle_%Y%m%d")
 
     def request_stop(self) -> None:
         """Signal the scheduler to stop gracefully."""
@@ -282,13 +326,9 @@ class IdleTaskScheduler:
         hk_now = now.replace(tzinfo=None)
 
         # Next HK open: 09:30
-        hk_open_today = hk_now.replace(
-            hour=9, minute=30, second=0, microsecond=0
-        )
+        hk_open_today = hk_now.replace(hour=9, minute=30, second=0, microsecond=0)
         # Next US open (HKT): 21:30
-        us_open_today = hk_now.replace(
-            hour=21, minute=30, second=0, microsecond=0
-        )
+        us_open_today = hk_now.replace(hour=21, minute=30, second=0, microsecond=0)
 
         candidates: list[float] = []
         if hk_open_today > hk_now and weekday < 5:
@@ -309,13 +349,38 @@ class IdleTaskScheduler:
             self.logger.info("[IdleTaskScheduler] disabled via config, skipping")
             return
 
-        symbols = self.loop.symbols
+        # ── Singleton protection ───────────────────────────────────────────
+        lock = _get_active_lock()
+        async with lock:
+            if self._session_key in _active_idle_sessions:
+                self.logger.info(
+                    "[IdleTaskScheduler] session '%s' already running — skipping duplicate start",
+                    self._session_key,
+                )
+                return
+            _active_idle_sessions.add(self._session_key)
+
+        try:
+            await self._run_tasks()
+        except Exception:
+            # On failure, release the key so a manual restart is possible.
+            async with lock:
+                _active_idle_sessions.discard(self._session_key)
+            raise
+        # On success, keep the key in the set — the session is "used up"
+        # for this key and must not re-run (prevents double-fire if the
+        # IDLE→IDLE transition repeats within the same day).
+
+    async def _run_tasks(self) -> None:
+        # Use loop.symbols if non-empty; otherwise fall back to idle_symbols
+        symbols = self.loop.symbols if self.loop.symbols else self._idle_symbols
         if not symbols:
-            self.logger.info("[IdleTaskScheduler] no symbols configured, skipping")
+            self.logger.info("[IdleTaskScheduler] no symbols available, skipping")
             return
 
         rate_limiter = IdleRateLimiter(self.cfg)
-        _emit(self.logger, "start", symbols=symbols, cfg=self.cfg.__dict__)
+        _emit(self.logger, "start", symbols=symbols[:10], total=len(symbols), cfg=self.cfg.__dict__)
+        _emit_fd_health(self.logger, "session_start")
         self.logger.info(
             "[IdleTaskScheduler] Starting — %d symbols, budget=%.1fh, stop_before_open=%dmin",
             len(symbols), self.cfg.max_idle_hours_per_day, self.cfg.stop_before_open_min,
@@ -327,23 +392,32 @@ class IdleTaskScheduler:
                 return
             mins_left = self._minutes_until_next_open()
             if mins_left <= self.cfg.stop_before_open_min:
-                self.logger.info("[IdleTaskScheduler] Too close to market open (%.0f min) — skipping", mins_left)
+                self.logger.info(
+                    "[IdleTaskScheduler] Too close to market open (%.0f min) — skipping", mins_left
+                )
                 return
 
             t0 = time.time()
-            n = await _run_historical_backfill(symbols, self.loop, self.cfg, rate_limiter, self.logger)
+            n = await _run_historical_backfill(
+                symbols, self.loop, self.cfg, rate_limiter, self.logger
+            )
             self.logger.info("[backfill] done: %d symbols in %.1fs", n, time.time() - t0)
+            _emit_fd_health(self.logger, "post_backfill")
 
             # Task 2: Indicator warmup
             if self._stop_event.is_set():
                 return
             mins_left = self._minutes_until_next_open()
             if mins_left <= self.cfg.stop_before_open_min:
-                self.logger.info("[IdleTaskScheduler] Stopping before open (%.0f min left)", mins_left)
+                self.logger.info(
+                    "[IdleTaskScheduler] Stopping before open (%.0f min left)", mins_left
+                )
                 return
 
             t0 = time.time()
-            n = await _run_indicator_warmup(symbols, self.loop, self.cfg, rate_limiter, self.logger)
+            n = await _run_indicator_warmup(
+                symbols, self.loop, self.cfg, rate_limiter, self.logger
+            )
             self.logger.info("[warmup] done: %d symbols in %.1fs", n, time.time() - t0)
 
             # Task 3: Readiness report
@@ -357,5 +431,10 @@ class IdleTaskScheduler:
         except Exception as exc:
             self.logger.error("[IdleTaskScheduler] unexpected error: %s", exc)
         finally:
-            _emit(self.logger, "complete", elapsed_h=round((time.time() - rate_limiter._budget_start) / 3600, 3))
+            _emit_fd_health(self.logger, "session_end")
+            _emit(
+                self.logger,
+                "complete",
+                elapsed_h=round((time.time() - rate_limiter._budget_start) / 3600, 3),
+            )
             self.logger.info("[IdleTaskScheduler] done")

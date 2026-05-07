@@ -224,9 +224,18 @@ def build_live_config(config_path: str = "config.json") -> LiveConfig:
                 wdata = json.loads(watchlist_path.read_text())
                 if wdata.get('picks'):
                     picks = wdata['picks']
-                    print(f'[launcher] Injecting Dynamic Watchlist: {picks}')
-                    base_cfg = replace(base_cfg, symbols_list=picks)
-            except:
+                    # Don't inject US-only dynamic picks when current mode is HK.
+                    # HK symbols end with ".HK"; US picks never do.
+                    current_mode = resolve_market_mode()
+                    picks_are_us_only = picks and not any(
+                        str(p).upper().endswith(".HK") for p in picks
+                    )
+                    if current_mode == "HK" and picks_are_us_only:
+                        print('[launcher] Skipping dynamic watchlist injection — HK mode active')
+                    else:
+                        print(f'[launcher] Injecting Dynamic Watchlist: {picks}')
+                        base_cfg = replace(base_cfg, symbols_list=picks)
+            except Exception:
                 pass
     else:
         print('[launcher] USE_DYNAMIC_WATCHLIST=0 — skipping dynamic watchlist injection')
@@ -429,12 +438,19 @@ async def _apply_market_mode(loop: "LiveTradingLoop", base_cfg: "LiveConfig", mo
             auto_trade,
         )
 
-        # Start IdleTaskScheduler in the background for off-hours pre-computation
-        if prev_mode != mode:  # Only start once per IDLE entry (not every cycle)
+        # Start IdleTaskScheduler in the background for off-hours pre-computation.
+        # Singleton protection inside IdleTaskScheduler prevents double-launch
+        # even if prev_mode == mode (e.g., repeated IDLE cycles).
+        if prev_mode != mode:
             try:
                 from idle_task_scheduler import IdleSchedulerConfig, IdleTaskScheduler
                 idle_cfg = IdleSchedulerConfig.from_config_json(config_path)
-                scheduler = IdleTaskScheduler(loop, cfg=idle_cfg, config_path=config_path)
+                scheduler = IdleTaskScheduler(
+                    loop,
+                    cfg=idle_cfg,
+                    config_path=config_path,
+                    idle_symbols=IDLE_COLLECTION_SYMBOLS,
+                )
                 asyncio.create_task(scheduler.run(), name="idle_task_scheduler")
                 loop.logger.info("[MARKET_IDLE] IdleTaskScheduler launched (budget=%.1fh)", idle_cfg.max_idle_hours_per_day)
             except Exception as exc:
@@ -454,10 +470,17 @@ async def _collect_only_cycle(loop: "LiveTradingLoop", symbols: list[str]) -> No
                 )
                 if quote:
                     new_row = pd.DataFrame([quote])
-                    if not new_row.dropna(how="all").empty:
-                        loop.market_buffers[sym] = loop._normalize_market_buffer(
-                            pd.concat([loop.market_buffers[sym], new_row], ignore_index=True)
-                        )
+                    # Drop rows that are entirely NaN to avoid FutureWarning from
+                    # pd.concat when concatenating empty/all-NA frames.
+                    new_row = new_row.dropna(how="all")
+                    if not new_row.empty:
+                        existing = loop.market_buffers[sym]
+                        if existing.empty:
+                            loop.market_buffers[sym] = loop._normalize_market_buffer(new_row)
+                        else:
+                            loop.market_buffers[sym] = loop._normalize_market_buffer(
+                                pd.concat([existing, new_row], ignore_index=True)
+                            )
             # Significant sleep between batches to be very gentle with the API
             await asyncio.sleep(2.0)
         except asyncio.TimeoutError:
