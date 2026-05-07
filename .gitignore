@@ -42,3 +42,12 @@ __pycache__/
 # State (sensitive)
 state.json
 trades.jsonl
+
+# Claude IDE settings
+.claude/
+
+# Accidental files
+=
+
+# Root-level model output (training artifacts separate from v3_pipeline/models/)
+/models/
