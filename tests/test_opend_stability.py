@@ -1,5 +1,5 @@
 """Tests for FutuConnector OpenD stability: connection state machine,
-heartbeat transitions, and exponential backoff reconnect.
+heartbeat transitions, exponential backoff reconnect, and startup guard.
 """
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch, call
 import pytest
 
 from v3_pipeline.core.futu_connector import ConnectionState, FutuConfig, FutuConnector
+from v3_launcher import _check_opend_reachable, _wait_for_opend
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -288,3 +289,79 @@ class TestSafeCloseContextsState:
             with pytest.raises(RuntimeError):
                 fc.connect()
         assert fc._conn_state is ConnectionState.DISCONNECTED
+
+
+# ── OpenD startup guard ────────────────────────────────────────────────────────
+
+class TestCheckOpendReachable:
+    def test_returns_true_when_port_open(self):
+        import socket, threading
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.bind(("127.0.0.1", 0))
+        server.listen(1)
+        port = server.getsockname()[1]
+
+        def _accept():
+            try:
+                conn, _ = server.accept()
+                conn.close()
+            except OSError:
+                pass
+
+        t = threading.Thread(target=_accept, daemon=True)
+        t.start()
+        try:
+            assert _check_opend_reachable("127.0.0.1", port, timeout=2.0) is True
+        finally:
+            server.close()
+
+    def test_returns_false_when_port_closed(self):
+        # Port 1 is almost certainly not open on localhost
+        assert _check_opend_reachable("127.0.0.1", 1, timeout=0.2) is False
+
+    def test_returns_false_on_unreachable_host(self):
+        # 192.0.2.x is documentation range — never routable
+        assert _check_opend_reachable("192.0.2.1", 11112, timeout=0.2) is False
+
+
+class TestWaitForOpend:
+    def test_returns_true_immediately_when_reachable(self):
+        with patch("v3_launcher._check_opend_reachable", return_value=True) as mock_check:
+            result = _wait_for_opend(host="127.0.0.1", port=11112, max_wait_seconds=5.0)
+        assert result is True
+        assert mock_check.call_count == 1
+
+    def test_returns_false_after_timeout(self):
+        with patch("v3_launcher._check_opend_reachable", return_value=False):
+            with patch("v3_launcher.time.sleep"):
+                result = _wait_for_opend(
+                    host="127.0.0.1", port=11112, max_wait_seconds=0.01, poll_interval_seconds=0.001
+                )
+        assert result is False
+
+    def test_retries_until_reachable(self):
+        call_count = {"n": 0}
+
+        def _flaky(*_args, **_kwargs):
+            call_count["n"] += 1
+            return call_count["n"] >= 3
+
+        with patch("v3_launcher._check_opend_reachable", side_effect=_flaky):
+            with patch("v3_launcher.time.sleep"):
+                result = _wait_for_opend(
+                    host="127.0.0.1", port=11112, max_wait_seconds=60.0, poll_interval_seconds=0.001
+                )
+        assert result is True
+        assert call_count["n"] == 3
+
+    def test_logs_timeout_at_error_level(self, caplog):
+        import logging
+        with patch("v3_launcher._check_opend_reachable", return_value=False):
+            with patch("v3_launcher.time.sleep"):
+                with caplog.at_level(logging.ERROR, logger="opend_guard"):
+                    result = _wait_for_opend(
+                        host="127.0.0.1", port=9, max_wait_seconds=0.01, poll_interval_seconds=0.001
+                    )
+        assert result is False
+        assert any("timeout" in r.message.lower() for r in caplog.records)
