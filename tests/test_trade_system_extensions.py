@@ -52,7 +52,8 @@ def test_paper_trading_and_pnl_report(tmp_path: Path):
     assert (tmp_path / "pnl_report.json").exists()
 
 
-def test_reconnect_backoff_caps_attempts_and_uses_bounded_delays(monkeypatch):
+def test_reconnect_backoff_caps_attempts_and_uses_exponential_delays(monkeypatch):
+    """reconnect() uses exponential backoff: base, base*2, base*4, …"""
     connector = FutuConnector(config=FutuConfig(trd_env="SIMULATE"))
     sleeps = []
     attempts = {"n": 0}
@@ -66,13 +67,15 @@ def test_reconnect_backoff_caps_attempts_and_uses_bounded_delays(monkeypatch):
     monkeypatch.setattr(connector, "_safe_close_contexts", lambda: None)
     monkeypatch.setattr("v3_pipeline.core.futu_connector.time.sleep", lambda seconds: sleeps.append(seconds))
 
-    connector.reconnect(max_retries=10, base_delay_seconds=5)
+    connector.reconnect(max_retries=10, base_delay_seconds=5.0)
 
     assert attempts["n"] == 3
-    assert sleeps == [2, 4]
+    # Exponential: 5.0, then 10.0 (5*2)
+    assert sleeps == [5.0, 10.0]
 
 
-def test_reconnect_budget_exceeded_raises_deterministic_error(monkeypatch):
+def test_reconnect_exhausted_raises_reconnect_failed_error(monkeypatch):
+    """reconnect() raises RuntimeError('RECONNECT_FAILED:…') when all attempts fail."""
     connector = FutuConnector(config=FutuConfig(trd_env="SIMULATE"))
     attempts = {"n": 0}
 
@@ -80,21 +83,14 @@ def test_reconnect_budget_exceeded_raises_deterministic_error(monkeypatch):
         attempts["n"] += 1
         raise RuntimeError("boom")
 
-    clock = {"now": 0.0}
-
-    def fake_time():
-        clock["now"] += 11.0
-        return clock["now"]
-
     monkeypatch.setattr(connector, "connect", fake_connect)
     monkeypatch.setattr(connector, "_safe_close_contexts", lambda: None)
     monkeypatch.setattr("v3_pipeline.core.futu_connector.time.sleep", lambda _seconds: None)
-    monkeypatch.setattr("v3_pipeline.core.futu_connector.time.time", fake_time)
 
     try:
-        connector.reconnect(max_retries=10, base_delay_seconds=5)
+        connector.reconnect(max_retries=3, base_delay_seconds=0.01)
         raise AssertionError("expected reconnect to fail")
     except RuntimeError as exc:
-        assert "RECONNECT_BUDGET_EXCEEDED" in str(exc)
+        assert "RECONNECT_FAILED" in str(exc)
 
-    assert 1 <= attempts["n"] <= 3
+    assert attempts["n"] == 3

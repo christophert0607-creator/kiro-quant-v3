@@ -1,15 +1,31 @@
 import asyncio
+import enum
 import json
 import logging
 import os
 import random
 import sys
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, List, Optional
 
 import pandas as pd
+
+
+class ConnectionState(enum.Enum):
+    """OpenD connection lifecycle states.
+
+    CONNECTED   – quote_ctx + trade_ctx alive, last heartbeat OK
+    DEGRADED    – contexts exist but consecutive heartbeat failures detected
+    DISCONNECTED – contexts closed; no active connection
+    RECONNECTING – actively attempting to re-establish connection
+    """
+    CONNECTED = "CONNECTED"
+    DEGRADED = "DEGRADED"
+    DISCONNECTED = "DISCONNECTED"
+    RECONNECTING = "RECONNECTING"
 
 
 class QuoteCache:
@@ -162,6 +178,14 @@ class FutuConnector:
         self._FUTU_FAIL_THRESHOLD: int = 3
         self._futu_degraded: bool = False
 
+        # Connection state machine
+        self._conn_state: ConnectionState = ConnectionState.DISCONNECTED
+        self._heartbeat_fail_count: int = 0
+        self._HEARTBEAT_DEGRADE_THRESHOLD: int = 2  # failures before DEGRADED
+        self._heartbeat_thread: Optional[threading.Thread] = None
+        self._heartbeat_stop_event: threading.Event = threading.Event()
+        self._heartbeat_interval_s: float = 30.0
+
         self.yf_user_agents = [
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
@@ -304,10 +328,13 @@ class FutuConnector:
 
             active_markets = list(self.trade_ctxs.keys())
             self.logger.info("Connected to Futu OpenD at %s:%s (markets: %s)", self.config.host, self.config.port, active_markets)
+            self._conn_state = ConnectionState.CONNECTED
+            self._heartbeat_fail_count = 0
             self.discover_accounts()
             if self.config.trd_env.upper() == "REAL":
                 self.unlock_trading(self.config.trade_password)
         except Exception as exc:
+            self._conn_state = ConnectionState.DISCONNECTED
             self._safe_close_contexts()
             raise RuntimeError(f"Failed to connect to Futu OpenD: {exc}") from exc
 
@@ -327,6 +354,7 @@ class FutuConnector:
         raise RuntimeError(f"No trade context available for market {mkt!r}")
 
     def close(self) -> None:
+        self.stop_heartbeat_monitor()
         self._safe_close_contexts()
         self.logger.info("Closed Futu contexts")
 
@@ -345,6 +373,7 @@ class FutuConnector:
         self.trade_ctx = None
         self.trade_ctxs = {}
         self.account_ids = {}
+        self._conn_state = ConnectionState.DISCONNECTED
 
     @property
     def is_connected(self) -> bool:
@@ -503,13 +532,76 @@ class FutuConnector:
             return {}
         return {"acc_id": int(acc_id)}
 
+    @property
+    def conn_state(self) -> ConnectionState:
+        """Current connection state (read-only)."""
+        return self._conn_state
+
     def heartbeat(self) -> bool:
+        """Probe the connection; updates _conn_state accordingly.
+
+        Returns True when the probe succeeded.  On failure increments
+        _heartbeat_fail_count and transitions to DEGRADED once the threshold
+        is reached.
+        """
         try:
             _ = self._safe_trade_call("accinfo_query", **self._account_kwargs())
+            if self._conn_state != ConnectionState.RECONNECTING:
+                self._conn_state = ConnectionState.CONNECTED
+            self._heartbeat_fail_count = 0
             return True
         except Exception as exc:
-            self.logger.warning("Futu heartbeat failed: %s", exc)
+            self._heartbeat_fail_count += 1
+            self.logger.warning(
+                "Futu heartbeat failed (attempt %d/%d): %s",
+                self._heartbeat_fail_count,
+                self._HEARTBEAT_DEGRADE_THRESHOLD,
+                exc,
+            )
+            if self._heartbeat_fail_count >= self._HEARTBEAT_DEGRADE_THRESHOLD:
+                if self._conn_state == ConnectionState.CONNECTED:
+                    self._conn_state = ConnectionState.DEGRADED
+                    self.logger.warning("Connection transitioned to DEGRADED after %d heartbeat failures", self._heartbeat_fail_count)
             return False
+
+    def start_heartbeat_monitor(self, interval_s: float = 30.0) -> None:
+        """Start a background thread that probes the connection every *interval_s* seconds.
+
+        If the connection degrades the thread logs a warning; callers can
+        inspect ``conn_state`` to decide whether to trigger a reconnect.
+        Already running monitors are left untouched.
+        """
+        if self._heartbeat_thread is not None and self._heartbeat_thread.is_alive():
+            return
+        self._heartbeat_interval_s = interval_s
+        self._heartbeat_stop_event.clear()
+
+        def _monitor_loop() -> None:
+            while not self._heartbeat_stop_event.wait(timeout=self._heartbeat_interval_s):
+                if self._conn_state in (ConnectionState.DISCONNECTED, ConnectionState.RECONNECTING):
+                    continue
+                ok = self.heartbeat()
+                if not ok and self._conn_state == ConnectionState.DEGRADED:
+                    self.logger.warning(
+                        "OpenD heartbeat DEGRADED — conn_state=%s fail_count=%d",
+                        self._conn_state.value,
+                        self._heartbeat_fail_count,
+                    )
+
+        self._heartbeat_thread = threading.Thread(
+            target=_monitor_loop,
+            name="futu-heartbeat",
+            daemon=True,
+        )
+        self._heartbeat_thread.start()
+        self.logger.info("Heartbeat monitor started (interval=%.0fs)", interval_s)
+
+    def stop_heartbeat_monitor(self) -> None:
+        """Signal the heartbeat thread to stop and wait for it to exit."""
+        self._heartbeat_stop_event.set()
+        if self._heartbeat_thread is not None and self._heartbeat_thread.is_alive():
+            self._heartbeat_thread.join(timeout=5.0)
+        self._heartbeat_thread = None
 
     def resolve_symbol(self, symbol: str) -> tuple[str, str]:
         """Resolve a logical symbol to a Futu broker code and market prefix.
@@ -552,48 +644,57 @@ class FutuConnector:
         except Exception as exc:
             self.logger.warning("subscribe_symbols error (non-fatal): %s", exc)
 
-    def reconnect(self, max_retries: int = 10, base_delay_seconds: int = 5) -> None:
-        hard_attempt_cap = 3
-        hard_elapsed_budget_seconds = 30.0
-        bounded_delays_seconds = (2, 4, 8)
+    def reconnect(self, max_retries: int = 10, base_delay_seconds: float = 1.0, max_delay_seconds: float = 60.0) -> None:
+        """Reconnect to OpenD with exponential backoff.
 
-        max_retries = min(max(1, int(max_retries)), hard_attempt_cap)
-        started = time.time()
+        Backoff sequence (capped at *max_delay_seconds*):
+            base → base*2 → base*4 → … → max_delay
+
+        *max_retries* is the maximum number of connection attempts before giving
+        up with ``RuntimeError``.  The default of 10 attempts covers ~17 minutes
+        of retry time at 60 s cap before failing permanently.
+
+        Unlike the old hard-cap implementation this method does NOT impose a
+        wall-clock budget; callers that need a timeout should wrap this in a
+        thread or use ``start_heartbeat_monitor`` for background recovery.
+        """
+        prev_state = self._conn_state
+        self._conn_state = ConnectionState.RECONNECTING
         last_exc: Optional[Exception] = None
+        delay = float(base_delay_seconds)
+
         for attempt in range(1, max_retries + 1):
-            elapsed = time.time() - started
-            if elapsed >= hard_elapsed_budget_seconds:
-                raise RuntimeError(
-                    "RECONNECT_BUDGET_EXCEEDED: "
-                    f"elapsed={elapsed:.2f}s attempts={attempt - 1} budget={hard_elapsed_budget_seconds:.2f}s"
-                )
             try:
-                self.logger.warning("Reconnect attempt %d/%d", attempt, max_retries)
+                self.logger.warning(
+                    "Reconnect attempt %d/%d (state=%s)",
+                    attempt,
+                    max_retries,
+                    prev_state.value,
+                )
                 self._safe_close_contexts()
                 self.connect()
+                self._conn_state = ConnectionState.CONNECTED
+                self._heartbeat_fail_count = 0
                 self.logger.info("Reconnect succeeded on attempt %d", attempt)
                 return
-            except Exception as exc:  # pragma: no cover - defensive backoff logging
+            except Exception as exc:
                 last_exc = exc
                 if attempt >= max_retries:
                     break
-                delay = bounded_delays_seconds[min(attempt - 1, len(bounded_delays_seconds) - 1)]
-                remaining_budget = hard_elapsed_budget_seconds - (time.time() - started)
-                if remaining_budget <= 0:
-                    raise RuntimeError(
-                        "RECONNECT_BUDGET_EXCEEDED: "
-                        f"elapsed={time.time() - started:.2f}s attempts={attempt} budget={hard_elapsed_budget_seconds:.2f}s"
-                    ) from exc
-                delay = min(delay, remaining_budget)
-                self.logger.warning("Reconnect attempt %d failed: %s; retrying in %ss", attempt, exc, delay)
-                time.sleep(delay)
-        elapsed = time.time() - started
-        if elapsed >= hard_elapsed_budget_seconds:
-            raise RuntimeError(
-                "RECONNECT_BUDGET_EXCEEDED: "
-                f"elapsed={elapsed:.2f}s attempts={max_retries} budget={hard_elapsed_budget_seconds:.2f}s"
-            ) from last_exc
-        raise RuntimeError(f"RECONNECT_BUDGET_EXCEEDED: attempts={max_retries}/{hard_attempt_cap}; last_error={last_exc}")
+                actual_delay = min(delay, max_delay_seconds)
+                self.logger.warning(
+                    "Reconnect attempt %d failed: %s; retrying in %.1fs",
+                    attempt,
+                    exc,
+                    actual_delay,
+                )
+                time.sleep(actual_delay)
+                delay = min(delay * 2, max_delay_seconds)
+
+        self._conn_state = ConnectionState.DISCONNECTED
+        raise RuntimeError(
+            f"RECONNECT_FAILED: attempts={max_retries}; last_error={last_exc}"
+        ) from last_exc
 
     def get_latest_quote(self, symbol: str, use_cache: bool = True) -> dict:
         # Use resolve_symbol so HK stocks get broker code "HK.0700.HK" not "US.0700.HK"

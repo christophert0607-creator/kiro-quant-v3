@@ -4,6 +4,7 @@
 import asyncio
 import json
 import os
+import socket
 import time  # 2026-04-24: for cooldown
 import argparse
 import logging
@@ -375,6 +376,54 @@ def _load_market_model(loop: "LiveTradingLoop", mode: str, config_path: str = "c
     )
 
 
+def _check_opend_reachable(host: str = "127.0.0.1", port: int = 11112, timeout: float = 2.0) -> bool:
+    """Return True if OpenD TCP port is accepting connections."""
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def _wait_for_opend(
+    host: str = "127.0.0.1",
+    port: int = 11112,
+    max_wait_seconds: float = 60.0,
+    poll_interval_seconds: float = 5.0,
+    logger: Optional[logging.Logger] = None,
+) -> bool:
+    """Block until OpenD is reachable or max_wait_seconds elapsed.
+
+    Returns True if OpenD became reachable, False if the wait timed out.
+    Structured log event: ``opend_guard`` with ``status``, ``host``, ``port``,
+    ``elapsed_s``.
+    """
+    _log = logger or logging.getLogger("opend_guard")
+    deadline = time.monotonic() + max_wait_seconds
+    attempt = 0
+    while time.monotonic() < deadline:
+        attempt += 1
+        if _check_opend_reachable(host=host, port=port):
+            elapsed = max_wait_seconds - (deadline - time.monotonic())
+            _log.info(
+                '{"event":"opend_guard","status":"reachable","host":"%s","port":%d,"attempt":%d,"elapsed_s":%.1f}',
+                host, port, attempt, elapsed,
+            )
+            return True
+        remaining = deadline - time.monotonic()
+        _log.warning(
+            '{"event":"opend_guard","status":"waiting","host":"%s","port":%d,"attempt":%d,"remaining_s":%.1f}',
+            host, port, attempt, max(0.0, remaining),
+        )
+        time.sleep(min(poll_interval_seconds, max(0.0, remaining)))
+
+    _log.error(
+        '{"event":"opend_guard","status":"timeout","host":"%s","port":%d,"max_wait_s":%.1f}',
+        host, port, max_wait_seconds,
+    )
+    return False
+
+
 def _safe_connector_connect(connector, symbols: list[str] | None = None) -> None:
     """Connector compatibility shim for old/new FutuConnector signatures."""
     try:
@@ -639,6 +688,17 @@ def run_kiro_v35(*, dry_run: bool = False, once: bool = False, config_path: str 
 
     if dry_run:
         _enable_dry_run_log_prefix()
+
+    # Startup sequence guard: verify OpenD is reachable before connecting.
+    cfg, _ = _read_config(config_path)
+    _opend_host = cfg.get("futu", cfg.get("futu_api_config", {})).get("host", "127.0.0.1")
+    _opend_port = int(cfg.get("futu", cfg.get("futu_api_config", {})).get("port", 11112))
+    _opend_max_wait = float(cfg.get("opend_guard_max_wait_seconds", 60.0))
+    if not _wait_for_opend(host=_opend_host, port=_opend_port, max_wait_seconds=_opend_max_wait, logger=loop.logger):
+        loop.logger.error(
+            "OpenD not reachable at %s:%d after %.0fs — starting in degraded (collect-only) mode",
+            _opend_host, _opend_port, _opend_max_wait,
+        )
 
     _safe_connector_connect(loop.futu_connector, loop.config.symbols_list)
     _reset_crash_count()  # Reset crash counter on clean startup

@@ -1,6 +1,7 @@
 """Tests for v3_pipeline.config.manager (Phase 2 - typed config loader)."""
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -15,6 +16,16 @@ from v3_pipeline.config.manager import (
     load_config,
     _bool_from_str,
 )
+
+# v3_launcher.py loads .env at import time via os.environ.setdefault(), which can set
+# FUTU_OPEND_PORT=11112 as a module-level side effect when imported by other test
+# modules.  Strip all FUTU_* overrides before each test so defaults are predictable.
+@pytest.fixture(autouse=True)
+def _clean_futu_env(monkeypatch):
+    for k in list(os.environ):
+        if k.startswith("FUTU_"):
+            monkeypatch.delenv(k, raising=False)
+    yield
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
