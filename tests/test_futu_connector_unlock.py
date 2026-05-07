@@ -46,7 +46,8 @@ class DummyFT:
         return DummyTradeContext()
 
 
-def test_unlock_trading_requires_password_in_real_mode():
+def test_unlock_trading_requires_password_in_real_mode(monkeypatch):
+    monkeypatch.setenv("FUTU_TRD_ENV", "REAL")
     cfg = FutuConfig(trd_env="REAL", trade_password="")
     connector = FutuConnector(config=cfg)
     connector.ft = DummyFT
@@ -57,6 +58,7 @@ def test_unlock_trading_requires_password_in_real_mode():
 
 
 def test_connect_auto_unlocks_in_real_mode(monkeypatch):
+    monkeypatch.setenv("FUTU_TRD_ENV", "REAL")
     cfg = FutuConfig(trd_env="REAL", trade_password="secret")
     connector = FutuConnector(config=cfg)
 

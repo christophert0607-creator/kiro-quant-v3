@@ -535,7 +535,7 @@ class TestHKAwareQuoteProviderOrder:
         connector.ft = types.SimpleNamespace(RET_OK=0)
 
         result = connector.get_latest_quote("0700.HK", use_cache=False)
-        assert result["close"] == 310.0
+        assert result["Close"] == 310.0
         assert result["data_source"] == "FUTU"
 
     def test_efinance_module_not_found_raises_clear_error(self):
