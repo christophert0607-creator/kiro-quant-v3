@@ -1,9 +1,9 @@
 {
-  "date": "2026-03-18",
+  "date": "2026-05-06",
   "mode": "HK_lite",
   "runtime_profile": "lite",
   "daily_pnl": 0.0,
-  "daily_trades": 9,
+  "daily_trades": 14,
   "consecutive_errors": 0,
   "circuit_broken": false,
   "circuit_break_time": null,
@@ -16,8 +16,57 @@
     "1109.HK": "BUY 27 @ 30.58 (swing_signal)",
     "1299.HK": "BUY 10 @ 84.54 (swing_signal)",
     "2018.HK": "BUY 25 @ 33.24 (swing_signal)",
-    "2318.HK": "BUY 13 @ 63.03 (swing_signal)"
+    "2318.HK": "BUY 13 @ 63.03 (swing_signal)",
+    "US.META": {
+      "time": 1778086521.4492686,
+      "signal": "SELL",
+      "qty": 3,
+      "price": 611.0,
+      "reason": "model_signal_confirmed"
+    },
+    "US.NVDA": {
+      "time": 1778087165.919831,
+      "signal": "SELL",
+      "qty": 9,
+      "price": 204.88009643554688,
+      "reason": "model_signal_confirmed"
+    },
+    "US.JPM": {
+      "time": 1778087168.747304,
+      "signal": "SELL",
+      "qty": 12,
+      "price": 315.2250061035156,
+      "reason": "model_signal_confirmed"
+    },
+    "US.PG": {
+      "time": 1778087169.3063364,
+      "signal": "SELL",
+      "qty": 13,
+      "price": 147.0749969482422,
+      "reason": "model_signal_confirmed"
+    },
+    "US.HD": {
+      "time": 1778087169.8150837,
+      "signal": "SELL",
+      "qty": 6,
+      "price": 323.6300048828125,
+      "reason": "model_signal_confirmed"
+    }
   },
   "last_review": "2026-03-18T19:22:00Z",
-  "review_notes": "Hourly self-review 2026-03-18 19:22 UTC: System healthy. HK lite profile running with no errors. Logs show clean execution - multiple trade cycles processed. 9 trades executed this hour: mixed BUY (6) and SELL (3). Model predictions negative (-0.38% to -6.47%). Position cap at 10/10 - full. PnL: daily=$0, cumulative=-$3,219.28. Code review: syntax OK, no bare except, async/await implemented, Kelly sizer integrated, transaction cost calculator present. TA-Lib still using pandas fallback. No code changes applied this hour."
+  "review_notes": "Hourly self-review 2026-03-18 19:22 UTC: System healthy. HK lite profile running with no errors. Logs show clean execution - multiple trade cycles processed. 9 trades executed this hour: mixed BUY (6) and SELL (3). Model predictions negative (-0.38% to -6.47%). Position cap at 10/10 - full. PnL: daily=$0, cumulative=-$3,219.28. Code review: syntax OK, no bare except, async/await implemented, Kelly sizer integrated, transaction cost calculator present. TA-Lib still using pandas fallback. No code changes applied this hour.",
+  "positions": {
+    "US.META": 0,
+    "US.NVDA": 0,
+    "US.JPM": 0,
+    "US.PG": 0,
+    "US.HD": 0
+  },
+  "short_positions": {
+    "US.META": 0,
+    "US.NVDA": 0,
+    "US.JPM": 0,
+    "US.PG": 0,
+    "US.HD": 0
+  }
 }

@@ -15,6 +15,7 @@ from notifier import send_tg_msg
 from v3_pipeline.core.alpha_engine import KiroAlphaEngine, AlphaConfig
 from v3_pipeline.core.futu_connector import FutuConnector
 from v3_pipeline.core.history_priming import HistoryPrimer, PrimingConfig
+from v3_pipeline.core.market_context import build_market_contexts, sync_positions_to_contexts
 from v3_pipeline.core.monte_carlo import MonteCarloSimulator
 from v3_pipeline.core.strategy_factory import StrategyFactory
 from v3_pipeline.features.indicators import TechnicalIndicatorGenerator
@@ -193,6 +194,10 @@ class LiveTradingLoop:
         if not symbols:
             symbols = self.config.symbols_list or [self.config.symbol]
         self.symbols = symbols
+        # Per-market context: partitions symbols into HK/US and tracks per-market account state.
+        # The flat position dicts below remain the operational state; market_contexts provides
+        # explicit isolation for account routing and cross-market sync operations.
+        self.market_contexts = build_market_contexts(self.symbols)
         self.market_buffers: dict[str, pd.DataFrame] = {
             s: pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume", "data_source"]) for s in self.symbols
         }
@@ -1423,9 +1428,14 @@ class LiveTradingLoop:
         workspace_root = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..", "..", ".."))
         state_file = _os.path.join(workspace_root, "state.json")
 
-        # 1. Sync total account value (Broker is always source of truth for buying power)
+        # 1. Sync total account value across all active market accounts.
+        # When both HK and US trade contexts are live, sum assets from each so that
+        # position sizing reflects the true combined buying power.
         try:
-            assets = self.futu_connector.get_sync_assets()
+            if hasattr(self.futu_connector, "get_sync_assets_all_markets") and self.futu_connector.trade_ctxs:
+                assets = self.futu_connector.get_sync_assets_all_markets()
+            else:
+                assets = self.futu_connector.get_sync_assets()
             self.account_value = float(assets.get("total_assets", self.account_value))
         except Exception as exc:
             self.logger.warning("Asset sync failed: %s", exc)
@@ -1434,7 +1444,11 @@ class LiveTradingLoop:
         # This includes SIM mode: Futu's SIM account IS the source of truth for positions.
         # state.json is used ONLY as fallback if broker returns empty.
         try:
-            positions = self.futu_connector.get_sync_positions()
+            # Use all-markets sync when available so HK + US positions are both captured
+            if hasattr(self.futu_connector, "get_sync_positions_all_markets"):
+                positions = self.futu_connector.get_sync_positions_all_markets()
+            else:
+                positions = self.futu_connector.get_sync_positions()
             # Reset all to zero before syncing
             for symbol in self.symbols:
                 self.position_qty_by_symbol[symbol] = 0
@@ -1504,12 +1518,31 @@ class LiveTradingLoop:
                 except Exception:
                     pass
 
+        # Mirror flat position dicts into per-market MarketContext objects so callers
+        # have an explicit market-scoped view of positions alongside the global dicts.
+        try:
+            broker_rows = [
+                {"code": self.futu_connector.resolve_symbol(s)[0], "qty": q}
+                for s, q in self.position_qty_by_symbol.items()
+                if q != 0
+            ]
+            broker_rows += [
+                {"code": self.futu_connector.resolve_symbol(s)[0], "qty": -q}
+                for s, q in self.short_position_qty_by_symbol.items()
+                if q > 0
+            ]
+            sync_positions_to_contexts(self.market_contexts, broker_rows)
+        except Exception as exc:
+            self.logger.debug("market_contexts sync skipped: %s", exc)
+
         active_positions = {s: q for s, q in self.position_qty_by_symbol.items() if q > 0}
+        active_markets = list(self.market_contexts.keys())
         self._emit_structured(
             "broker_sync",
             positions=active_positions,
             account_value=round(self.account_value, 2),
             market=getattr(self.futu_connector, "market_prefix", "unknown"),
+            active_markets=active_markets,
         )
 
     def _execute(self, symbol: str, side: str, qty: int, price: float, reason: str, indicators: dict | None = None, prediction: float | None = None) -> None:
@@ -1517,10 +1550,15 @@ class LiveTradingLoop:
         if not self.config.auto_trade:
             return
 
-        # 2026-04-24 Fix: Double-check broker position before placing order
+        # 2026-04-24 Fix: Double-check broker position before placing order.
+        # Use all-markets positions so HK sell pre-checks are not missed when
+        # primary trade_ctx is US.
         if side == "SELL" and not self.config.paper_trading:
             try:
-                broker_positions = self.futu_connector.get_sync_positions()
+                if hasattr(self.futu_connector, "get_sync_positions_all_markets"):
+                    broker_positions = self.futu_connector.get_sync_positions_all_markets()
+                else:
+                    broker_positions = self.futu_connector.get_sync_positions()
                 if not broker_positions.empty and "code" in broker_positions.columns:
                     broker_code, _ = self.futu_connector.resolve_symbol(symbol)
                     actual_qty = broker_positions[broker_positions["code"] == broker_code]["qty"].sum()

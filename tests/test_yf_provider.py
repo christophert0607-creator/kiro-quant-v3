@@ -334,6 +334,78 @@ class TestIdleSchedulerUsesYfProvider:
         assert "AAPL" in used_symbols
 
 
+# ── 10 consecutive IDLE backfill rounds — FD stability ───────────────────────
+
+class TestIdleBackfillFdStability:
+    """Verify that 10 consecutive IDLE backfill rounds do not trigger FD guard.
+
+    Covers the requirement from CLAUDE_CODE_REWRITE_GUIDE.md:
+    "Ten consecutive IDLE collect/backfill rounds keep FD count stable."
+    """
+
+    def test_ten_rounds_download_history_no_fd_guard_trigger(self):
+        """FD count stays stable across 10 simulated IDLE backfill rounds."""
+        from v3_pipeline.data import yf_provider
+
+        guard_triggered = False
+
+        with patch.object(yf_provider, "_get_fd_stats", return_value=(200, 1024)):
+            with patch("yfinance.Ticker") as mock_ticker:
+                mock_ticker.return_value.history.return_value = _fake_history_df()
+                for round_num in range(10):
+                    results = yf_provider.download_history(["AAPL", "MSFT", "GOOGL"])
+                    if all(df.empty for df in results.values()):
+                        guard_triggered = True
+                        break
+
+        assert not guard_triggered, (
+            "FD guard triggered unexpectedly during 10-round backfill simulation"
+        )
+
+    def test_ten_rounds_all_return_non_empty(self):
+        """Each of 10 consecutive rounds returns populated DataFrames."""
+        from v3_pipeline.data import yf_provider
+
+        with patch.object(yf_provider, "_get_fd_stats", return_value=(100, 1024)):
+            with patch("yfinance.Ticker") as mock_ticker:
+                mock_ticker.return_value.history.return_value = _fake_history_df()
+                for i in range(10):
+                    results = yf_provider.download_history(["AAPL"])
+                    assert not results["AAPL"].empty, (
+                        f"Round {i + 1}: AAPL history unexpectedly empty"
+                    )
+
+    def test_fd_guard_kicks_in_after_threshold_breach(self):
+        """Once FD usage crosses 80%, subsequent rounds return empty DataFrames."""
+        from v3_pipeline.data import yf_provider
+
+        call_num = 0
+        fd_values = [200, 200, 200, 200, 200, 200, 200, 900, 900, 900]
+
+        def _rising_fds():
+            nonlocal call_num
+            v = fd_values[min(call_num, len(fd_values) - 1)]
+            call_num += 1
+            return (v, 1024)
+
+        rounds_before_block = 0
+        with patch.object(yf_provider, "_get_fd_stats", side_effect=_rising_fds):
+            with patch("yfinance.Ticker") as mock_ticker:
+                mock_ticker.return_value.history.return_value = _fake_history_df()
+                for i in range(10):
+                    results = yf_provider.download_history(["AAPL"])
+                    if all(df.empty for df in results.values()):
+                        break
+                    rounds_before_block += 1
+
+        assert rounds_before_block < 10, (
+            "Guard should have blocked after FD count exceeded 80% threshold"
+        )
+        assert rounds_before_block >= 7, (
+            f"Guard blocked too early (round {rounds_before_block}); expected at round 7+"
+        )
+
+
 # ── Launcher HK watchlist guard ───────────────────────────────────────────────
 
 class TestLauncherHKWatchlistGuard:

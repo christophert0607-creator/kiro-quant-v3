@@ -142,8 +142,13 @@ class FutuConnector:
         self.config = config or FutuConfig()
         self.logger = _build_stderr_logger(self.__class__.__name__)
         self.quote_ctx = None
-        self.trade_ctx = None
+        self.trade_ctx = None  # backward-compat: points to primary market context
         self.ft = None
+
+        # Multi-market trade contexts: {"US": OpenUSTradeContext, "HK": OpenHKTradeContext}
+        self.trade_ctxs: dict[str, Any] = {}
+        # Per-market account IDs discovered from broker: {"US": acc_id, "HK": acc_id}
+        self.account_ids: dict[str, Optional[int]] = {}
 
         self.login_account: Optional[int] = None
         self.discovered_accounts: pd.DataFrame = pd.DataFrame()
@@ -213,7 +218,14 @@ class FutuConnector:
             return None
 
     def _get_latest_quote_efinance(self, symbol: str) -> dict:
-        import efinance as ef
+        try:
+            import efinance as ef
+        except ModuleNotFoundError:
+            raise RuntimeError(
+                "efinance not importable in current Python env. "
+                "Fix: python3 -m pip install efinance --break-system-packages  "
+                "or activate the venv that has efinance installed."
+            )
 
         df = ef.stock.get_latest_quote([symbol])
         if df is None or df.empty:
@@ -274,8 +286,24 @@ class FutuConnector:
 
             self.ft = ft
             self.quote_ctx = ft.OpenQuoteContext(host=self.config.host, port=self.config.port)
-            self.trade_ctx = ft.OpenUSTradeContext(host=self.config.host, port=self.config.port)
-            self.logger.info("Connected to Futu OpenD at %s:%s", self.config.host, self.config.port)
+
+            # Open US trade context (always required)
+            self.trade_ctxs["US"] = ft.OpenUSTradeContext(host=self.config.host, port=self.config.port)
+
+            # Open HK trade context if the SDK supports it (optional — non-fatal if missing)
+            try:
+                self.trade_ctxs["HK"] = ft.OpenHKTradeContext(host=self.config.host, port=self.config.port)
+            except Exception as hk_exc:
+                self.logger.warning("HK trade context unavailable (non-fatal): %s", hk_exc)
+
+            # Backward compat: trade_ctx -> primary market context
+            primary = self.config.market_prefix.upper() if self.config.market_prefix.upper() in self.trade_ctxs else None
+            if primary is None:
+                primary = next(iter(self.trade_ctxs), None)
+            self.trade_ctx = self.trade_ctxs.get(primary) if primary else None
+
+            active_markets = list(self.trade_ctxs.keys())
+            self.logger.info("Connected to Futu OpenD at %s:%s (markets: %s)", self.config.host, self.config.port, active_markets)
             self.discover_accounts()
             if self.config.trd_env.upper() == "REAL":
                 self.unlock_trading(self.config.trade_password)
@@ -283,13 +311,31 @@ class FutuConnector:
             self._safe_close_contexts()
             raise RuntimeError(f"Failed to connect to Futu OpenD: {exc}") from exc
 
+    def get_trade_ctx(self, market: str) -> Any:
+        """Return the trade context for the given market ('HK' or 'US').
+
+        Falls back to the legacy single ``trade_ctx`` if multi-market contexts were
+        not established (e.g. tests that set ``trade_ctx`` directly).
+        """
+        mkt = str(market).upper()
+        ctx = self.trade_ctxs.get(mkt)
+        if ctx is not None:
+            return ctx
+        if self.trade_ctx is not None:
+            self.logger.debug("get_trade_ctx(%r): no per-market ctx, falling back to trade_ctx", mkt)
+            return self.trade_ctx
+        raise RuntimeError(f"No trade context available for market {mkt!r}")
+
     def close(self) -> None:
         self._safe_close_contexts()
-        # yf_provider uses a module-level semaphore (no persistent sessions to close)
         self.logger.info("Closed Futu contexts")
 
     def _safe_close_contexts(self) -> None:
-        for ctx in [self.quote_ctx, self.trade_ctx]:
+        all_ctxs = [self.quote_ctx] + list(self.trade_ctxs.values())
+        # Also close the legacy trade_ctx if it isn't already in trade_ctxs
+        if self.trade_ctx is not None and self.trade_ctx not in self.trade_ctxs.values():
+            all_ctxs.append(self.trade_ctx)
+        for ctx in all_ctxs:
             if ctx is not None:
                 try:
                     ctx.close()
@@ -297,6 +343,8 @@ class FutuConnector:
                     pass
         self.quote_ctx = None
         self.trade_ctx = None
+        self.trade_ctxs = {}
+        self.account_ids = {}
 
     @property
     def is_connected(self) -> bool:
@@ -399,14 +447,61 @@ class FutuConnector:
             return self.discovered_accounts
 
         self.discovered_accounts = data.copy() if data is not None else pd.DataFrame()
-        if self.config.target_acc_id is None and not self.discovered_accounts.empty and "acc_id" in self.discovered_accounts.columns:
-            self.config.target_acc_id = int(self.discovered_accounts.iloc[0]["acc_id"])
+
+        if not self.discovered_accounts.empty and "acc_id" in self.discovered_accounts.columns:
+            # Populate global target_acc_id for backward compat
+            if self.config.target_acc_id is None:
+                self.config.target_acc_id = int(self.discovered_accounts.iloc[0]["acc_id"])
+
+            # Build per-market account ID map from trd_market_auth when available
+            for _, row in self.discovered_accounts.iterrows():
+                acc_id = int(row["acc_id"])
+                # trd_market_auth is a list of authorized market codes; fall back to market_prefix
+                auth_markets = row.get("trd_market_auth") if "trd_market_auth" in row.index else None
+                if auth_markets and isinstance(auth_markets, (list, tuple, set)):
+                    for mkt in auth_markets:
+                        mkt_upper = str(mkt).upper()
+                        if mkt_upper in ("HK", "US") and mkt_upper not in self.account_ids:
+                            self.account_ids[mkt_upper] = acc_id
+                else:
+                    # No market auth info — use first account per market context
+                    for mkt in self.trade_ctxs:
+                        if mkt not in self.account_ids:
+                            self.account_ids[mkt] = acc_id
+
+            self.logger.info(
+                "Account discovery: global_acc_id=%s per_market=%s",
+                self.config.target_acc_id,
+                self.account_ids,
+            )
+
+        # Try per-market account discovery from each trade context independently
+        for market, ctx in self.trade_ctxs.items():
+            if market in self.account_ids:
+                continue
+            try:
+                ret, mkt_data = ctx.get_acc_list()
+                if ret == (self.ft.RET_OK if self.ft else 0) and mkt_data is not None and not mkt_data.empty:
+                    if "acc_id" in mkt_data.columns:
+                        self.account_ids[market] = int(mkt_data.iloc[0]["acc_id"])
+                        self.logger.info("Per-market account %s: acc_id=%s", market, self.account_ids[market])
+            except Exception as exc:
+                self.logger.debug("Per-market account discovery for %s failed: %s", market, exc)
+
         return self.discovered_accounts
 
     def _account_kwargs(self) -> dict[str, Any]:
         if self.config.target_acc_id is None:
             return {}
         return {"acc_id": int(self.config.target_acc_id)}
+
+    def _account_kwargs_for_market(self, market: str) -> dict[str, Any]:
+        """Return acc_id kwargs scoped to a specific market, falling back to global."""
+        mkt = str(market).upper()
+        acc_id = self.account_ids.get(mkt) or self.config.target_acc_id
+        if acc_id is None:
+            return {}
+        return {"acc_id": int(acc_id)}
 
     def heartbeat(self) -> bool:
         try:
@@ -502,7 +597,7 @@ class FutuConnector:
 
     def get_latest_quote(self, symbol: str, use_cache: bool = True) -> dict:
         # Use resolve_symbol so HK stocks get broker code "HK.0700.HK" not "US.0700.HK"
-        broker_code, _ = self.resolve_symbol(symbol)
+        broker_code, market = self.resolve_symbol(symbol)
         provider_errors: list[str] = []
 
         # Cache-first path when use_cache=True
@@ -511,7 +606,11 @@ class FutuConnector:
             if cached is not None:
                 return cached
 
-        for provider in ("yf", "ef", "futu"):
+        # yfinance returns 404 for HK stocks ("possibly delisted"); skip it for HK market.
+        # HK fallback order: ef → futu → yf (last resort only).
+        is_hk = market.upper() == "HK" or symbol.upper().endswith(".HK")
+        provider_order = ("ef", "futu", "yf") if is_hk else ("yf", "ef", "futu")
+        for provider in provider_order:
             try:
                 if provider == "yf":
                     quote = self._get_latest_quote_yfinance(symbol)
@@ -550,7 +649,7 @@ class FutuConnector:
 
     def get_order_reference_price(self, symbol: str, side: str, fallback_price: float = 0.0) -> float:
         """Get realistic LIMIT reference price: BUY->ask, SELL->bid."""
-        code = f"{self.config.market_prefix}.{symbol}"
+        code, _ = self.resolve_symbol(symbol)
         side_upper = side.upper()
 
         if self.quote_ctx is not None and self.ft is not None:
@@ -584,12 +683,109 @@ class FutuConnector:
         row = data.iloc[0]
         return {"total_assets": float(row.get("total_assets", 0.0)), "cash": float(row.get("cash", 0.0)), "power": float(row.get("power", 0.0))}
 
+    def get_sync_assets_for_market(self, market: str) -> dict:
+        """Sync account assets for a specific market using the per-market trade context."""
+        if self._futu_degraded:
+            self.logger.debug("get_sync_assets_for_market(%r): degraded mode", market)
+            return {"total_assets": 0.0, "cash": 0.0, "power": 0.0}
+        mkt = str(market).upper()
+        ctx = self.trade_ctxs.get(mkt)
+        if ctx is None:
+            return self.get_sync_assets()
+        kwargs = self._account_kwargs_for_market(mkt)
+        kwargs["trd_env"] = self._resolved_trd_env()
+        try:
+            ret, data = ctx.accinfo_query(**kwargs)
+            if ret != (self.ft.RET_OK if self.ft else 0) or data is None or data.empty:
+                raise RuntimeError(f"accinfo_query for {mkt} returned empty")
+            row = data.iloc[0]
+            return {
+                "total_assets": float(row.get("total_assets", 0.0)),
+                "cash": float(row.get("cash", 0.0)),
+                "power": float(row.get("power", 0.0)),
+            }
+        except Exception as exc:
+            self.logger.warning("Asset sync for market %s failed: %s", mkt, exc)
+            return {"total_assets": 0.0, "cash": 0.0, "power": 0.0}
+
     def get_sync_positions(self) -> pd.DataFrame:
         if self._futu_degraded:
             self.logger.debug("get_sync_positions: degraded mode — returning empty positions")
             return pd.DataFrame()
         data = self._safe_trade_call("position_list_query", **self._account_kwargs())
         return pd.DataFrame() if data is None else data.copy()
+
+    def get_sync_positions_for_market(self, market: str) -> pd.DataFrame:
+        """Sync positions for a specific market using the per-market trade context."""
+        if self._futu_degraded:
+            self.logger.debug("get_sync_positions_for_market(%r): degraded mode", market)
+            return pd.DataFrame()
+        mkt = str(market).upper()
+        ctx = self.trade_ctxs.get(mkt)
+        if ctx is None:
+            return self.get_sync_positions()
+        kwargs = self._account_kwargs_for_market(mkt)
+        kwargs["trd_env"] = self._resolved_trd_env()
+        try:
+            ret, data = ctx.position_list_query(**kwargs)
+            if ret != (self.ft.RET_OK if self.ft else 0):
+                raise RuntimeError(f"position_list_query for {mkt} returned error: {data}")
+            return pd.DataFrame() if data is None else data.copy()
+        except Exception as exc:
+            self.logger.warning("Position sync for market %s failed: %s", mkt, exc)
+            return pd.DataFrame()
+
+    def get_sync_assets_all_markets(self) -> dict:
+        """Sum account assets across all active market trade contexts.
+
+        When HK and US trade contexts are both active, adds total_assets, cash,
+        and power from each market's account so the caller sees the combined
+        buying power of the full portfolio.
+
+        Falls back to the legacy single-context ``get_sync_assets()`` when no
+        per-market contexts are registered.
+        """
+        if not self.trade_ctxs:
+            return self.get_sync_assets()
+
+        combined = {"total_assets": 0.0, "cash": 0.0, "power": 0.0}
+        any_ok = False
+        for market in self.trade_ctxs:
+            try:
+                mkt_assets = self.get_sync_assets_for_market(market)
+                combined["total_assets"] += mkt_assets.get("total_assets", 0.0)
+                combined["cash"] += mkt_assets.get("cash", 0.0)
+                combined["power"] += mkt_assets.get("power", 0.0)
+                any_ok = True
+            except Exception as exc:
+                self.logger.warning("Asset sync for market %s failed in all_markets: %s", market, exc)
+
+        if not any_ok:
+            return self.get_sync_assets()
+        return combined
+
+    def get_sync_positions_all_markets(self) -> pd.DataFrame:
+        """Fetch positions from all active market trade contexts and combine.
+
+        Falls back to the legacy single-context ``get_sync_positions()`` when no
+        per-market contexts are available.
+        """
+        if not self.trade_ctxs:
+            return self.get_sync_positions()
+
+        frames: list[pd.DataFrame] = []
+        for market in self.trade_ctxs:
+            df = self.get_sync_positions_for_market(market)
+            if not df.empty:
+                frames.append(df)
+
+        if not frames:
+            return pd.DataFrame()
+        if len(frames) == 1:
+            return frames[0]
+        combined = pd.concat(frames, ignore_index=True)
+        combined.drop_duplicates(subset=["code"] if "code" in combined.columns else None, keep="last", inplace=True)
+        return combined
 
     def get_order_status(self, order_id: str) -> dict[str, Any]:
         """Poll single-order status from broker and normalize key fields."""
@@ -734,24 +930,28 @@ class FutuConnector:
         return round(price, decimals)
 
     def place_order(self, symbol: str, qty: int, side: str, price: Optional[float] = None) -> object:
-        if self.trade_ctx is None or self.ft is None:
+        if self.ft is None:
             raise RuntimeError("FutuConnector not connected")
         if qty <= 0:
             raise ValueError("qty must be > 0")
-        code = f"{self.config.market_prefix}.{symbol}"
+
+        # Use resolve_symbol so HK stocks never get "US.0700.HK" as the broker code
+        broker_code_str, market = self.resolve_symbol(symbol)
+        trade_ctx = self.get_trade_ctx(market)
+
         raw_price = float(price) if price is not None else self.get_order_reference_price(symbol, side, fallback_price=0.0)
         limit_price = self._round_price(raw_price, symbol)
         if limit_price != raw_price:
             self.logger.debug("Price rounded for %s: %.6f -> %.4f", symbol, raw_price, limit_price)
         self.validate_trading_ready(symbol=symbol, qty=qty, side=side, est_price=limit_price)
-        ret, data = self.trade_ctx.place_order(
+        ret, data = trade_ctx.place_order(
             price=limit_price,
             qty=qty,
-            code=code,
+            code=broker_code_str,
             trd_side=self.ft.TrdSide.BUY if side.upper() == "BUY" else self.ft.TrdSide.SELL,
             order_type=self.ft.OrderType.NORMAL,
             trd_env=self._resolved_trd_env(),
-            **self._account_kwargs(),
+            **self._account_kwargs_for_market(market),
         )
         if ret != self.ft.RET_OK:
             raise RuntimeError(self._build_trade_error("Order placement failed", data))
