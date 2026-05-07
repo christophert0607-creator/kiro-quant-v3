@@ -362,9 +362,14 @@ class IdleTaskScheduler:
 
         try:
             await self._run_tasks()
-        finally:
+        except Exception:
+            # On failure, release the key so a manual restart is possible.
             async with lock:
                 _active_idle_sessions.discard(self._session_key)
+            raise
+        # On success, keep the key in the set — the session is "used up"
+        # for this key and must not re-run (prevents double-fire if the
+        # IDLE→IDLE transition repeats within the same day).
 
     async def _run_tasks(self) -> None:
         # Use loop.symbols if non-empty; otherwise fall back to idle_symbols

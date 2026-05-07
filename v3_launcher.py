@@ -470,10 +470,17 @@ async def _collect_only_cycle(loop: "LiveTradingLoop", symbols: list[str]) -> No
                 )
                 if quote:
                     new_row = pd.DataFrame([quote])
-                    if not new_row.dropna(how="all").empty:
-                        loop.market_buffers[sym] = loop._normalize_market_buffer(
-                            pd.concat([loop.market_buffers[sym], new_row], ignore_index=True)
-                        )
+                    # Drop rows that are entirely NaN to avoid FutureWarning from
+                    # pd.concat when concatenating empty/all-NA frames.
+                    new_row = new_row.dropna(how="all")
+                    if not new_row.empty:
+                        existing = loop.market_buffers[sym]
+                        if existing.empty:
+                            loop.market_buffers[sym] = loop._normalize_market_buffer(new_row)
+                        else:
+                            loop.market_buffers[sym] = loop._normalize_market_buffer(
+                                pd.concat([existing, new_row], ignore_index=True)
+                            )
             # Significant sleep between batches to be very gentle with the API
             await asyncio.sleep(2.0)
         except asyncio.TimeoutError:
