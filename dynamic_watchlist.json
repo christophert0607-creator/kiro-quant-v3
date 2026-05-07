@@ -1,1 +1,58 @@
-{"date": "2026-05-04 00:00:00", "picks": ["TSLA", "NVDA", "AAPL"], "details": []}
+{
+    "date": "2026-05-07 08:01:34",
+    "picks": [
+        "MSFT",
+        "NVDA",
+        "GOOGL",
+        "AVGO",
+        "TSM"
+    ],
+    "details": [
+        {
+            "symbol": "MSFT",
+            "pe": 21.425636,
+            "eps_growth": 0.231,
+            "rev_growth": 0.183,
+            "peg": 1.29,
+            "price": 413.96,
+            "ma50": 396.9764
+        },
+        {
+            "symbol": "NVDA",
+            "pe": 18.491564,
+            "eps_growth": 0.945,
+            "rev_growth": 0.732,
+            "peg": 0.63,
+            "price": 207.83,
+            "ma50": 187.4264
+        },
+        {
+            "symbol": "GOOGL",
+            "pe": 27.70832,
+            "eps_growth": 0.812,
+            "rev_growth": 0.218,
+            "peg": 1.78,
+            "price": 398.04,
+            "ma50": 318.416
+        },
+        {
+            "symbol": "AVGO",
+            "pe": 23.481686,
+            "eps_growth": 0.335,
+            "rev_growth": 0.295,
+            "peg": 0.91,
+            "price": 425.44,
+            "ma50": 353.093
+        },
+        {
+            "symbol": "TSM",
+            "pe": 21.744562,
+            "eps_growth": 0.583,
+            "rev_growth": 0.351,
+            "peg": 1.25,
+            "price": 419.5,
+            "ma50": 361.3804
+        }
+    ],
+    "failed_symbols": []
+}
