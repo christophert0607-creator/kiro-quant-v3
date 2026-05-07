@@ -252,31 +252,33 @@ def resolve_market_mode(now: datetime | None = None) -> str:
     now = now or datetime.now(HK_TZ)
     weekday = now.weekday()  # 0=Monday, 6=Sunday
     hk_time = now.timetz().replace(tzinfo=None)
-    
-    # Weekend: Always IDLE
-    if weekday >= 5:
-        return "IDLE"
-    
-    # HK Market: 09:30 - 12:00, 13:00 - 16:00
-    is_hk_trading = (dt_time_cls(9, 30) <= hk_time <= dt_time_cls(12, 0)) or (dt_time_cls(13, 0) <= hk_time <= dt_time_cls(16, 0))
-    if is_hk_trading:
-        return "HK"
-        
-    # US Market (approx HKT): 21:30 - 04:00 (next day)
-    # Special case: US markets are closed on Saturday (HK time) after 04:00
+
+    # HK Market: 09:30-12:00 (morning session), 13:00-16:00 (afternoon session).
+    # Only applies on weekdays — weekends never touch HK hours.
+    if weekday < 5:
+        is_hk_trading = (
+            (dt_time_cls(9, 30) <= hk_time <= dt_time_cls(12, 0))
+            or (dt_time_cls(13, 0) <= hk_time <= dt_time_cls(16, 0))
+        )
+        if is_hk_trading:
+            return "HK"
+
+    # US Market (approx HKT): 21:30 – 04:00 next day.
+    # Weekend cross-midnight rules:
+    #   - Sat before 04:00 HKT → still Friday US session → US
+    #   - Sat after  04:00 HKT → US market closed for weekend → IDLE
+    #   - Sun before 21:30 HKT → US not yet open → IDLE
+    #   - Sun after  21:30 HKT → Monday US pre-market / session starts → US
+    # The old "if weekday >= 5: return IDLE" guard was placed before this block,
+    # making the Saturday-before-04:00 and Sunday-after-21:30 branches unreachable.
     is_us_trading = (hk_time >= dt_time_cls(21, 30)) or (hk_time <= dt_time_cls(4, 0))
     if is_us_trading:
-        # US market is open Sunday night (HK time) through Friday morning (HK time)
-        # If it's Saturday morning (weekday=5) before 04:00, it's still US Friday session.
-        # If it's Saturday after 04:00, it's IDLE.
-        # If it's Sunday before 21:30, it's IDLE.
-        # If it's Sunday after 21:30, it's US Monday session.
         if weekday == 5 and hk_time > dt_time_cls(4, 0):
             return "IDLE"
         if weekday == 6 and hk_time < dt_time_cls(21, 30):
             return "IDLE"
         return "US"
-        
+
     return "IDLE"
 
 
@@ -406,9 +408,15 @@ async def _apply_market_mode(loop: "LiveTradingLoop", base_cfg: "LiveConfig", mo
         _load_market_model(loop, mode, config_path)
 
     if prev_mode is None:
-        loop.logger.info("[MARKET_INIT:%s] symbols=%s auto_trade=%s", mode, symbols, auto_trade)
+        if mode == "IDLE":
+            loop.logger.info("[MARKET_INIT:IDLE] idle_symbols=%d auto_trade=%s", len(IDLE_COLLECTION_SYMBOLS), auto_trade)
+        else:
+            loop.logger.info("[MARKET_INIT:%s] symbols=%s auto_trade=%s", mode, symbols, auto_trade)
     elif prev_mode != mode:
-        loop.logger.info("[MARKET_SWITCH: %s→%s] symbols=%s auto_trade=%s", prev_mode, mode, symbols, auto_trade)
+        if mode == "IDLE":
+            loop.logger.info("[MARKET_SWITCH: %s→IDLE] idle_symbols=%d auto_trade=%s", prev_mode, len(IDLE_COLLECTION_SYMBOLS), auto_trade)
+        else:
+            loop.logger.info("[MARKET_SWITCH: %s→%s] symbols=%s auto_trade=%s", prev_mode, mode, symbols, auto_trade)
 
     # 2026-04-15 Fix: Ensure ALL collection symbols have buffers, even in IDLE mode
     init_targets = symbols if mode != "IDLE" else IDLE_COLLECTION_SYMBOLS
