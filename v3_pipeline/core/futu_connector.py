@@ -230,27 +230,11 @@ class FutuConnector:
         )
 
     def _get_latest_quote_yfinance(self, symbol: str) -> dict:
-        import yfinance as yf
-
-        session = self._build_yf_session()
-        if session is None:
-            ticker = yf.Ticker(symbol)
-        else:
-            ticker = yf.Ticker(symbol, session=session)
-        hist = ticker.history(period="1d", interval="1m")
-        if hist.empty:
-            raise RuntimeError(f"yfinance returned empty history for {symbol}")
-
-        row = hist.iloc[-1]
-        close = float(row.get("Close", 0.0))
-        return self._normalize_quote(
-            close=close,
-            open_p=float(row.get("Open", close)),
-            high_p=float(row.get("High", close)),
-            low_p=float(row.get("Low", close)),
-            volume=float(row.get("Volume", 0.0)),
-            source="YF_LIVE",
-        )
+        from v3_pipeline.data.yf_provider import get_latest_quote as _yf_get
+        result = _yf_get(symbol)
+        if result is None:
+            raise RuntimeError(f"yf_provider returned None for {symbol} (FD guard or network failure)")
+        return result
 
     def _load_runtime_config(self, config_json_path: str) -> None:
         try:
@@ -301,6 +285,7 @@ class FutuConnector:
 
     def close(self) -> None:
         self._safe_close_contexts()
+        # yf_provider uses a module-level semaphore (no persistent sessions to close)
         self.logger.info("Closed Futu contexts")
 
     def _safe_close_contexts(self) -> None:
@@ -515,9 +500,16 @@ class FutuConnector:
             ) from last_exc
         raise RuntimeError(f"RECONNECT_BUDGET_EXCEEDED: attempts={max_retries}/{hard_attempt_cap}; last_error={last_exc}")
 
-    def get_latest_quote(self, symbol: str) -> dict:
-        code = f"{self.config.market_prefix}.{symbol}"
+    def get_latest_quote(self, symbol: str, use_cache: bool = True) -> dict:
+        # Use resolve_symbol so HK stocks get broker code "HK.0700.HK" not "US.0700.HK"
+        broker_code, _ = self.resolve_symbol(symbol)
         provider_errors: list[str] = []
+
+        # Cache-first path when use_cache=True
+        if use_cache:
+            cached = self._get_cached_quote(symbol)
+            if cached is not None:
+                return cached
 
         for provider in ("yf", "ef", "futu"):
             try:
@@ -528,7 +520,7 @@ class FutuConnector:
                 else:
                     if self.quote_ctx is None or self.ft is None:
                         raise RuntimeError("not_connected")
-                    ret, df = self.quote_ctx.get_stock_quote([code])
+                    ret, df = self.quote_ctx.get_stock_quote([broker_code])
                     if ret != self.ft.RET_OK or df.empty:
                         raise RuntimeError(f"failed: {df}")
                     row = df.iloc[0]
@@ -552,7 +544,9 @@ class FutuConnector:
             cached_quote = {**cached_quote, "data_source": "CACHED"}
             return cached_quote
 
-        raise RuntimeError(f"Quote query failed for {code}. Providers exhausted: {'; '.join(provider_errors)}")
+        raise RuntimeError(
+            f"Quote query failed for {broker_code}. Providers exhausted: {'; '.join(provider_errors)}"
+        )
 
     def get_order_reference_price(self, symbol: str, side: str, fallback_price: float = 0.0) -> float:
         """Get realistic LIMIT reference price: BUY->ask, SELL->bid."""
