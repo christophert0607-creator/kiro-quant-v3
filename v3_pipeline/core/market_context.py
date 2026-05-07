@@ -1,4 +1,4 @@
-"""Per-market runtime context for HK/US account isolation.
+"""Per-market runtime context for HK/US account isolation (P0 — market isolation).
 
 Each active market (HK, US) gets its own MarketContext that owns:
   - The market code string
