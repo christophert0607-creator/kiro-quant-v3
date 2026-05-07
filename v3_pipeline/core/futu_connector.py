@@ -218,7 +218,14 @@ class FutuConnector:
             return None
 
     def _get_latest_quote_efinance(self, symbol: str) -> dict:
-        import efinance as ef
+        try:
+            import efinance as ef
+        except ModuleNotFoundError:
+            raise RuntimeError(
+                "efinance not importable in current Python env. "
+                "Fix: python3 -m pip install efinance --break-system-packages  "
+                "or activate the venv that has efinance installed."
+            )
 
         df = ef.stock.get_latest_quote([symbol])
         if df is None or df.empty:
@@ -590,7 +597,7 @@ class FutuConnector:
 
     def get_latest_quote(self, symbol: str, use_cache: bool = True) -> dict:
         # Use resolve_symbol so HK stocks get broker code "HK.0700.HK" not "US.0700.HK"
-        broker_code, _ = self.resolve_symbol(symbol)
+        broker_code, market = self.resolve_symbol(symbol)
         provider_errors: list[str] = []
 
         # Cache-first path when use_cache=True
@@ -599,7 +606,11 @@ class FutuConnector:
             if cached is not None:
                 return cached
 
-        for provider in ("yf", "ef", "futu"):
+        # yfinance returns 404 for HK stocks ("possibly delisted"); skip it for HK market.
+        # HK fallback order: ef → futu → yf (last resort only).
+        is_hk = market.upper() == "HK" or symbol.upper().endswith(".HK")
+        provider_order = ("ef", "futu", "yf") if is_hk else ("yf", "ef", "futu")
+        for provider in provider_order:
             try:
                 if provider == "yf":
                     quote = self._get_latest_quote_yfinance(symbol)

@@ -446,3 +446,111 @@ class TestMultiMarketAssetSync:
         if "US" in connector.trade_ctxs and "HK" not in connector.trade_ctxs:
             assets = connector.get_sync_assets_all_markets()
             assert assets["total_assets"] == 100000.0
+
+
+# ── HK-aware quote provider ordering (Issue 1: yfinance HK 404) ──────────────
+
+class TestHKAwareQuoteProviderOrder:
+    """For HK symbols the provider order must be ef→futu→yf (not yf first).
+
+    yfinance returns 404 / "possibly delisted" for HK stocks; skipping it as
+    first provider avoids guaranteed failures and speeds up the fallback chain.
+    """
+
+    def _make_connector(self) -> FutuConnector:
+        cfg = FutuConfig(market_prefix="US", trd_env="SIMULATE")
+        return FutuConnector(config=cfg, config_json_path="/nonexistent/config.json")
+
+    def test_hk_symbol_skips_yfinance_first(self):
+        """0700.HK must try efinance before yfinance."""
+        connector = self._make_connector()
+        call_order: list[str] = []
+
+        def fake_ef(symbol):
+            call_order.append("ef")
+            return {"close": 300.0, "open": 300.0, "high": 302.0, "low": 298.0, "volume": 1000.0, "data_source": "EF_LIVE"}
+
+        def fake_yf(symbol):
+            call_order.append("yf")
+            raise RuntimeError("yfinance: possibly delisted HK")
+
+        connector._get_latest_quote_efinance = fake_ef
+        connector._get_latest_quote_yfinance = fake_yf
+        connector.quote_ctx = None  # disable futu provider
+
+        result = connector.get_latest_quote("0700.HK", use_cache=False)
+        assert result["close"] == 300.0
+        assert "ef" in call_order
+        # yfinance must NOT have been called (ef succeeded)
+        assert "yf" not in call_order
+
+    def test_us_symbol_tries_yfinance_first(self):
+        """AAPL (US) must try yfinance before efinance."""
+        connector = self._make_connector()
+        call_order: list[str] = []
+
+        def fake_yf(symbol):
+            call_order.append("yf")
+            return {"close": 180.0, "open": 179.0, "high": 181.0, "low": 178.0, "volume": 500000.0, "data_source": "YF_LIVE"}
+
+        def fake_ef(symbol):
+            call_order.append("ef")
+            raise RuntimeError("ef not tried for US")
+
+        connector._get_latest_quote_yfinance = fake_yf
+        connector._get_latest_quote_efinance = fake_ef
+
+        result = connector.get_latest_quote("AAPL", use_cache=False)
+        assert result["close"] == 180.0
+        assert call_order[0] == "yf"
+        assert "ef" not in call_order
+
+    def test_hk_symbol_fallback_to_futu_when_ef_fails(self):
+        """When efinance fails for HK, futu should be tried next."""
+        connector = self._make_connector()
+
+        def fake_ef(symbol):
+            raise RuntimeError("ef module not found")
+
+        def fake_yf(symbol):
+            raise RuntimeError("yfinance HK 404")
+
+        connector._get_latest_quote_efinance = fake_ef
+        connector._get_latest_quote_yfinance = fake_yf
+
+        # Inject working futu quote context
+        fake_quote_ctx = MagicMock()
+        fake_quote_ctx.get_stock_quote.return_value = (
+            0,
+            pd.DataFrame([{
+                "code": "HK.0700.HK",
+                "last_price": 310.0,
+                "open_price": 308.0,
+                "high_price": 312.0,
+                "low_price": 307.0,
+                "volume": 2000.0,
+            }]),
+        )
+        connector.quote_ctx = fake_quote_ctx
+        connector.ft = types.SimpleNamespace(RET_OK=0)
+
+        result = connector.get_latest_quote("0700.HK", use_cache=False)
+        assert result["close"] == 310.0
+        assert result["data_source"] == "FUTU"
+
+    def test_efinance_module_not_found_raises_clear_error(self):
+        """Missing efinance package raises RuntimeError with deployment hint."""
+        connector = self._make_connector()
+
+        import builtins
+        real_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "efinance":
+                raise ModuleNotFoundError("No module named 'efinance'")
+            return real_import(name, *args, **kwargs)
+
+        import unittest.mock as mock
+        with mock.patch("builtins.__import__", side_effect=mock_import):
+            with pytest.raises(RuntimeError, match="efinance not importable"):
+                connector._get_latest_quote_efinance("0700.HK")
