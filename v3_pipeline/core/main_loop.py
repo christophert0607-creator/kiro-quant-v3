@@ -22,6 +22,30 @@ from v3_pipeline.models.manager import DataPreparer, ModelManager
 from v3_pipeline.risk.manager import RiskController
 
 
+def _build_structured_logger(name: str) -> logging.Logger:
+    """Returns a logger that writes one JSON line per record to logs/decisions.jsonl."""
+    logger = logging.getLogger(name)
+    if logger.handlers:
+        return logger
+    logger.setLevel(logging.INFO)
+    try:
+        from logging.handlers import RotatingFileHandler
+        log_dir = Path(__file__).parent.parent.parent / "logs"
+        log_dir.mkdir(exist_ok=True)
+        handler = RotatingFileHandler(
+            log_dir / "decisions.jsonl",
+            maxBytes=10 * 1024 * 1024,
+            backupCount=5,
+            encoding="utf-8",
+        )
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        logger.addHandler(handler)
+    except Exception as exc:
+        sys.stderr.write(f"[_build_structured_logger] RotatingFileHandler failed: {exc}\n")
+    logger.propagate = False
+    return logger
+
+
 def _build_stderr_logger(name: str) -> logging.Logger:
     logger = logging.getLogger(name)
     if logger.handlers:
@@ -150,6 +174,7 @@ class LiveTradingLoop:
         self.feature_generator = feature_generator or TechnicalIndicatorGenerator()
         self.config = config or LiveConfig()
         self.logger = _build_stderr_logger(self.__class__.__name__)
+        self.structured_logger = _build_structured_logger("kiro.decisions")
 
         # [V3-Dynamic-Screener] Priority: dynamic_watchlist.json
         watchlist_path = Path("dynamic_watchlist.json")
@@ -537,6 +562,15 @@ class LiveTradingLoop:
         except Exception:
             latest_ind = {}
 
+        self._emit_structured(
+            "model_predict",
+            symbol=symbol,
+            pred=round(float(prediction), 6),
+            confidence=round(float(confidence), 4),
+            price=round(float(current_price), 4),
+            indicators={k: round(v, 4) for k, v in latest_ind.items()},
+        )
+
         # ── Self-Learning: record ML prediction WITH indicators for training ──
         _pred_id_for_signal: str | None = None
         try:
@@ -867,6 +901,13 @@ class LiveTradingLoop:
                     "min_confidence": effective_min_conf,
                     "vix_dynamic": getattr(self.config, 'vix_dynamic_confidence_enabled', False),
                 })
+                self._emit_structured(
+                    "risk_gate",
+                    symbol=symbol,
+                    gate="CONF_GATE_BUY",
+                    raw_confidence=round(float(confidence), 4),
+                    min_confidence=round(effective_min_conf, 4),
+                )
                 return
 
         # ── Strategy v3 Plan B: RSI Overbought SHORT Entry ───────────────────────
@@ -932,6 +973,13 @@ class LiveTradingLoop:
                     "raw_confidence": float(confidence),
                     "min_confidence": min_conf_short,
                 })
+                self._emit_structured(
+                    "risk_gate",
+                    symbol=symbol,
+                    gate="CONF_GATE_SHORT",
+                    raw_confidence=round(float(confidence), 4),
+                    min_confidence=round(min_conf_short, 4),
+                )
             else:
                 returns = self.market_buffers[symbol]["Close"].pct_change().dropna()
                 mc = self.monte_carlo.stress_test(returns)
@@ -1464,6 +1512,14 @@ class LiveTradingLoop:
                 except Exception:
                     pass
 
+        active_positions = {s: q for s, q in self.position_qty_by_symbol.items() if q > 0}
+        self._emit_structured(
+            "broker_sync",
+            positions=active_positions,
+            account_value=round(self.account_value, 2),
+            market=getattr(self.futu_connector, "market_prefix", "unknown"),
+        )
+
     def _execute(self, symbol: str, side: str, qty: int, price: float, reason: str, indicators: dict | None = None, prediction: float | None = None) -> None:
         # Guard: 所有副作用（position mutation + 下單）必須喺同一個 auto_trade block 內
         if not self.config.auto_trade:
@@ -1549,7 +1605,16 @@ class LiveTradingLoop:
                 return  # Graceful exit — do not crash
 
         self.logger.info("EXEC %s %s qty=%d fill=%.4f reason=%s", symbol, side, qty, fill_price, reason)
-        
+        self._emit_structured(
+            "order_attempt",
+            symbol=symbol,
+            side=side,
+            qty=qty,
+            price=round(float(fill_price), 4),
+            reason=reason,
+            paper=bool(self.config.paper_trading),
+        )
+
         # Log to trades.jsonl
         import os as _os
         import json as _json
@@ -1808,6 +1873,18 @@ class LiveTradingLoop:
                     self.logger.info("Sentiment Synced: score=%.2f, summary=%s", self.sentiment_score, self.sentiment_summary)
             except Exception as exc:
                 self.logger.warning("Sentiment sync failed: %s", exc)
+
+    def _emit_structured(self, event_type: str, **fields) -> None:
+        """Emit one structured JSON event to logs/decisions.jsonl (best-effort, never raises)."""
+        try:
+            record = {
+                "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "event": event_type,
+                **fields,
+            }
+            self.structured_logger.info(json.dumps(record, ensure_ascii=False))
+        except Exception:
+            pass
 
     def _append_decision_trace(self, payload: dict) -> None:
         """Append Layer-0 decision trace for US SIM learning.

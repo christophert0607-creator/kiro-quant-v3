@@ -216,15 +216,20 @@ def _base_live_config(config_path: str = "config.json") -> LiveConfig:
 
 def build_live_config(config_path: str = "config.json") -> LiveConfig:
     base_cfg = _base_live_config(config_path)
-    watchlist_path = Path(__file__).parent / 'dynamic_watchlist.json'
-    if watchlist_path.exists():
-        try:
-            wdata = json.loads(watchlist_path.read_text())
-            if wdata.get('picks'):
-                picks = wdata['picks']
-                print(f'[launcher] Injecting Dynamic Watchlist: {picks}')
-                base_cfg = replace(base_cfg, symbols_list=picks)
-        except: pass
+    use_dynamic = os.getenv("USE_DYNAMIC_WATCHLIST", "1").strip().lower()
+    if use_dynamic not in {"0", "false", "no"}:
+        watchlist_path = Path(__file__).parent / 'dynamic_watchlist.json'
+        if watchlist_path.exists():
+            try:
+                wdata = json.loads(watchlist_path.read_text())
+                if wdata.get('picks'):
+                    picks = wdata['picks']
+                    print(f'[launcher] Injecting Dynamic Watchlist: {picks}')
+                    base_cfg = replace(base_cfg, symbols_list=picks)
+            except:
+                pass
+    else:
+        print('[launcher] USE_DYNAMIC_WATCHLIST=0 — skipping dynamic watchlist injection')
     return base_cfg
 
 
@@ -407,10 +412,10 @@ async def _apply_market_mode(loop: "LiveTradingLoop", base_cfg: "LiveConfig", mo
             analyzer = MarketAnalyzer(loop)
             report, analysis = await analyzer.generate_market_report()
             risk_mode, risk_mult = analyzer.compute_risk_factor(analysis)
-            
+
             # Send Telegram report
             await loop.telegram.send_message(report)
-            
+
             # Update loop risk attributes
             loop.risk_mode = risk_mode
             loop.risk_multiplier = risk_mult
@@ -423,6 +428,17 @@ async def _apply_market_mode(loop: "LiveTradingLoop", base_cfg: "LiveConfig", mo
             len(IDLE_COLLECTION_SYMBOLS),
             auto_trade,
         )
+
+        # Start IdleTaskScheduler in the background for off-hours pre-computation
+        if prev_mode != mode:  # Only start once per IDLE entry (not every cycle)
+            try:
+                from idle_task_scheduler import IdleSchedulerConfig, IdleTaskScheduler
+                idle_cfg = IdleSchedulerConfig.from_config_json(config_path)
+                scheduler = IdleTaskScheduler(loop, cfg=idle_cfg, config_path=config_path)
+                asyncio.create_task(scheduler.run(), name="idle_task_scheduler")
+                loop.logger.info("[MARKET_IDLE] IdleTaskScheduler launched (budget=%.1fh)", idle_cfg.max_idle_hours_per_day)
+            except Exception as exc:
+                loop.logger.warning("[MARKET_IDLE] IdleTaskScheduler failed to start: %s", exc)
 
 
 async def _collect_only_cycle(loop: "LiveTradingLoop", symbols: list[str]) -> None:
@@ -437,9 +453,11 @@ async def _collect_only_cycle(loop: "LiveTradingLoop", symbols: list[str]) -> No
                     timeout=15.0 # Even more generous timeout
                 )
                 if quote:
-                    loop.market_buffers[sym] = loop._normalize_market_buffer(
-                        pd.concat([loop.market_buffers[sym], pd.DataFrame([quote])])
-                    )
+                    new_row = pd.DataFrame([quote])
+                    if not new_row.dropna(how="all").empty:
+                        loop.market_buffers[sym] = loop._normalize_market_buffer(
+                            pd.concat([loop.market_buffers[sym], new_row], ignore_index=True)
+                        )
             # Significant sleep between batches to be very gentle with the API
             await asyncio.sleep(2.0)
         except asyncio.TimeoutError:
