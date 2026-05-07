@@ -150,6 +150,24 @@ class LiveConfig:
     short_trailing_stop_trigger: float = 0.015  # Activate trailing after 1.5% profit (for SHORT)
     short_trailing_stop_lock: float = 0.0  # Lock at entry for SHORT
 
+    # ---- check_and_trade bridge fields ----
+    log_trade_decisions: bool = True
+    swing_strategy_enabled: bool = True
+    swing_rsi_oversold: float = 30.0
+    swing_rsi_overbought: float = 70.0
+    swing_sr_window: int = 20
+    swing_sr_tolerance: float = 0.003
+    bypass_ror_gate: bool = False
+    diagnostics_verbose: bool = True
+    quick_take_profit_pct: float = 0.01
+    stop_loss_pct: float = 0.02
+    max_hold_bars: int = 5
+    max_position_fraction: float = 0.30
+    min_diversified_symbols: int = 3
+    max_diversified_symbols: int = 5
+    pattern_confidence_threshold: float = 0.65
+    pattern_threshold_relaxation: float = 0.25
+
 
 class LiveTradingLoop:
     @property
@@ -168,12 +186,17 @@ class LiveTradingLoop:
         futu_connector: Optional[FutuConnector] = None,
         feature_generator: Optional[TechnicalIndicatorGenerator] = None,
         config: Optional[LiveConfig] = None,
+        data_manager=None,
     ) -> None:
         self.model_manager = model_manager
         self.risk_controller = risk_controller
         self.futu_connector = futu_connector or FutuConnector()
         self.feature_generator = feature_generator or TechnicalIndicatorGenerator()
         self.config = config or LiveConfig()
+        self.data_manager = data_manager
+        self.broker_offline_fallback_mode: bool = False
+        self.futu_reconnect_failures: int = 0
+        self.latest_prices: dict[str, float] = {}
         self.logger = _build_stderr_logger(self.__class__.__name__)
         self.structured_logger = _build_structured_logger("kiro.decisions")
 
@@ -450,32 +473,52 @@ class LiveTradingLoop:
             cached = None  # cache miss or stale
         self.logger.info("[CYCLE_START] symbol=%s buffer_len=%d lookback=%d", symbol, len(self.market_buffers.get(symbol, pd.DataFrame())), lookback)
 
-        # ── QuoteCache lookup (primary) ───────────────────────────────────────────
-        # QuoteCache TTL=30s: fresh enough for live trading, avoids redundant API calls.
-        # Per-symbol provider (futu/yf/av) is only a fallback when cache misses.
-        cache = self.futu_connector._quote_cache
-        quote = cache.get(symbol)
-        if quote and quote.get("Close", 0) > 0:
-            self.logger.info(
-                "[QUOTE_CACHE][%s] hit: price=%.4f age=%.1fs src=%s",
-                symbol,
-                quote.get("Close"),
-                (time.time() - quote.get("_cached_at", 0)),
-                quote.get("data_source", "?"),
-            )
-        else:
-            # Cache miss — fetch directly from per-symbol provider with fallback chain
+        # ── Broker offline fallback: use data_manager when broker heartbeat failed ─
+        if self.broker_offline_fallback_mode and self.data_manager is not None:
             try:
-                quote = await asyncio.wait_for(
-                    asyncio.to_thread(self.futu_connector.get_latest_quote, symbol),
-                    timeout=self.config.quote_timeout_seconds,
-                )
-            except TimeoutError:
-                self.logger.warning("TIMEOUT[%s]: quote fetch exceeded %.1fs, skipping cycle", symbol, self.config.quote_timeout_seconds)
-                return
+                dm_data = self.data_manager.get_market_data(symbol)
+                price = float(dm_data.get("price", 0.0))
+                source = dm_data.get("source", "UNKNOWN")
+                quote = {
+                    "Date": pd.Timestamp.now(tz="UTC"),
+                    "Open": price, "High": price, "Low": price, "Close": price,
+                    "Volume": 0.0, "data_source": source, "symbol": symbol,
+                }
+                self.logger.info("QuoteSource[%s] broker_online=False source=%s", symbol, source)
             except Exception as exc:
-                self.logger.warning("QuoteFetchFail[%s]: %s", symbol, exc)
+                self.logger.warning("DataManager fallback failed[%s]: %s", symbol, exc)
                 return
+            # Append to buffer and return; skip model predictions when broker is offline
+            existing = self.market_buffers.get(symbol, pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume", "data_source"]))
+            self.market_buffers[symbol] = pd.concat([existing, pd.DataFrame([quote])], ignore_index=True)
+            return
+        else:
+            # ── QuoteCache lookup (primary) ───────────────────────────────────────────
+            # QuoteCache TTL=30s: fresh enough for live trading, avoids redundant API calls.
+            # Per-symbol provider (futu/yf/av) is only a fallback when cache misses.
+            cache = getattr(self.futu_connector, "_quote_cache", None)
+            quote = cache.get(symbol) if cache is not None else None
+            if quote and quote.get("Close", 0) > 0:
+                self.logger.info(
+                    "[QUOTE_CACHE][%s] hit: price=%.4f age=%.1fs src=%s",
+                    symbol,
+                    quote.get("Close"),
+                    (time.time() - quote.get("_cached_at", 0)),
+                    quote.get("data_source", "?"),
+                )
+            else:
+                # Cache miss — fetch directly from per-symbol provider with fallback chain
+                try:
+                    quote = await asyncio.wait_for(
+                        asyncio.to_thread(self.futu_connector.get_latest_quote, symbol),
+                        timeout=self.config.quote_timeout_seconds,
+                    )
+                except TimeoutError:
+                    self.logger.warning("TIMEOUT[%s]: quote fetch exceeded %.1fs, skipping cycle", symbol, self.config.quote_timeout_seconds)
+                    return
+                except Exception as exc:
+                    self.logger.warning("QuoteFetchFail[%s]: %s", symbol, exc)
+                    return
 
         buffer_df = pd.concat([self.market_buffers[symbol], pd.DataFrame([quote])], ignore_index=True)
         buffer_df = self._normalize_market_buffer(buffer_df)
@@ -495,6 +538,11 @@ class LiveTradingLoop:
 
         wfa_frame = self.alpha_engine.select_features(symbol, featured)
 
+        if symbol not in self.data_preparers_by_symbol:
+            self.data_preparers_by_symbol[symbol] = DataPreparer(
+                lookback=self.model_manager.data_preparer.lookback,
+                target_col=self.model_manager.data_preparer.target_col,
+            )
         symbol_preparer = self.data_preparers_by_symbol[symbol]
         desired_features = [c for c in wfa_frame.columns if c != "Date"]
         needs_refit = (
@@ -510,6 +558,7 @@ class LiveTradingLoop:
                 return
 
         current_price = float(wfa_frame.iloc[-1]["Close"])
+        self.latest_prices[symbol] = current_price
 
         # ── Warm cache: use pre-computed prediction from IDLE if fresh (< 5 min) ─
         cached = getattr(self, "_idle_pred_cache", {}).get(symbol)
@@ -546,6 +595,12 @@ class LiveTradingLoop:
             else:
                 # No MAE history yet — fall back to raw deviation (legacy)
                 confidence = min(1.0, raw_ratio * 50.0)
+
+        self.logger.info(
+            "[%s] Prediction (pred=%.4f, current=%.4f, change=%.2f%%)",
+            symbol, prediction, current_price,
+            (prediction - current_price) / max(current_price, 1e-9) * 100,
+        )
 
         # Provide latest technical indicators snapshot for optional tactical entries
         latest_ind: dict[str, float] = {}
@@ -588,15 +643,25 @@ class LiveTradingLoop:
 
         self._detect_critical_move(symbol, current_price)
 
-        self._run_trading_logic(
+        pattern_label: str = "Unknown"
+        pattern_confidence: float = 0.0
+        if hasattr(self.model_manager, "predict_pattern"):
+            raw_pattern = self._normalize_pattern_meta(
+                self.model_manager.predict_pattern(wfa_frame), symbol
+            )
+            if raw_pattern is not None:
+                pattern_label = str(raw_pattern.get("pattern", "Unknown"))
+                pattern_confidence = float(raw_pattern.get("confidence", 0.0))
+
+        self.check_and_trade(
             symbol,
             current_price,
             prediction,
             confidence,
             profile.allow_long,
-            profile.risk_multiplier,
-            latest_ind,
-            allow_short=profile.allow_short,
+            latest_frame=featured,
+            pattern_label=pattern_label,
+            pattern_confidence=pattern_confidence,
         )
 
         elapsed_ms = (time.perf_counter() - started) * 1000
@@ -1414,13 +1479,259 @@ class LiveTradingLoop:
         if move >= self.config.crit_move_threshold:
             self._notify(f"[CRIT] {symbol} moved {move:.2%} in one cycle")
 
+    def _normalize_pattern_meta(self, raw, symbol: str) -> dict | None:
+        if not isinstance(raw, dict):
+            self.logger.warning("predict_pattern returned non-dict for %s: %r", symbol, raw)
+            return None
+        try:
+            float(raw.get("confidence", 0.0))
+        except (TypeError, ValueError):
+            self.logger.warning(
+                "predict_pattern confidence is invalid for %s: %r", symbol, raw.get("confidence")
+            )
+            return None
+        return raw
+
+    def check_and_trade(
+        self,
+        symbol: str,
+        current_price: float,
+        prediction: float,
+        confidence: float,
+        allow_long: bool,
+        latest_frame: Optional[pd.DataFrame] = None,
+        pattern_label: str = "Unknown",
+        pattern_confidence: float = 0.0,
+    ) -> None:
+        """Bridge model prediction to executable trading decisions."""
+        self._run_trading_logic_bridge(
+            symbol,
+            current_price,
+            prediction,
+            confidence,
+            allow_long,
+            latest_frame=latest_frame,
+            pattern_label=pattern_label,
+            pattern_confidence=pattern_confidence,
+        )
+
+    def _run_trading_logic_bridge(
+        self,
+        symbol: str,
+        current_price: float,
+        prediction: float,
+        confidence: float,
+        allow_long: bool,
+        latest_frame: Optional[pd.DataFrame] = None,
+        pattern_label: str = "Unknown",
+        pattern_confidence: float = 0.0,
+    ) -> None:
+        self.equity_peak = max(self.equity_peak, self.account_value)
+        if self.risk_controller.circuit_breaker_triggered(self.equity_peak, self.account_value):
+            self._notify(f"Circuit breaker hit. Equity={self.account_value:.2f}")
+            return
+
+        qty_raw = int(self.position_qty_by_symbol.get(symbol, 0))
+        qty = max(0, qty_raw)
+        if qty_raw < 0:
+            self.logger.warning("DIAG_QTY[%s] invalid negative qty=%d; clamped to 0", symbol, qty_raw)
+        self.bars_held_by_symbol[symbol] = self.bars_held_by_symbol.get(symbol, 0) + (1 if qty > 0 else 0)
+        if qty > 0:
+            self.cycles_since_buy_by_symbol[symbol] = self.cycles_since_buy_by_symbol.get(symbol, 0) + 1
+
+        if qty > 0:
+            self.highest_price_since_entry_by_symbol[symbol] = max(
+                self.highest_price_since_entry_by_symbol.get(symbol, 0.0), current_price
+            )
+            entry_price = float(self.entry_price_by_symbol.get(symbol, 0.0) or 0.0)
+            if entry_price <= 0:
+                entry_price = current_price
+                self.entry_price_by_symbol[symbol] = entry_price
+
+            stop_loss_pct = max(0.0, float(getattr(self.config, "stop_loss_pct", 0.02)))
+            if stop_loss_pct > 0:
+                stop_loss_price = entry_price * (1 - stop_loss_pct)
+                if current_price <= stop_loss_price:
+                    self._execute(symbol, "SELL", qty, current_price, f"stop_loss_{stop_loss_pct:.4f}")
+                    return
+
+            quick_tp_pct = max(0.0, float(getattr(self.config, "quick_take_profit_pct", 0.01)))
+            take_profit_price = entry_price * (1 + quick_tp_pct)
+            if current_price >= take_profit_price:
+                self._execute(symbol, "SELL", qty, current_price, f"quick_take_profit_{quick_tp_pct:.4f}")
+                return
+
+            max_hold_bars = max(1, int(getattr(self.config, "max_hold_bars", 5)))
+            if self.bars_held_by_symbol.get(symbol, 0) >= max_hold_bars:
+                self._execute(symbol, "SELL", qty, current_price, f"max_hold_{max_hold_bars}_bars")
+                return
+
+        symbol_threshold = float(self.config.prediction_thresholds.get(symbol, self.config.prediction_threshold))
+        pat_conf_threshold = float(getattr(self.config, "pattern_confidence_threshold", 0.65))
+        pat_relax = float(getattr(self.config, "pattern_threshold_relaxation", 0.25))
+        if pattern_confidence >= pat_conf_threshold and pattern_label in {"DoubleBottom", "UpTrend", "Reversal"}:
+            symbol_threshold = symbol_threshold * max(0.5, 1.0 - pat_relax)
+
+        threshold_up = current_price * (1 + symbol_threshold)
+        threshold_down = current_price * (1 - symbol_threshold)
+        predicted_move = (prediction - current_price) / max(current_price, 1e-9)
+        model_buy_signal = predicted_move > symbol_threshold
+        model_sell_signal = predicted_move < -symbol_threshold
+        swing = self._evaluate_swing_signal(symbol, current_price, latest_frame)
+
+        if getattr(self.config, "log_trade_decisions", True):
+            self.logger.info(
+                "TRADE_CHECK[%s] allow_long=%s qty=%d pred=%.4f px=%.4f move=%.2f%% up=%.4f down=%.4f conf=%.3f pattern=%s p_conf=%.2f",
+                symbol, allow_long, qty, prediction, current_price, predicted_move * 100,
+                threshold_up, threshold_down, confidence, pattern_label, pattern_confidence,
+            )
+            if getattr(self.config, "diagnostics_verbose", True):
+                self.logger.info(
+                    "DIAG_GATE[%s] allow_long=%s qty=%d swing_buy=%s swing_sell=%s model_buy=%s model_sell=%s bypass_ror=%s",
+                    symbol, allow_long, qty, swing["buy_signal"], swing["sell_signal"],
+                    model_buy_signal, model_sell_signal, getattr(self.config, "bypass_ror_gate", False),
+                )
+
+        if not allow_long and model_buy_signal and qty == 0:
+            self.logger.info(
+                "PROFILE_GATE[%s] blocked BUY because profile disallows long exposure (pred_move=%.2f%%)",
+                symbol, predicted_move * 100,
+            )
+            return
+
+        if getattr(self.config, "swing_strategy_enabled", True):
+            if qty == 0 and allow_long and swing["buy_signal"]:
+                risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
+                cap_fraction = max(0.0, min(1.0, float(getattr(self.config, "max_position_fraction", 0.30))))
+                alloc = min(self.account_value * risk_pct, self.account_value * cap_fraction)
+                buy_qty = max(0, int(alloc / max(current_price, 1e-9)))
+                if buy_qty > 0:
+                    self._execute(symbol, "BUY", buy_qty, current_price, f"swing_signal_conf={confidence:.3f}")
+                    return
+            elif qty > 0 and swing["sell_signal"]:
+                self._execute(symbol, "SELL", qty, current_price, "swing_signal")
+                return
+
+        if allow_long and model_buy_signal and qty == 0:
+            # position cap gate
+            max_pos = getattr(self.config, "max_positions", getattr(self.config, "max_portfolio_positions", 999))
+            open_positions = sum(1 for s, q in self.position_qty_by_symbol.items() if q > 0)
+            if open_positions >= max_pos:
+                return
+
+            # daily loss gate
+            if hasattr(self.risk_controller, "allow_daily_loss") and not self.risk_controller.allow_daily_loss():
+                self.logger.warning("[DAILY_LOSS_GATE][%s] blocked BUY: daily loss limit reached", symbol)
+                return
+
+            returns = self.market_buffers[symbol]["Close"].pct_change().dropna()
+            mc = self.monte_carlo.stress_test(returns)
+            risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
+            rr = max(0.5, abs(prediction - current_price) / max(current_price * symbol_threshold, 1e-6))
+            bypass_ror = getattr(self.config, "bypass_ror_gate", False)
+            if bypass_ror:
+                self.logger.warning("[ROR_GATE][%s] bypass enabled for diagnostics", symbol)
+            elif not self.risk_controller.allow_trade_with_ror(
+                win_rate=mc["win_rate"],
+                reward_risk_ratio=rr,
+                risk_fraction=risk_pct,
+                mc_var_95=mc["var95"],
+            ):
+                self.logger.warning(
+                    "[ROR_GATE][%s] blocked BUY: win_rate=%.3f var95=%.4f",
+                    symbol, mc["win_rate"], mc["var95"],
+                )
+                return
+
+            cap_fraction = max(0.0, min(1.0, float(getattr(self.config, "max_position_fraction", 0.30))))
+            alloc = min(self.account_value * risk_pct, self.account_value * cap_fraction)
+            buy_qty = max(0, int(alloc / max(current_price, 1e-9)))
+            if buy_qty > 0:
+                self._execute(symbol, "BUY", buy_qty, current_price, f"model_signal_conf={confidence:.3f}")
+        elif model_sell_signal and qty > 0:
+            if self.cycles_since_buy_by_symbol.get(symbol, 0) >= self.config.buy_cooldown_cycles:
+                self._execute(symbol, "SELL", qty, current_price, "model_signal")
+
+    def _evaluate_swing_signal(
+        self, symbol: str, current_price: float, latest_frame: Optional[pd.DataFrame]
+    ) -> dict:
+        frame = latest_frame if latest_frame is not None and not latest_frame.empty else self.market_buffers.get(symbol, pd.DataFrame())
+        if frame.empty:
+            return {
+                "buy_signal": False, "sell_signal": False, "rsi": 50.0,
+                "support": current_price, "resistance": current_price,
+                "near_support": False, "near_resistance": False,
+            }
+
+        rsi_col = "RSI_14" if "RSI_14" in frame.columns else ("RSI" if "RSI" in frame.columns else None)
+        rsi_value = float(frame.iloc[-1][rsi_col]) if rsi_col else 50.0
+        if pd.isna(rsi_value):
+            rsi_value = 50.0
+
+        macd_col = "MACD" if "MACD" in frame.columns else None
+        macd_signal_col = "MACD_SIGNAL" if "MACD_SIGNAL" in frame.columns else ("MACD_sig" if "MACD_sig" in frame.columns else None)
+        macd_cross_up = False
+        macd_cross_down = False
+        if macd_col and macd_signal_col and len(frame) >= 2:
+            prev_macd = float(frame.iloc[-2][macd_col])
+            prev_signal = float(frame.iloc[-2][macd_signal_col])
+            curr_macd = float(frame.iloc[-1][macd_col])
+            curr_signal = float(frame.iloc[-1][macd_signal_col])
+            macd_cross_up = prev_macd <= prev_signal and curr_macd > curr_signal
+            macd_cross_down = prev_macd >= prev_signal and curr_macd < curr_signal
+
+        window = max(2, int(getattr(self.config, "swing_sr_window", 20)))
+        lows = pd.to_numeric(frame.get("Low") if hasattr(frame, "get") else frame["Low"] if "Low" in frame.columns else pd.Series(dtype=float), errors="coerce")
+        highs = pd.to_numeric(frame.get("High") if hasattr(frame, "get") else frame["High"] if "High" in frame.columns else pd.Series(dtype=float), errors="coerce")
+        support = float(lows.tail(window).min()) if not lows.empty and lows.tail(window).notna().any() else current_price
+        resistance = float(highs.tail(window).max()) if not highs.empty and highs.tail(window).notna().any() else current_price
+        tolerance = max(0.0, float(getattr(self.config, "swing_sr_tolerance", 0.003)))
+        near_support = current_price <= support * (1 + tolerance)
+        near_resistance = current_price >= resistance * (1 - tolerance)
+
+        rsi_oversold = float(getattr(self.config, "swing_rsi_oversold", 30.0))
+        rsi_overbought = float(getattr(self.config, "swing_rsi_overbought", 70.0))
+        buy_signal = rsi_value < rsi_oversold or (near_support and macd_cross_up)
+        sell_signal = rsi_value > rsi_overbought or (near_resistance and macd_cross_down)
+        return {
+            "buy_signal": bool(buy_signal), "sell_signal": bool(sell_signal),
+            "rsi": rsi_value, "support": support, "resistance": resistance,
+            "near_support": bool(near_support), "near_resistance": bool(near_resistance),
+        }
+
+    _MAX_RECONNECT_FAILURES = 3
+
+    def _attempt_reconnect(self) -> None:
+        if self.futu_reconnect_failures >= self._MAX_RECONNECT_FAILURES:
+            return
+        try:
+            self.futu_connector.reconnect()
+            self.futu_reconnect_failures = 0
+            self.broker_offline_fallback_mode = False
+        except Exception as exc:
+            self.futu_reconnect_failures += 1
+            self.logger.warning(
+                "Reconnect failed (%d/%d): %s",
+                self.futu_reconnect_failures,
+                self._MAX_RECONNECT_FAILURES,
+                exc,
+            )
+            if self.futu_reconnect_failures >= self._MAX_RECONNECT_FAILURES:
+                self.broker_offline_fallback_mode = True
+                self.logger.warning("Reconnect budget exhausted, broker_offline_fallback_mode=True")
+
     def _check_heartbeat(self) -> None:
         try:
             ok = self.futu_connector.heartbeat()
             if not ok:
                 self.logger.warning("Broker heartbeat unhealthy")
+                self.broker_offline_fallback_mode = True
+            else:
+                self.broker_offline_fallback_mode = False
+                self.futu_reconnect_failures = 0
         except Exception as exc:
             self.logger.warning("Heartbeat check failed: %s", exc)
+            self.broker_offline_fallback_mode = True
 
     def _sync_broker_state(self) -> None:
         import os as _os

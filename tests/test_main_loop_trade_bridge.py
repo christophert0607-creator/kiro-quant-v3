@@ -164,8 +164,7 @@ class _PassAlphaEngine:
         return featured
 
 
-def _build_loop(prediction: float, auto_trade: bool = False, allow_ror: bool = True, allow_daily: bool = True, allow_var_cvar: bool = True):
-def _build_loop(prediction: float, auto_trade: bool = False, allow_ror: bool = True, futu_connector=None, data_manager=None):
+def _build_loop(prediction: float, auto_trade: bool = False, allow_ror: bool = True, allow_daily: bool = True, allow_var_cvar: bool = True, futu_connector=None, data_manager=None):
     model_manager = _DummyModelManager(prediction=prediction)
     cfg = LiveConfig(
         symbol="TSLA",
@@ -180,8 +179,6 @@ def _build_loop(prediction: float, auto_trade: bool = False, allow_ror: bool = T
     loop = LiveTradingLoop(
         model_manager=model_manager,
         risk_controller=_DummyRiskController(allow_ror=allow_ror, allow_daily=allow_daily, allow_var_cvar=allow_var_cvar),
-        futu_connector=_DummyConnector(),
-        risk_controller=_DummyRiskController(allow_ror=allow_ror),
         futu_connector=futu_connector or _DummyConnector(),
         data_manager=data_manager,
         feature_generator=_PassFeatureGenerator(),
