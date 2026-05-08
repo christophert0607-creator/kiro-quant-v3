@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch, call
 import pytest
 
 from v3_pipeline.core.futu_connector import ConnectionState, FutuConfig, FutuConnector
-from v3_launcher import _check_opend_reachable, _wait_for_opend
+from v3_launcher import _check_opend_reachable, _wait_for_opend, _safe_connector_connect
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -365,3 +365,102 @@ class TestWaitForOpend:
                     )
         assert result is False
         assert any("timeout" in r.message.lower() for r in caplog.records)
+
+
+# ── _safe_connector_connect timeout guard ──────────────────────────────────────
+
+class TestSafeConnectorConnectTimeout:
+    """Tests for the wall-clock timeout guard in _safe_connector_connect.
+
+    Root cause being guarded: when port 11112 is TCP-reachable but the Futu
+    protocol handshake keeps failing, ``OpenQuoteContext._connect_sync`` retries
+    every 26 s for 21+ minutes, blocking the launcher completely.  The guard
+    runs the SDK connect in a daemon thread and abandons it after
+    ``timeout_seconds``, returning False so the caller proceeds in degraded mode.
+    """
+
+    def test_returns_true_when_connect_succeeds(self):
+        connector = MagicMock()
+        connector.connect = MagicMock()
+        result = _safe_connector_connect(connector, symbols=["AAPL"], timeout_seconds=5.0)
+        assert result is True
+        connector.connect.assert_called_once_with(symbols=["AAPL"])
+
+    def test_returns_true_with_no_symbols(self):
+        connector = MagicMock()
+        connector.connect = MagicMock()
+        result = _safe_connector_connect(connector, symbols=None, timeout_seconds=5.0)
+        assert result is True
+        connector.connect.assert_called_once_with()
+
+    def test_returns_false_when_connect_hangs_past_timeout(self):
+        """Simulates the observed Futu SDK _connect_sync loop that hangs 21 min."""
+        import threading as _threading
+
+        connect_started = _threading.Event()
+
+        def _hanging_connect(**_kwargs):
+            connect_started.set()
+            # Block until the test finishes (simulates unbounded SDK retry)
+            time.sleep(60)
+
+        connector = MagicMock()
+        connector.connect = _hanging_connect
+
+        result = _safe_connector_connect(connector, symbols=["AAPL"], timeout_seconds=0.2)
+        assert result is False
+        # Guard started the thread
+        assert connect_started.is_set()
+
+    def test_emits_structured_log_on_timeout(self, caplog):
+        import logging as _logging
+
+        def _hanging_connect(**_kwargs):
+            time.sleep(60)
+
+        connector = MagicMock()
+        connector.connect = _hanging_connect
+
+        with caplog.at_level(_logging.ERROR, logger="futu_connect_guard"):
+            result = _safe_connector_connect(connector, symbols=["AAPL"], timeout_seconds=0.2)
+
+        assert result is False
+        assert any("futu_connect_timeout" in r.message for r in caplog.records)
+
+    def test_raises_runtime_error_when_connect_raises(self):
+        connector = MagicMock()
+        connector.connect = MagicMock(side_effect=OSError("connection refused"))
+
+        with pytest.raises(RuntimeError, match="Failed to connect"):
+            _safe_connector_connect(connector, symbols=["AAPL"], timeout_seconds=5.0)
+
+    def test_handles_type_error_fallback(self):
+        """Old connector signature raises TypeError on symbols kwarg; shim calls bare connect()."""
+        call_log: list[str] = []
+
+        def _connect_compat(**kwargs):
+            if "symbols" in kwargs:
+                raise TypeError("unexpected keyword argument 'symbols'")
+            call_log.append("bare_connect")
+
+        connector = MagicMock()
+        connector.connect = _connect_compat
+
+        result = _safe_connector_connect(connector, symbols=["AAPL"], timeout_seconds=5.0)
+        assert result is True
+        assert call_log == ["bare_connect"]
+
+    def test_degraded_mode_does_not_block_for_full_sdk_retry_duration(self):
+        """Wall-clock: even if SDK would block for minutes, we return in < 1 s."""
+        def _very_slow_connect(**_kwargs):
+            time.sleep(300)  # 5-minute hang
+
+        connector = MagicMock()
+        connector.connect = _very_slow_connect
+
+        t_start = time.monotonic()
+        result = _safe_connector_connect(connector, symbols=["AAPL"], timeout_seconds=0.3)
+        elapsed = time.monotonic() - t_start
+
+        assert result is False
+        assert elapsed < 1.0, f"Expected < 1 s, got {elapsed:.2f} s"
