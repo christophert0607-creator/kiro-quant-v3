@@ -1869,12 +1869,22 @@ class LiveTradingLoop:
 
         active_positions = {s: q for s, q in self.position_qty_by_symbol.items() if q > 0}
         active_markets = list(self.market_contexts.keys())
+
+        # Include account routing snapshot in broker_sync event (no secrets)
+        account_snapshot: dict = {}
+        if hasattr(self.futu_connector, "account_mapping_snapshot"):
+            try:
+                account_snapshot = self.futu_connector.account_mapping_snapshot()
+            except Exception:
+                pass
+
         self._emit_structured(
             "broker_sync",
             positions=active_positions,
             account_value=round(self.account_value, 2),
             market=getattr(self.futu_connector, "market_prefix", "unknown"),
             active_markets=active_markets,
+            **account_snapshot,
         )
 
     def _execute(self, symbol: str, side: str, qty: int, price: float, reason: str, indicators: dict | None = None, prediction: float | None = None) -> None:
@@ -2024,6 +2034,13 @@ class LiveTradingLoop:
                 "price": float(fill_price),
                 "reason": reason,
             }
+
+            # Persist current account routing snapshot (no secrets) for dashboard visibility
+            if hasattr(self.futu_connector, "account_mapping_snapshot"):
+                try:
+                    state["account_routing"] = self.futu_connector.account_mapping_snapshot()
+                except Exception:
+                    pass
 
             with open(state_file, "w", encoding="utf-8") as f:
                 f.write(_json.dumps(state, ensure_ascii=False, indent=2) + "\n")

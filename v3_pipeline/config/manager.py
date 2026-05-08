@@ -32,6 +32,8 @@ _ENV_OVERRIDES: dict[tuple[str, str], str] = {
     ("futu", "target_acc_id"):   "FUTU_TARGET_ACC_ID",
     ("futu", "trade_password"):  "FUTU_TRADE_PWD",
     ("futu", "opend_web_port"):  "FUTU_OPEND_WEB_PORT",
+    ("futu.accounts.HK", "target_acc_id"): "FUTU_HK_ACC_ID",
+    ("futu.accounts.US", "target_acc_id"): "FUTU_US_ACC_ID",
     ("v3_live", "polling_seconds"): "V3_POLLING_SECONDS",
     ("v3_live", "auto_trade"):      "V3_AUTO_TRADE",
     ("v3_live", "paper_trading"):   "V3_PAPER_TRADING",
@@ -68,6 +70,12 @@ def _bool_from_str(v: str) -> bool:
 # ── Typed config dataclasses ──────────────────────────────────────────────────
 
 @dataclass
+class FutuMarketAccountCfg:
+    """Per-market account configuration."""
+    target_acc_id: Optional[int] = None
+
+
+@dataclass
 class FutuCfg:
     host: str = "127.0.0.1"
     port: int = 11111
@@ -76,6 +84,14 @@ class FutuCfg:
     opend_web_port: int = 18889
     trade_password: str = ""
     market_prefix: str = "US"
+    # Explicit per-market account IDs; take precedence over auto-discovered accounts.
+    # Keys are market codes, e.g. "HK", "US".
+    accounts: dict[str, FutuMarketAccountCfg] = field(default_factory=dict)
+
+    def account_id_for_market(self, market: str) -> Optional[int]:
+        """Return the configured account ID for *market*, or None if absent."""
+        cfg = self.accounts.get(market.upper())
+        return cfg.target_acc_id if cfg else None
 
     def validate(self) -> list[str]:
         errors: list[str] = []
@@ -245,6 +261,19 @@ class ConfigManager:
         opend_web_port = _apply_env("futu", "opend_web_port", int(raw.get("opend_web_port", 18889)), int)
         market_prefix = str(raw.get("market_prefix", raw.get("market", "US")))
 
+        # Parse per-market account IDs from futu.accounts.{MARKET}.target_acc_id
+        accounts_raw = raw.get("accounts") or {}
+        accounts: dict[str, FutuMarketAccountCfg] = {}
+        for market_key in ("HK", "US"):
+            mkt_raw = accounts_raw.get(market_key) or {}
+            raw_mkt_acc = mkt_raw.get("target_acc_id") if isinstance(mkt_raw, dict) else None
+            mkt_acc_id = _apply_env(
+                f"futu.accounts.{market_key}", "target_acc_id",
+                int(raw_mkt_acc) if raw_mkt_acc is not None else None,
+                lambda v: int(v) if v else None,
+            )
+            accounts[market_key] = FutuMarketAccountCfg(target_acc_id=mkt_acc_id)
+
         return FutuCfg(
             host=host,
             port=port,
@@ -253,6 +282,7 @@ class ConfigManager:
             trade_password=trade_password,
             opend_web_port=opend_web_port,
             market_prefix=market_prefix,
+            accounts=accounts,
         )
 
     def _build_v3_live(self) -> V3LiveCfg:
