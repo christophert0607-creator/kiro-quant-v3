@@ -24,7 +24,7 @@ except ImportError:
 from v3_pipeline.data.downloader import HistoricalDataDownloader
 from v3_pipeline.features.indicators import TechnicalIndicatorGenerator
 from v3_pipeline.models.brain import KiroLSTM
-from v3_pipeline.models.registry import ModelRegistry
+from v3_pipeline.models.registry import ModelRegistry, validate_checkpoint
 
 PATTERN_LABELS = [
     "Unknown",
@@ -738,6 +738,13 @@ class ModelManager:
 
         if source.stem != model_name:
             self.logger.info("Resolved model '%s' -> %s", model_name, source.name)
+
+        vr = validate_checkpoint(source)
+        if vr.ok:
+            vr.log(self.logger)
+        else:
+            for err in vr.errors:
+                self.logger.warning("Checkpoint metadata warning [%s]: %s", source.name, err)
 
         payload = torch.load(source, map_location=self.device)
         # Tolerate both wrapped checkpoints and raw state_dicts.

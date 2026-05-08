@@ -1,8 +1,11 @@
 """Tests for v3_pipeline.models.registry (Phase 5 - checkpoint metadata validation)."""
 import json
+import logging
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
+import torch
 
 from v3_pipeline.models.registry import (
     CheckpointIncompatibleError,
@@ -269,3 +272,109 @@ class TestModelRegistryValidate:
         path, result = reg.resolve_and_validate("v3_us_stocks")
         assert path is not None
         assert result.ok is True
+
+
+# ── ModelManager.load() validate_checkpoint integration ───────────────────────
+
+@pytest.fixture(scope="module", autouse=False)
+def real_manager_module():
+    """Ensure v3_pipeline.models.manager is the real module, not a test stub.
+
+    test_main_loop_trade_bridge.py uses sys.modules.setdefault() at import time
+    to inject a SimpleNamespace stub.  When that test file is collected before
+    this one, sys.modules['v3_pipeline.models.manager'] contains the stub.  This
+    fixture removes the stub and imports the real module so our integration tests
+    can construct an actual ModelManager.
+    """
+    import importlib
+    import sys
+
+    mod_key = "v3_pipeline.models.manager"
+    existing = sys.modules.get(mod_key)
+    is_stub = existing is not None and not hasattr(existing, "__file__")
+
+    if is_stub:
+        del sys.modules[mod_key]
+
+    real_mod = importlib.import_module(mod_key)
+    sys.modules[mod_key] = real_mod
+    yield real_mod
+
+    # Restore stub so other test modules that depend on the stub still work.
+    if is_stub:
+        sys.modules[mod_key] = existing
+
+
+class TestModelManagerValidateCheckpointIntegration:
+    """Verify that ModelManager.load() calls validate_checkpoint() before torch.load()."""
+
+    def _make_manager(self, tmp_path: Path, real_manager_module) -> "ModelManager":
+        ModelManager = real_manager_module.ModelManager
+        DataPreparer = real_manager_module.DataPreparer
+        from v3_pipeline.models.brain import KiroLSTM
+
+        preparer = DataPreparer(lookback=10)
+        model = KiroLSTM(input_dim=5, hidden_dim=16, num_layers=1)
+        reg = ModelRegistry(model_dir=tmp_path, aliases={}, default=None)
+        return ModelManager(
+            model=model,
+            data_preparer=preparer,
+            model_dir=str(tmp_path),
+            registry=reg,
+        )
+
+    def _fake_payload(self, model):
+        """Build a minimal state_dict payload that load_state_dict accepts."""
+        return model.state_dict()
+
+    def test_load_logs_warning_when_sidecar_missing(self, tmp_path, real_manager_module):
+        """manager.load() warns when checkpoint has no .meta.json sidecar."""
+        manager = self._make_manager(tmp_path, real_manager_module)
+        pth = tmp_path / "v3_test.pth"
+        torch.save(self._fake_payload(manager.model), pth)
+
+        with patch.object(manager.logger, "warning") as mock_warn:
+            manager.load("v3_test")
+
+        messages = [str(call) for call in mock_warn.call_args_list]
+        assert any("Missing metadata sidecar" in m for m in messages), (
+            f"Expected 'Missing metadata sidecar' warning. Got: {messages}"
+        )
+
+    def test_load_does_not_raise_when_sidecar_missing(self, tmp_path, real_manager_module):
+        """manager.load() completes successfully even without a sidecar (warn-only)."""
+        manager = self._make_manager(tmp_path, real_manager_module)
+        pth = tmp_path / "v3_test.pth"
+        torch.save(self._fake_payload(manager.model), pth)
+        manager.load("v3_test")  # must not raise
+
+    def test_load_logs_ok_when_valid_sidecar_present(self, tmp_path, real_manager_module):
+        """manager.load() logs an INFO checkpoint-OK line when sidecar is valid."""
+        manager = self._make_manager(tmp_path, real_manager_module)
+        pth = tmp_path / "v3_test.pth"
+        torch.save(self._fake_payload(manager.model), pth)
+        _write_meta(pth, VALID_META)
+
+        with patch.object(manager.logger, "info") as mock_info:
+            manager.load("v3_test")
+
+        messages = [str(call) for call in mock_info.call_args_list]
+        assert any("Checkpoint OK" in m for m in messages), (
+            f"Expected 'Checkpoint OK' in info logs. Got: {messages}"
+        )
+
+    def test_load_warns_on_sidecar_empty_required_field(self, tmp_path, real_manager_module):
+        """manager.load() warns when sidecar has an empty-string required field."""
+        manager = self._make_manager(tmp_path, real_manager_module)
+        pth = tmp_path / "v3_test.pth"
+        torch.save(self._fake_payload(manager.model), pth)
+        # market="" parses OK but fails the required-field check (falsy)
+        _write_meta(pth, {**VALID_META, "market": ""})
+
+        with patch.object(manager.logger, "warning") as mock_warn:
+            manager.load("v3_test")
+
+        messages = [str(call) for call in mock_warn.call_args_list]
+        assert any("missing required field" in m for m in messages), (
+            f"Expected 'missing required field' warning. Got: {messages}"
+        )
