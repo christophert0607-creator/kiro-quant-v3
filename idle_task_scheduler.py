@@ -32,6 +32,18 @@ if TYPE_CHECKING:
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
+def _get_idle_log_dir() -> Path:
+    """Return the log directory, honouring KIRO_LOG_DIR env var for test isolation."""
+    override = os.environ.get("KIRO_LOG_DIR")
+    if override:
+        p = Path(override)
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+    default = Path(__file__).parent / "logs"
+    default.mkdir(exist_ok=True)
+    return default
+
+
 def _build_idle_logger() -> logging.Logger:
     logger = logging.getLogger("kiro.idle_scheduler")
     if logger.handlers:
@@ -45,8 +57,7 @@ def _build_idle_logger() -> logging.Logger:
     logger.addHandler(console)
     try:
         from logging.handlers import RotatingFileHandler
-        log_dir = Path(__file__).parent / "logs"
-        log_dir.mkdir(exist_ok=True)
+        log_dir = _get_idle_log_dir()
         fh = RotatingFileHandler(
             log_dir / "idle_scheduler.log",
             maxBytes=5 * 1024 * 1024,

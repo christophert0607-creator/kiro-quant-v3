@@ -23,6 +23,18 @@ from v3_pipeline.models.manager import DataPreparer, ModelManager
 from v3_pipeline.risk.manager import RiskController
 
 
+def _get_log_dir() -> Path:
+    """Return the log directory, honouring KIRO_LOG_DIR env var for test isolation."""
+    override = os.environ.get("KIRO_LOG_DIR")
+    if override:
+        p = Path(override)
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+    default = Path(__file__).parent.parent.parent / "logs"
+    default.mkdir(exist_ok=True)
+    return default
+
+
 def _build_structured_logger(name: str) -> logging.Logger:
     """Returns a logger that writes one JSON line per record to logs/decisions.jsonl."""
     logger = logging.getLogger(name)
@@ -31,8 +43,7 @@ def _build_structured_logger(name: str) -> logging.Logger:
     logger.setLevel(logging.INFO)
     try:
         from logging.handlers import RotatingFileHandler
-        log_dir = Path(__file__).parent.parent.parent / "logs"
-        log_dir.mkdir(exist_ok=True)
+        log_dir = _get_log_dir()
         handler = RotatingFileHandler(
             log_dir / "decisions.jsonl",
             maxBytes=10 * 1024 * 1024,
@@ -62,8 +73,7 @@ def _build_stderr_logger(name: str) -> logging.Logger:
     # Rotating file handler — logs/v3_live.log (10MB per file, 5 backups kept)
     try:
         from logging.handlers import RotatingFileHandler
-        log_dir = Path(__file__).parent.parent.parent / "logs"
-        log_dir.mkdir(exist_ok=True)
+        log_dir = _get_log_dir()
         rotating = RotatingFileHandler(
             log_dir / "v3_live.log",
             maxBytes=10 * 1024 * 1024,  # 10 MB
