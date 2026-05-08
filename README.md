@@ -1,154 +1,229 @@
-# Kiro Quant V3.6 - AI量化交易系統
+# Kiro Quant V3 — 智能量化交易系統
 
-> **Last Updated:** 2026-03-17
-> **Version:** V3.6 Flagship
+> 即時股價預測 × 機器學習 × 自動化交易的 AI 交易引擎
 
-基於 ML/AI 既全自動化股票交易系統，支援美股、港股、期權。
-
----
-
-## 🎯 功能特點
-
-### 核心引擎
-- ✅ **V3.6 Pipeline** - 异步非阻塞执行架构
-- ✅ **Kelly Sizing** - 动态凯利公式仓位管理
-- ✅ **Transaction Cost Filter** - 手续费滑点门禁
-- ✅ **Monte Carlo 压力测试** - 风险评估
-
-### ML 模型
-- ✅ **Random Forest** - 51.63% accuracy
-- ✅ **XGBoost** - 42.56% accuracy
-- ✅ **LSTM** - 48.65% accuracy
-- ✅ **3-Portfolio Ensemble** - $300k 模拟资金
-
-### 交易功能
-- ✅ **Paper Trading** - 模拟交易
-- ✅ **Multi-Timeframe** - 1D/4H/1H 信号
-- ✅ **110 Stocks 监控** - 50-500 可扩展
-- ✅ **自动止损/止盈**
-
-### 监控
-- ✅ **Watchdog Guardian** - 自动重启
-- ✅ **Daily Research Cron** - 每日 GitHub 调研
-- ✅ **Multi-TF Scanner** - 每日信号扫描
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ---
 
-## 🚀 快速開始
+## 🧭 系統總覽
 
-### Paper Trading
-```bash
-cd ~/.openclaw/workspace/skills/kiro-quant
-python3 v3_launcher.py
 ```
-
-### Dry Run
-```bash
-python3 v3_launcher.py --dry-run
-```
-
-### Daily Scan
-```bash
-./daily_scan.sh
+┌─────────────────────────────────────────────────────────────────┐
+│                      Kiro Quant V3                               │
+│                                                                  │
+│   行情攝取 ──→ 特徵工程 ──→ LSTM/XGBoost 預測 ──→ 交易決策    │
+│       ↓              ↓                    ↓                    │
+│   FutuConnector  TechnicalIndicatorGenerator  LiveTradingLoop  │
+│   yfinance       DataPreparer              ModelManager          │
+│   QuoteCache                                               ↓    │
+│                                                      RiskController
+│                                                      KellyPositionSizer
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 📊 模型性能
+## 📐 架構地圖（Graph Insight）
 
-| Model | Accuracy | Stocks | Features |
-|-------|----------|--------|----------|
-| Random Forest | **51.63%** | 50 | 38 |
-| LSTM | 48.65% | 50 | 40 |
-| XGBoost | 42.56% | 50 | 38 |
+本系統由 **2,440 個節點**、**4,299 條關係**組成，分為 **111 個社群**。
 
-### Top Features
-1. Volatility_20
-2. SMA_200_ratio
-3. Volume_MA5
-4. ATR_ratio
-5. SMA_100_ratio
+### 核心節點（最多連接）
+
+| 節點 | 連接數 | 職責 |
+|------|--------|------|
+| `FutuConnector` | 127 | 富途 OpenD 適配器，多源行情 fallback |
+| `LiveTradingLoop` | 77+32 | 核心交易循環引擎 |
+| `FutuConfig` | 65 | OpenD 連線配置管理 |
+| `TechnicalIndicatorGenerator` | 64 | 技術指標計算（RSI/MACD/BB/CCI/WILLR） |
+| `ModelManager` | 43 | 模型載入、元資料驗證 |
+| `DataPreparer` | 41 | 訓練數據準備、特徵標準化 |
+| `LiveConfig` | 34 | 實時交易配置動態管理 |
+| `RiskController` | 33 | 風控規則引擎 |
+
+### 十一大功能社群
+
+| 社群 | 節點數 | 核心模組 |
+|------|--------|---------|
+| **行情層**（Community 0, 7） | 126 | `FutuConnector`, `QuoteCache`, `AbstractDataFetcher`, `yfinance provider` |
+| **模型訓練**（Community 1, 39, 44） | 132 | `KiroLSTM`, `XGBoostClassifier`, `DataPreparer`, `self_learn/retrain.py` |
+| **配置管理**（Community 2, 12） | 95 | `ConfigManager`, `V36Config`, `RiskConfig` |
+| **交易引擎**（Community 9, 13） | 50 | `AdaptiveStrategy`, `MarketContext`, `MarketRegimeDetector` |
+| **風控系統**（Community 24, 41, 47） | 33 | `KellyPositionSizer`, `RiskController`, `RiskRulesEngine` |
+| **歷史回測**（Community 6, 27） | 60+ | `BacktestEngine`, `WFORunner`, `WalkForwardAnalysis` |
+| **閒置排程**（Community 5） | 60 | `IdleTaskScheduler`, `_emit_fd_health()`, 收盤後數據預填充 |
+| **因子引擎**（Community 3） | 43 | `KiroAlphaEngine`, `FinLabStyleFactorRanking` |
+| **數據管理**（Community 4, 8, 25） | 117 | `DuckDBCache`, `DataManager`, `DatabaseManager` |
+| **代理協作**（Community 18） | 10 | `QuantOrchestrator`, `BacktesterAgent`, `DataFetcherAgent` |
+| **維基化記錄**（Community 29, 30） | 40 | `WikiWriter`, `full_wiki_briefing()`, 交易決策維基化 |
 
 ---
 
-## 📁 文件結構
+## 📁 目錄結構
 
 ```
-kiro-quant/
-├── v3_launcher.py          # 主入口
-├── v3_pipeline/            # V3.6 核心
+kiro-quant-v3/
+├── v3_launcher.py              # 引擎起動程序
+├── v3_pipeline/
 │   ├── core/
+│   │   ├── main_loop.py         # LiveTradingLoop（心臟）
+│   │   ├── futu_connector.py    # FutuConnector（行情+交易）
+│   │   ├── quote_cache.py       # QuoteCache（TTL=30s 行情緩存）
+│   │   └── market_context.py    # MarketContext（HK/US 市場隔離）
+│   ├── config/
+│   │   └── manager.py           # ConfigManager（P0 配置單一真相源）
 │   ├── models/
-│   └── v36/               # Kelly + Cost Filter
-├── backtest_engine/        # 回測引擎
-│   └── src/analysis/       # ML 模型
-├── state.json              # 系統狀態
-├── state_3portfolios.json  # 3倉配置
-├── DEVLOG.md               # 開發日誌
-└── daily_scan.sh           # 每日掃描
+│   │   ├── brain.py             # KiroLSTM
+│   │   ├── manager.py           # ModelManager（checkpoint 驗證）
+│   │   └── registry.py          # ModelRegistry（元資料驗證）
+│   ├── features/
+│   │   └── indicators.py        # TechnicalIndicatorGenerator
+│   ├── execution/
+│   │   └── state_machine.py     # ExecutionStateMachine
+│   ├── data/
+│   │   ├── abstract_fetcher.py  # AbstractDataFetcher + FallbackDataFetcher
+│   │   ├── yf_provider.py       # 集中式 yfinance 接入（含 FD 健康監控）
+│   │   └── downloader.py        # HistoricalDataDownloader
+│   ├── risk/
+│   │   ├── risk_controller.py   # RiskController
+│   │   ├── position_sizer.py    # KellyPositionSizer
+│   │   └── transaction_cost.py  # TransactionCostCalculator
+│   ├── idle/
+│   │   └── task_scheduler.py    # IdleTaskScheduler（收盤後預填充）
+│   └── strategies/
+│       ├── adaptive.py          # AdaptiveStrategy
+│       └── regime_detector.py   # MarketRegimeDetector
+├── self_learn/
+│   ├── retrain.py               # 模型再訓練腳本
+│   ├── backfill_indicators.py   # 技術指標回填腳本
+│   ├── trading_bot.db           # 信號數據庫（1222 信號，589 已關閉）
+│   └── models/                  # 保存的模型 checkpoint
+├── tests/                       # 357 個測試
+├── graphify-out/                # 知識圖譜輸出
+│   └── GRAPH_REPORT.md
+└── logs/
+    ├── v3_live.log              # 實時心跳日誌
+    └── dashboard-v3-launcher.*  # Launcher stdout/stderr
 ```
 
 ---
 
-## ⚙️ 配置
+## 🔄 核心流程
 
-### 3-Portfolio 設定
-```json
-{
-  "portfolios": {
-    "A_RF": {"model": "Random Forest", "capital": 100000},
-    "B_XGB": {"model": "XGBoost", "capital": 100000},
-    "C_LSTM": {"model": "LSTM", "capital": 100000}
-  }
-}
+### 實時交易循環（LiveTradingLoop）
+
+```
+每 60 秒一次 cycle：
+
+1. PREFETCH ──→ QuoteCache / yfinance / FutuOpenD 批量取行情
+2. SCORING  ──→ 對 watchlist 股票評分（LSTM 預測 + 技術指標確認）
+3. FILTER    ──→ 置信度閾值過濾，合併 Kelly 倉位計算
+4. EXECUTE   ──→ 模擬/實盤買賣（auto_trade=true 時）
+5. LOG       ──→ 寫入 decisions.jsonl、更新 state.json
+6. IDLE      ──→ 非交易時段執行 IdleTaskScheduler（預填充明日數據）
 ```
 
-### Cron Jobs
-- **Daily Research** - 每日 7:00 AM (HKT)
-- **Hourly Review** - 每小時系統檢查
+### 市場模式判定
+
+```
+HK 交易時段：09:30–12:00、13:00–16:00（HKT）
+US 交易時段：22:30–05:00 HKT（翌日）
+                    ↓
+         MarketRegimeDetector
+                    ↓
+         HK / US / IDLE 三選一
+```
+
+### 風控層
+
+```
+Position Limit：15 持股上限
+Stop Loss：-2% 自動止損
+Take Profit：+2% 快速獲利了結
+Kelly Fraction：默認 0.25（1/4 Kelly）
+Max Hold：30 個 bars（收盤前強制平倉）
+```
 
 ---
 
-## 📈 歷史與近期更新
-
-### ✨ 2026-03-17: V3.6 Flagship 全面優化與封存機制
-詳見完整的 [DEVLOG.md](./DEVLOG.md) 開發日誌。本次更新專注於提升並發效率、降低手續費衝擊，並執行專案大掃除。
-1. **🚀 解決 Async 非阻塞執行**：將 Futu API 網路請求外包至 `asyncio.to_thread`，徹底解除單支股票下單卡死整體迴圈結算的問題。
-2. **⚡️ 消除冗餘特徵計算**：廢除 `manager.py` 中的無效率 Pandas 迴圈算式，統一由 `TechnicalIndicatorGenerator` 生成，節省大量 CPU 消耗。
-3. **🛡️ 實裝 Watchdog Guardian**：新增 `v3_watchdog.sh` 守護腳本，實現自動監聽進程生存、崩潰立馬重啟與 Telegram 報警。
-4. **💎 Kelly Sizing + Transaction Cost Filter**：正式切入 V3.6 資金管理模組，引入交易滑點評估門檻與蒙地卡羅(Monte Carlo)動態勝率凱利下注公式。
-5. **🧹 Legacy V2 專案封存**：建立 `legacy_archive/`，將淘汰的 `quant_v2.py` 以及數以百計的繁雜 `.log` 及舊版 `HOURLY_REVIEW` 盡數封存，保護目前的 V3 極簡工作環境。
-
-### 🤖 歷史版本模型狀態
-1. Random Forest (51.63%)
-2. XGBoost (42.56%)
-3. LSTM (48.65%)
-4. 3-Portfolio Ensemble ($300k)
-5. Multi-Timeframe Scanner (110 stocks)
-
----
-
-## 🔧 故障排除
+## 🧪 測試
 
 ```bash
-# Check status
-cat state.json
+# 全部測試
+python -m pytest tests/ -v
 
-# Check logs
-ls -la *.log
+# 關鍵模組測試
+python -m pytest tests/test_model_registry.py tests/test_opend_stability.py -v
 
-# Restart
-python3 v3_launcher.py
+# 最新結果：357 passed, 1 skipped（TA-Lib 選配）
 ```
 
 ---
 
-## 📚 文檔
+## 📊 運行狀態
 
-- [DEVLOG.md](./DEVLOG.md) - 開發日誌
-- [SKILL.md](./SKILL.md) - OpenClaw Skill
-- [backtest_engine/SPEC.md](./backtest_engine/SPEC.md) - 回測規格
+| 指標 | 數值 |
+|------|------|
+| 總信號 | 1222 |
+| 已關閉 | 589 |
+| 開放中 | 361 |
+| 模型準確率 | 0.79（真實，早期停頓） |
+| 日均交易 | ~20 筆（HK + US） |
 
 ---
 
-**AI量化交易 · 自動化部署 · 持續優化** 🤖
+## 🔧 常用指令
+
+```bash
+# 起動引擎（行情行 Alltick，交易行 OpenD）
+NO_FUTU_QUOTE=1 python v3_launcher.py
+
+# 檢查引擎狀態
+ps aux | grep v3_launcher
+tail -20 logs/v3_live.log
+
+# 檢查持倉
+sqlite3 self_learn/trading_bot.db "SELECT symbol, status, qty, entry_price FROM signals WHERE status='OPEN';"
+
+# 重建知識圖譜
+python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"
+```
+
+---
+
+## 🚨 常見問題
+
+| 徵狀 | 解決方案 |
+|------|---------|
+| `ECONNREFUSED` | 確認 OpenD 運行中：`ps aux \| grep FutuOpenD` |
+| `Too many open files` | FD leak，見 `references/v3-quote-diag.md` |
+| `PREFETCH Completed: 0/N` | 行情全部失效，檢查 yfinance / Alltick 連線 |
+| `circuit_broken: true` | 熔斷觸發，檢查 state.json 的 `consecutive_errors` |
+
+完整疑難排解見：`references/v3-quote-diag.md`
+
+---
+
+## 📈 依賴關係圖（Community 視角）
+
+```
+行情層（Community 0, 7）
+  QuoteCache ──→ AbstractDataFetcher ──→ [yfinance, FutuQuoteFetcher, EFinanceFetcher]
+
+模型層（Community 1, 44）
+  DataPreparer ──→ KiroLSTM / XGBoost ──→ ModelManager ──→ ModelRegistry
+
+執行層（Community 9, 13）
+  MarketRegimeDetector ──→ AdaptiveStrategy ──→ ExecutionStateMachine
+
+風控層（Community 24, 41, 47）
+  RiskController ──→ KellyPositionSizer ──→ RiskRulesEngine
+
+閒置層（Community 5）
+  IdleTaskScheduler ──→ yf_provider（FD 健康監控）──→ 維基化記錄（Community 29）
+```
+
+---
+
+*最後更新：2026-05-08 | Graph: 2440 nodes, 4299 edges, 111 communities*
