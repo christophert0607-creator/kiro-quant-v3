@@ -1,22 +1,54 @@
 # Kiro Quant V3
-# Runtime data
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Runtime logs
 *.log
 *.log.*
 *.out
 nohup.out
+*.err
+
+# Environment & secrets
 .env
+.venv/
+venv/
+v3_venv/
+venv_py314_final_backup/
+
+# IDE
+.vscode/
+.idea/
+.claude/
+.DS_Store
+
+# Test/lint caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage/
+htmlcov/
 
 # Backup files
 *.bak*
 *.bak
+*.tmp
+*.swp
+*.swo
 config.json.bak*
 config.bak*
+config.bak_pulse*
 
 # Data files
 *.parquet
 *.db
+*.db-*
 *.sqlite
 *.sqlite3
+*.gz
 trading_bot.db
 
 # Logs & archives
@@ -25,6 +57,7 @@ logs_archive/
 v3_pipeline/logs/
 v3_pipeline/logs/archive/
 daily/
+backups/
 
 # Graphify output
 graphify-out/
@@ -33,21 +66,21 @@ v3_pipeline/graphify-out/
 
 # Patch scripts (temporary)
 patch_*.py
+_codex_tmp/
 
-# OS
-__pycache__/
-*.pyc
-.DS_Store
-
-# State (sensitive)
+# State & trades (sensitive runtime data)
 state.json
 trades.jsonl
 
-# Claude IDE settings
-.claude/
+# Model artifacts
+v3_pipeline/models/trained_models/
+
+# Root-level model output
+/models/
 
 # Accidental files
 =
 
-# Root-level model output (training artifacts separate from v3_pipeline/models/)
-/models/
+# Misc images
+*.png
+*.svg

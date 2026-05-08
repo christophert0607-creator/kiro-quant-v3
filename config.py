@@ -48,9 +48,28 @@ def _detect_opend_host() -> str:
 # ============================================================
 # Infoway & Data Priority Config
 # ============================================================
+# ── Infoway API Key: loaded from environment if available ──────────────────
+# SECURITY: Do NOT hardcode real API keys here. Set them in .env or as
+# environment variables (INFOWAY_API_KEY, INFOWAY_WS_URL).
+_INFOWAY_KEY_FROM_ENV = os.environ.get("INFOWAY_API_KEY", "").strip()
+_INFOWAY_URL_FROM_ENV = os.environ.get("INFOWAY_WS_URL", "").strip()
+
+# ⚠️ SECURITY: To use a dev fallback key, set KIRO_ALLOW_DEV_FALLBACK_KEYS=1.
+_ALLOW_DEV_FALLBACK = os.environ.get("KIRO_ALLOW_DEV_FALLBACK_KEYS", "0").strip().lower() in {"1", "true", "yes", "on"}
+import logging as _log
+if not _INFOWAY_KEY_FROM_ENV:
+    if _ALLOW_DEV_FALLBACK:
+        _log.warning(
+            "[CONFIG] INFOWAY_API_KEY not set — dev fallback enabled via KIRO_ALLOW_DEV_FALLBACK_KEYS=1."
+        )
+    else:
+        _log.warning(
+            "[CONFIG] INFOWAY_API_KEY not set — set it in .env or as an environment variable."
+        )
+
 INFOWAY_CONFIG = {
-    "API_KEY": os.environ.get("INFOWAY_API_KEY", ""),
-    "WS_URL": "wss://data.infoway.io/ws?business=stock",
+    "API_KEY": _INFOWAY_KEY_FROM_ENV,
+    "WS_URL": _INFOWAY_URL_FROM_ENV or "wss://data.infoway.io/ws?business=stock",
 }
 DATA_PRIORITY = ["INFOWAY", "FUTU", "MASSIVE", "YFINANCE"]
 # ============================================================
@@ -64,7 +83,8 @@ TRADE_MODE = "SIMULATE" # Keep SIMULATE but use Real Data   # 只改呢一行就
 OPEND_HOST  = _detect_opend_host()
 OPEND_PORT  = int(os.environ.get("FUTU_OPEND_PORT", "11111"))
 # 安全起見：不提供預設交易密碼，必須由環境變數注入
-TRADE_PWD   = os.environ.get("FUTU_TRADE_PWD", "")
+# 兼容新舊命名：優先 FUTU_TRADE_PASSWORD，其次 FUTU_TRADE_PWD
+TRADE_PWD   = os.environ.get("FUTU_TRADE_PASSWORD", os.environ.get("FUTU_TRADE_PWD", ""))
 
 # ============================================================
 # 目標市場

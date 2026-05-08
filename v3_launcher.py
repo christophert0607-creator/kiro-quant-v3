@@ -851,5 +851,6 @@ if __name__ == "__main__":
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--config", default="config.json")
+    parser.add_argument("--profile", default=None, help="Runtime profile hint (lite/standard); informational only")
     args = parser.parse_args()
     run_kiro_v35(dry_run=args.dry_run, once=args.once, config_path=args.config)

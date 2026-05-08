@@ -1,0 +1,13 @@
+-r requirements.txt
+
+# Test / quality tooling
+pytest>=8.2
+
+# Core runtime dependencies used across tests and local smoke runs
+numpy>=1.26
+pandas>=2.0
+requests>=2.31
+websockets>=12.0
+
+# Optional but commonly imported by the project/tests
+python-dotenv>=1.0
