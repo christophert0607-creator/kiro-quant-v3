@@ -1747,7 +1747,18 @@ class LiveTradingLoop:
                 assets = self.futu_connector.get_sync_assets_all_markets()
             else:
                 assets = self.futu_connector.get_sync_assets()
-            self.account_value = float(assets.get("total_assets", self.account_value))
+            total_assets = float(assets.get("total_assets", self.account_value))
+            if total_assets > 0:
+                self.account_value = total_assets
+            else:
+                # Broker returned 0 (SIMULATE account unfunded or transient connection issue).
+                # Preserve the last known value to prevent a false 100% drawdown from
+                # triggering the circuit breaker and blocking all trade execution.
+                self._emit_structured(
+                    "broker_sync_zero_equity",
+                    kept_value=round(self.account_value, 2),
+                    reason="broker returned total_assets=0; preserving last known value",
+                )
         except Exception as exc:
             self.logger.warning("Asset sync failed: %s", exc)
 
