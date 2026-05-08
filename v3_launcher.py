@@ -562,13 +562,16 @@ async def _apply_market_mode(loop: "LiveTradingLoop", base_cfg: "LiveConfig", mo
 async def _collect_only_cycle(loop: "LiveTradingLoop", symbols: list[str]) -> None:
     """During IDLE: only fetch latest bars to keep buffers warm, no trades."""
     loop.logger.info("[IDLE_COLLECT] Syncing %d symbols...", len(symbols))
-    for i in range(0, len(symbols), 5):  # Extremely small batch size to avoid rate limits
+    fetched = 0
+    timed_out = 0
+    errors = 0
+    for i in range(0, len(symbols), 5):
         batch = symbols[i : i + 5]
-        try:
-            for sym in batch:
+        for sym in batch:
+            try:
                 quote = await asyncio.wait_for(
                     asyncio.to_thread(loop.futu_connector.get_latest_quote, sym),
-                    timeout=15.0 # Even more generous timeout
+                    timeout=10.0,
                 )
                 if quote:
                     new_row = pd.DataFrame([quote])
@@ -576,19 +579,27 @@ async def _collect_only_cycle(loop: "LiveTradingLoop", symbols: list[str]) -> No
                     # pd.concat when concatenating empty/all-NA frames.
                     new_row = new_row.dropna(how="all")
                     if not new_row.empty:
-                        existing = loop.market_buffers[sym]
+                        existing = loop.market_buffers.get(sym, pd.DataFrame())
                         if existing.empty:
                             loop.market_buffers[sym] = loop._normalize_market_buffer(new_row)
                         else:
                             loop.market_buffers[sym] = loop._normalize_market_buffer(
                                 pd.concat([existing, new_row], ignore_index=True)
                             )
-            # Significant sleep between batches to be very gentle with the API
-            await asyncio.sleep(2.0)
-        except asyncio.TimeoutError:
-            loop.logger.warning("[IDLE_COLLECT] Batch timeout occurred, skipping current batch")
-        except Exception as exc:
-            loop.logger.warning("Idle collect batch failed: %s", exc)
+                        fetched += 1
+            except asyncio.TimeoutError:
+                timed_out += 1
+                loop.logger.debug("[IDLE_COLLECT] %s quote timeout, skipping symbol", sym)
+            except Exception as exc:
+                errors += 1
+                loop.logger.debug("[IDLE_COLLECT] %s quote error: %s", sym, exc)
+        # Sleep between batches to be gentle with the API
+        await asyncio.sleep(2.0)
+    if timed_out or errors:
+        loop.logger.warning(
+            "[IDLE_COLLECT] Completed: fetched=%d timed_out=%d errors=%d / %d symbols",
+            fetched, timed_out, errors, len(symbols),
+        )
 
 
 def _idle_precompute(loop: "LiveTradingLoop", symbols: list[str]) -> None:
