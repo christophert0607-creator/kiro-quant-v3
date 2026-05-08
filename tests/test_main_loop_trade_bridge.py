@@ -100,6 +100,19 @@ class _DummyRiskController:
         return -0.05
 
 
+class _StrictDailyLossRiskController(_DummyRiskController):
+    def __init__(self):
+        super().__init__(allow_daily=True)
+        self.daily_loss_args: dict[str, float] | None = None
+
+    def allow_daily_loss(self, *, day_start_equity, current_equity):
+        self.daily_loss_args = {
+            "day_start_equity": float(day_start_equity),
+            "current_equity": float(current_equity),
+        }
+        return True
+
+
 class _DummyConnector:
     class config:
         market_prefix = "US"
@@ -704,6 +717,38 @@ def test_daily_loss_gate_blocks_model_buy_before_execution():
 
     assert not executed
     assert any("[DAILY_LOSS_GATE][TSLA] blocked BUY" in line for line in warnings)
+
+
+def test_daily_loss_gate_receives_equity_arguments():
+    loop = _build_loop(prediction=101.8)
+    strict_risk = _StrictDailyLossRiskController()
+    loop.risk_controller = strict_risk
+    loop.config.swing_strategy_enabled = False
+    loop.day_start_equity = 98_000.0
+    loop.day_start_key = loop._current_trading_day_key()
+    loop.account_value = 97_500.0
+    executed: list[tuple[str, int, str]] = []
+
+    def _fake_execute(symbol, side, qty, price, reason):
+        executed.append((side, qty, reason))
+
+    loop._execute = _fake_execute  # type: ignore[assignment]
+
+    loop.check_and_trade(
+        symbol="TSLA",
+        current_price=100.0,
+        prediction=101.8,
+        confidence=0.8,
+        allow_long=True,
+    )
+
+    assert strict_risk.daily_loss_args == {
+        "day_start_equity": 98_000.0,
+        "current_equity": 97_500.0,
+    }
+    assert executed
+
+
 def test_reconnect_stops_after_three_failures_and_enables_offline_mode():
     class _FailReconnectConnector(_DummyConnector):
         def __init__(self):

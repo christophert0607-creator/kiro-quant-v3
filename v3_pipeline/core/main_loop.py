@@ -255,6 +255,8 @@ class LiveTradingLoop:
         self.sentiment_summary = "N/A"
 
         self.equity_peak = 0.0
+        self.day_start_equity: float | None = None
+        self.day_start_key: str | None = None
 
         # Macro Analysis results
         self.risk_mode = "neutral"
@@ -298,6 +300,19 @@ class LiveTradingLoop:
             self._archive_market_data()
             self.futu_connector.close()
 
+    def _current_trading_day_key(self) -> str:
+        return datetime.now(timezone(timedelta(hours=8))).date().isoformat()
+
+    def _refresh_daily_loss_anchor(self) -> None:
+        today = self._current_trading_day_key()
+        if self.day_start_key != today or self.day_start_equity is None or self.day_start_equity <= 0:
+            self.day_start_key = today
+            self.day_start_equity = max(0.0, float(self.account_value))
+            self.logger.info(
+                "[DAILY_LOSS_GATE] reset day_start_equity=%.2f day=%s",
+                self.day_start_equity,
+                self.day_start_key,
+            )
 
     def _should_terminate_session(self) -> bool:
         from datetime import datetime, time as dt_time
@@ -1630,7 +1645,11 @@ class LiveTradingLoop:
                 return
 
             # daily loss gate
-            if hasattr(self.risk_controller, "allow_daily_loss") and not self.risk_controller.allow_daily_loss():
+            self._refresh_daily_loss_anchor()
+            if hasattr(self.risk_controller, "allow_daily_loss") and not self.risk_controller.allow_daily_loss(
+                day_start_equity=float(self.day_start_equity or self.account_value),
+                current_equity=float(self.account_value),
+            ):
                 self.logger.warning("[DAILY_LOSS_GATE][%s] blocked BUY: daily loss limit reached", symbol)
                 return
 
@@ -1760,6 +1779,7 @@ class LiveTradingLoop:
             total_assets = float(assets.get("total_assets", self.account_value))
             if total_assets > 0:
                 self.account_value = total_assets
+                self._refresh_daily_loss_anchor()
             else:
                 # Broker returned 0 (SIMULATE account unfunded or transient connection issue).
                 # Preserve the last known value to prevent a false 100% drawdown from
