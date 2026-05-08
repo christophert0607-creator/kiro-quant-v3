@@ -5,6 +5,7 @@ import asyncio
 import json
 import os
 import socket
+import threading
 import time  # 2026-04-24: for cooldown
 import argparse
 import logging
@@ -424,15 +425,59 @@ def _wait_for_opend(
     return False
 
 
-def _safe_connector_connect(connector, symbols: list[str] | None = None) -> None:
-    """Connector compatibility shim for old/new FutuConnector signatures."""
-    try:
-        if symbols is not None:
-            connector.connect(symbols=symbols)
-        else:
-            connector.connect()
-    except TypeError:
-        connector.connect()
+def _safe_connector_connect(
+    connector,
+    symbols: list[str] | None = None,
+    timeout_seconds: float = 90.0,
+    logger: logging.Logger | None = None,
+) -> bool:
+    """Connect to Futu connector with a wall-clock timeout.
+
+    The Futu SDK's internal ``_connect_sync`` loop can hang for 20+ minutes when
+    port 11112 is TCP-reachable but the protocol handshake keeps timing out.
+    This guard runs the blocking connect in a daemon thread and abandons it after
+    ``timeout_seconds``, letting the caller proceed in degraded (no-Futu) mode.
+
+    Returns True on success, False if the connection timed out.
+    Raises RuntimeError if the connector itself raises an exception before timeout.
+
+    Config key: ``futu_connect_timeout_seconds`` (default 90).
+    """
+    _log = logger or logging.getLogger("futu_connect_guard")
+    error: list[Exception | None] = [None]
+
+    def _do_connect() -> None:
+        try:
+            if symbols is not None:
+                connector.connect(symbols=symbols)
+            else:
+                connector.connect()
+        except TypeError:
+            try:
+                connector.connect()
+            except Exception as exc:
+                error[0] = exc
+        except Exception as exc:
+            error[0] = exc
+
+    t = threading.Thread(target=_do_connect, daemon=True, name="futu_connect")
+    t.start()
+    t.join(timeout=timeout_seconds)
+
+    if t.is_alive():
+        # SDK connect still running — proceed in degraded mode; daemon thread
+        # will be cleaned up on process exit.
+        _log.error(
+            '{"event":"futu_connect_timeout","timeout_s":%.1f,'
+            '"msg":"Futu SDK connect hung; proceeding in degraded mode"}',
+            timeout_seconds,
+        )
+        return False
+
+    if error[0] is not None:
+        raise RuntimeError(f"Failed to connect to Futu OpenD: {error[0]}") from error[0]
+
+    return True
 
 
 async def _apply_market_mode(loop: "LiveTradingLoop", base_cfg: "LiveConfig", mode: str, prev_mode: str | None, config_path: str = "config.json") -> None:
@@ -517,13 +562,16 @@ async def _apply_market_mode(loop: "LiveTradingLoop", base_cfg: "LiveConfig", mo
 async def _collect_only_cycle(loop: "LiveTradingLoop", symbols: list[str]) -> None:
     """During IDLE: only fetch latest bars to keep buffers warm, no trades."""
     loop.logger.info("[IDLE_COLLECT] Syncing %d symbols...", len(symbols))
-    for i in range(0, len(symbols), 5):  # Extremely small batch size to avoid rate limits
+    fetched = 0
+    timed_out = 0
+    errors = 0
+    for i in range(0, len(symbols), 5):
         batch = symbols[i : i + 5]
-        try:
-            for sym in batch:
+        for sym in batch:
+            try:
                 quote = await asyncio.wait_for(
                     asyncio.to_thread(loop.futu_connector.get_latest_quote, sym),
-                    timeout=15.0 # Even more generous timeout
+                    timeout=10.0,
                 )
                 if quote:
                     new_row = pd.DataFrame([quote])
@@ -531,19 +579,27 @@ async def _collect_only_cycle(loop: "LiveTradingLoop", symbols: list[str]) -> No
                     # pd.concat when concatenating empty/all-NA frames.
                     new_row = new_row.dropna(how="all")
                     if not new_row.empty:
-                        existing = loop.market_buffers[sym]
+                        existing = loop.market_buffers.get(sym, pd.DataFrame())
                         if existing.empty:
                             loop.market_buffers[sym] = loop._normalize_market_buffer(new_row)
                         else:
                             loop.market_buffers[sym] = loop._normalize_market_buffer(
                                 pd.concat([existing, new_row], ignore_index=True)
                             )
-            # Significant sleep between batches to be very gentle with the API
-            await asyncio.sleep(2.0)
-        except asyncio.TimeoutError:
-            loop.logger.warning("[IDLE_COLLECT] Batch timeout occurred, skipping current batch")
-        except Exception as exc:
-            loop.logger.warning("Idle collect batch failed: %s", exc)
+                        fetched += 1
+            except asyncio.TimeoutError:
+                timed_out += 1
+                loop.logger.debug("[IDLE_COLLECT] %s quote timeout, skipping symbol", sym)
+            except Exception as exc:
+                errors += 1
+                loop.logger.debug("[IDLE_COLLECT] %s quote error: %s", sym, exc)
+        # Sleep between batches to be gentle with the API
+        await asyncio.sleep(2.0)
+    if timed_out or errors:
+        loop.logger.warning(
+            "[IDLE_COLLECT] Completed: fetched=%d timed_out=%d errors=%d / %d symbols",
+            fetched, timed_out, errors, len(symbols),
+        )
 
 
 def _idle_precompute(loop: "LiveTradingLoop", symbols: list[str]) -> None:
@@ -694,13 +750,18 @@ def run_kiro_v35(*, dry_run: bool = False, once: bool = False, config_path: str 
     _opend_host = cfg.get("futu", cfg.get("futu_api_config", {})).get("host", "127.0.0.1")
     _opend_port = int(cfg.get("futu", cfg.get("futu_api_config", {})).get("port", 11112))
     _opend_max_wait = float(cfg.get("opend_guard_max_wait_seconds", 60.0))
+    _connect_timeout = float(cfg.get("futu_connect_timeout_seconds", 90.0))
     if not _wait_for_opend(host=_opend_host, port=_opend_port, max_wait_seconds=_opend_max_wait, logger=loop.logger):
         loop.logger.error(
             "OpenD not reachable at %s:%d after %.0fs — starting in degraded (collect-only) mode",
             _opend_host, _opend_port, _opend_max_wait,
         )
 
-    _safe_connector_connect(loop.futu_connector, loop.config.symbols_list)
+    if not _safe_connector_connect(loop.futu_connector, loop.config.symbols_list, timeout_seconds=_connect_timeout, logger=loop.logger):
+        loop.logger.warning(
+            "Futu connect timed out (%.0fs) — starting in degraded (collect-only) mode",
+            _connect_timeout,
+        )
     _reset_crash_count()  # Reset crash counter on clean startup
     
     # 2026-04-24 Fix: Graceful crash recovery with cooldown
@@ -734,8 +795,18 @@ def run_kiro_v35(*, dry_run: bool = False, once: bool = False, config_path: str 
                 import time as _time
                 loop.futu_connector.close()
                 _time.sleep(cooldown_seconds)
-                _safe_connector_connect(loop.futu_connector, loop.config.symbols_list)
-                loop.logger.info("Reconnected after cooldown, resuming...")
+                if not _safe_connector_connect(
+                    loop.futu_connector,
+                    loop.config.symbols_list,
+                    timeout_seconds=_connect_timeout,
+                    logger=loop.logger,
+                ):
+                    loop.logger.warning(
+                        "Reconnect timed out (%.0fs) — continuing in degraded mode",
+                        _connect_timeout,
+                    )
+                else:
+                    loop.logger.info("Reconnected after cooldown, resuming...")
             except Exception as reconnect_err:
                 loop.logger.warning(
                     "Reconnection failed: %s — continuing in degraded (collect-only) mode",
