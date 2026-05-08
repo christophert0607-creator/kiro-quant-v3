@@ -165,6 +165,8 @@ class FutuConnector:
         self.trade_ctxs: dict[str, Any] = {}
         # Per-market account IDs discovered from broker: {"US": acc_id, "HK": acc_id}
         self.account_ids: dict[str, Optional[int]] = {}
+        # Explicit per-market account IDs from config (highest priority, beats discovery)
+        self.config_market_accounts: dict[str, int] = {}
 
         self.login_account: Optional[int] = None
         self.discovered_accounts: pd.DataFrame = pd.DataFrame()
@@ -301,6 +303,26 @@ class FutuConnector:
             if target is not None and self.config.target_acc_id is None:
                 self.config.target_acc_id = int(target)
                 self.logger.info("Loaded target_acc_id from config.json: %s", self.config.target_acc_id)
+
+            # Load per-market explicit account IDs (futu.accounts.HK / futu.accounts.US)
+            accounts_section = futu_section.get("accounts") or {}
+            for market_key in ("HK", "US"):
+                mkt_raw = accounts_section.get(market_key) or {}
+                if not isinstance(mkt_raw, dict):
+                    continue
+                mkt_acc = mkt_raw.get("target_acc_id")
+                env_key = f"FUTU_{market_key}_ACC_ID"
+                # Env var takes precedence if set; otherwise use config.json value
+                env_val = os.environ.get(env_key)
+                resolved = int(env_val) if env_val else (int(mkt_acc) if mkt_acc is not None else None)
+                if resolved is not None:
+                    self.config_market_accounts[market_key] = resolved
+                    self.logger.info(
+                        "Loaded explicit %s account from %s: acc_id=%s",
+                        market_key,
+                        env_key if env_val else "config.json",
+                        resolved,
+                    )
         except Exception as exc:
             self.logger.warning("Failed to parse config.json for futu settings: %s", exc)
 
@@ -525,12 +547,57 @@ class FutuConnector:
         return {"acc_id": int(self.config.target_acc_id)}
 
     def _account_kwargs_for_market(self, market: str) -> dict[str, Any]:
-        """Return acc_id kwargs scoped to a specific market, falling back to global."""
+        """Return acc_id kwargs scoped to a specific market, falling back to global.
+
+        Priority:
+          1. Explicit config (futu.accounts.{MARKET}.target_acc_id / FUTU_{MARKET}_ACC_ID)
+          2. Auto-discovered account for market from broker
+          3. Global legacy futu.target_acc_id
+        """
         mkt = str(market).upper()
-        acc_id = self.account_ids.get(mkt) or self.config.target_acc_id
+        acc_id = (
+            self.config_market_accounts.get(mkt)
+            or self.account_ids.get(mkt)
+            or self.config.target_acc_id
+        )
         if acc_id is None:
             return {}
         return {"acc_id": int(acc_id)}
+
+    def _resolve_market_account_id(self, market: str) -> Optional[int]:
+        """Return the resolved account ID for *market* using the same priority chain."""
+        mkt = str(market).upper()
+        return (
+            self.config_market_accounts.get(mkt)
+            or self.account_ids.get(mkt)
+            or self.config.target_acc_id
+        )
+
+    def account_mapping_snapshot(self) -> dict[str, Any]:
+        """Return a safe (no secrets) snapshot of the current account routing table.
+
+        Exposes which account ID will be used per market without including passwords
+        or other sensitive fields.  Suitable for inclusion in state.json or structured
+        log events.
+        """
+        markets = sorted(set(list(self.config_market_accounts.keys()) + list(self.account_ids.keys())))
+        routing: dict[str, Any] = {}
+        for mkt in markets:
+            configured = self.config_market_accounts.get(mkt)
+            discovered = self.account_ids.get(mkt)
+            resolved = configured or discovered or self.config.target_acc_id
+            routing[mkt] = {
+                "resolved_acc_id": resolved,
+                "source": (
+                    "config" if configured
+                    else ("discovered" if discovered else "global_fallback")
+                ),
+            }
+        return {
+            "account_routing": routing,
+            "global_fallback_acc_id": self.config.target_acc_id,
+            "trd_env": self.config.trd_env,
+        }
 
     @property
     def conn_state(self) -> ConnectionState:
@@ -1039,6 +1106,25 @@ class FutuConnector:
         # Use resolve_symbol so HK stocks never get "US.0700.HK" as the broker code
         broker_code_str, market = self.resolve_symbol(symbol)
         trade_ctx = self.get_trade_ctx(market)
+
+        # Block submission when the resolved account for this market is missing.
+        # Only enforce the block when explicit per-market config exists for at least one
+        # market — this preserves backward compatibility for setups that rely on global
+        # account discovery only.
+        resolved_acc_id = self._resolve_market_account_id(market)
+        if self.config_market_accounts and resolved_acc_id is None:
+            event = {
+                "event": "account_route_error",
+                "symbol": symbol,
+                "market": market,
+                "side": side,
+                "qty": qty,
+                "reason": f"No account configured for market {market}; set futu.accounts.{market}.target_acc_id or FUTU_{market}_ACC_ID",
+            }
+            self.logger.error("%s", json.dumps(event))
+            raise RuntimeError(
+                f"account_route_error: no account configured for market {market} (symbol={symbol})"
+            )
 
         raw_price = float(price) if price is not None else self.get_order_reference_price(symbol, side, fallback_price=0.0)
         limit_price = self._round_price(raw_price, symbol)
