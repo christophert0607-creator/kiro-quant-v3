@@ -30,5 +30,23 @@
     "auto_trade": true,
     "paper_trading": true,
     "buy_cooldown_cycles": 3
+  },
+  "idle_scheduler": {
+    "enabled": true,
+    "universe_mode": "rotation",
+    "max_symbols_per_session": 300,
+    "history_period": "250d",
+    "history_interval": "1d",
+    "skip_if_latest_within_days": 1,
+    "universe_files": [
+      "data/universe/us_symbols.txt",
+      "data/universe/hk_symbols.txt"
+    ],
+    "cursor_path": "state/idle_backfill_cursor.json",
+    "max_concurrent_symbols": 5,
+    "max_klines_per_batch": 100,
+    "cooldown_between_batches_sec": 2,
+    "max_idle_hours_per_day": 6,
+    "stop_before_open_min": 30
   }
 }

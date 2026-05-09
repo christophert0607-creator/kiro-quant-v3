@@ -39,7 +39,7 @@
 |--------|------|------|
 | 代碼圖譜 | ✅ 健康 | 198 文件，2678 節點，結構完整 |
 | 服務端口 | ✅ 3000 (Next.js) / 8080 (OpenClaw) 正常監聽 |
-| 回歸測試 | ✅ 405 passed, 101 warnings（runtime）；419 passed, 101 warnings（PR58 candidate + latest main + stub fix） |
+| 回歸測試 | ✅ 408 passed, 101 warnings（runtime）；419 passed, 101 warnings（PR58 candidate + latest main + stub fix） |
 | 當前分支 | ✅ `feat/pr58-safety-rails` @ `local HEAD`（本地已提交，推送被 GitHub HTTPS 認證阻擋） |
 | Runtime FD | ⚠️ 需跟進 | `v3_launcher.py` PID 38186 約 1858 FDs；`py-yfinance/tkr-tz.db` / WAL 佔約 1806 |
 
@@ -63,6 +63,7 @@
 - 完成 DB fetch-sync：`DatabaseManager.save_market_quote()` 現在可將 quote/OHLCV snapshot upsert 入 `market_data`；`DataManager.get_market_data()` 與 `LiveTradingLoop._run_symbol_cycle()` 成功 fetch 後會同步寫入 `/home/tsukii0607/.openclaw/workspace-quant/kiro-quant-v3/kiro_quant.db`。
 - K 線 DB sync 會先透過 `TechnicalIndicatorGenerator` 補齊價格行為特徵，再寫入 `market_data`；目前包含 RSI、MACD、Bollinger Bands、均線、ATR/ADX/CCI/MFI/OBV/ROC/WILLR/VWAP/KDJ 等欄位。
 - IDLE 時段 historical backfill 現在會把 yfinance K 線同步入同一個 `market_data` 表：每批 backfill 會正規化 OHLCV、補技術指標、再 upsert 入 DB；單一 symbol 同步失敗只記 warning，不中斷 idle scheduler。
+- IDLE 全市補數已加入 rotation 模式：`idle_scheduler.universe_mode=rotation` 會從 `data/universe/us_symbols.txt`、`data/universe/hk_symbols.txt` 讀 universe，按 `max_symbols_per_session` 分批輪轉，cursor 寫入 `state/idle_backfill_cursor.json`；`skip_if_latest_within_days=1` 會跳過 DB 已有新資料的 symbol。
 - DB sync 失敗策略：只記錄 warning，不阻塞行情 fetch 或交易循環；pytest 執行期間預設不自動連 production DB，測試用注入 fake/temp DB。
 - 修復 `tests/test_idle_collect.py` 的 module stub 污染：該測試匯入 `v3_launcher` 時暫時 stub `v3_pipeline.models.brain`，但未清理 `sys.modules`，導致 `tests/test_pattern_trainer_components.py` 無法匯入 `StockPatternModel`。
 - 使用 `/usr/bin/python3.12 -m pytest tests/ -q --tb=short -s` 驗證全量測試通過。
@@ -112,7 +113,7 @@ class QuoteCache:
 ### 5.5 測試要求
 - 新增邏輯必須附帶對應測試（`tests/test_*.py`）。
 - 運行全量測試：`/usr/bin/python3.12 -m pytest tests/ -q --tb=short -s`
-- 目前 runtime 基線：**405 passed, 101 warnings**；PR58 candidate + latest main + stub fix 基線：**419 passed, 101 warnings**；任何改動不得使通過數下降。
+- 目前 runtime 基線：**408 passed, 101 warnings**；PR58 candidate + latest main + stub fix 基線：**419 passed, 101 warnings**；任何改動不得使通過數下降。
 - 備註：本機 `python3` 目前指向 Python 3.14，且 pytest capture 會觸發 `FileNotFoundError`；測試應使用 CI 對齊的 Python 3.12 並加 `-s`。
 
 ---
@@ -129,6 +130,7 @@ class QuoteCache:
 ## 7. 待辦（Next Action）
 
 - [x] **DB fetch-sync 任務（本輪優先）**：將 `/home/tsukii0607/.openclaw/workspace-quant/kiro-quant-v3/kiro_quant.db` 接入 fetch 數據流程；每次成功 fetch 行情 / OHLCV 後同步 upsert 到 `market_data`，K 線會補 RSI/MACD/Bollinger 等技術特徵，失敗時不得阻塞交易循環，只記錄 warning。
+- [x] **IDLE 全市數據輪轉補齊**：新增 universe file loader、rotation cursor、每次 idle session 上限、history period/interval 設定、DB freshness skip；預設先用 seed universe，換成全市 symbol 檔後即可分批補齊。
 - [x] **處理 PR #58 safety rails 本地整合**：當前分支 `feat/pr58-safety-rails` 已在 `local HEAD`。
 - [x] 修復 `test_idle_collect` stub 污染並通過全量測試。
 - [ ] 將 `test_idle_collect` stub 修補推送到 `origin/feat/pr58-safety-rails`，再以此分支替換舊 PR #58（或開 replacement PR）。

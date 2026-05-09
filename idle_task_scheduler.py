@@ -26,6 +26,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import pandas as pd
+
 if TYPE_CHECKING:
     from v3_pipeline.core.main_loop import LiveTradingLoop
 
@@ -82,9 +84,21 @@ class IdleSchedulerConfig:
     max_idle_hours_per_day: float = 6.0
     stop_before_open_min: int = 30
     enabled: bool = True
+    universe_mode: str = "core"
+    max_symbols_per_session: int = 0
+    history_period: str = "60d"
+    history_interval: str = "1d"
+    skip_if_latest_within_days: int = 0
+    universe_files: list[str] = field(default_factory=lambda: ["data/universe/us_symbols.txt", "data/universe/hk_symbols.txt"])
+    cursor_path: str = "state/idle_backfill_cursor.json"
 
     @classmethod
     def from_dict(cls, d: dict) -> "IdleSchedulerConfig":
+        universe_files = d.get("universe_files")
+        if universe_files is None:
+            universe_files = ["data/universe/us_symbols.txt", "data/universe/hk_symbols.txt"]
+        elif isinstance(universe_files, str):
+            universe_files = [universe_files]
         return cls(
             max_concurrent_symbols=int(d.get("max_concurrent_symbols", 5)),
             max_klines_per_batch=int(d.get("max_klines_per_batch", 100)),
@@ -92,6 +106,13 @@ class IdleSchedulerConfig:
             max_idle_hours_per_day=float(d.get("max_idle_hours_per_day", 6.0)),
             stop_before_open_min=int(d.get("stop_before_open_min", 30)),
             enabled=bool(d.get("enabled", True)),
+            universe_mode=str(d.get("universe_mode", "core")).lower(),
+            max_symbols_per_session=int(d.get("max_symbols_per_session", 0)),
+            history_period=str(d.get("history_period", "60d")),
+            history_interval=str(d.get("history_interval", "1d")),
+            skip_if_latest_within_days=int(d.get("skip_if_latest_within_days", 0)),
+            universe_files=[str(p) for p in universe_files],
+            cursor_path=str(d.get("cursor_path", "state/idle_backfill_cursor.json")),
         )
 
     @classmethod
@@ -154,6 +175,109 @@ def _emit_fd_health(logger: logging.Logger, mode: str = "check") -> None:
         pass
 
 
+def _dedupe_symbols(symbols: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for raw in symbols:
+        sym = str(raw).strip()
+        if not sym or sym.startswith("#"):
+            continue
+        if sym not in seen:
+            seen.add(sym)
+            out.append(sym)
+    return out
+
+
+def _read_symbol_file(path: str) -> list[str]:
+    p = Path(path)
+    if not p.exists():
+        return []
+    try:
+        if p.suffix.lower() == ".json":
+            data = json.loads(p.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                data = data.get("symbols", data.get("picks", []))
+            if isinstance(data, list):
+                return _dedupe_symbols([str(x) for x in data])
+            return []
+        symbols: list[str] = []
+        for line in p.read_text(encoding="utf-8").splitlines():
+            line = line.split("#", 1)[0].strip()
+            if not line:
+                continue
+            symbols.extend(part.strip() for part in line.split(","))
+        return _dedupe_symbols(symbols)
+    except Exception:
+        return []
+
+
+def _load_universe_symbols(cfg: IdleSchedulerConfig) -> list[str]:
+    symbols: list[str] = []
+    for path in cfg.universe_files:
+        symbols.extend(_read_symbol_file(path))
+    return _dedupe_symbols(symbols)
+
+
+def _read_cursor(path: str) -> int:
+    p = Path(path)
+    if not p.exists():
+        return 0
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        return max(0, int(data.get("offset", 0)))
+    except Exception:
+        return 0
+
+
+def _write_cursor(path: str, offset: int, total: int) -> None:
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "offset": offset % max(total, 1),
+        "total": total,
+        "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+    p.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _rotate_symbols(symbols: list[str], cfg: IdleSchedulerConfig, logger: logging.Logger) -> list[str]:
+    if not symbols:
+        return []
+    limit = cfg.max_symbols_per_session
+    if limit <= 0 or limit >= len(symbols):
+        return symbols
+    offset = _read_cursor(cfg.cursor_path) % len(symbols)
+    rotated = symbols[offset:] + symbols[:offset]
+    selected = rotated[:limit]
+    _write_cursor(cfg.cursor_path, offset + len(selected), len(symbols))
+    logger.info("[universe] rotation selected %d/%d symbols from offset=%d", len(selected), len(symbols), offset)
+    return selected
+
+
+def _resolve_backfill_symbols(
+    fallback_symbols: list[str],
+    cfg: IdleSchedulerConfig,
+    logger: logging.Logger,
+) -> list[str]:
+    fallback = _dedupe_symbols(fallback_symbols)
+    mode = cfg.universe_mode.lower()
+    if mode == "core":
+        return fallback[: cfg.max_symbols_per_session] if cfg.max_symbols_per_session > 0 else fallback
+
+    universe = _load_universe_symbols(cfg)
+    if not universe:
+        logger.warning("[universe] mode=%s but no universe files loaded; falling back to core symbols", mode)
+        return fallback[: cfg.max_symbols_per_session] if cfg.max_symbols_per_session > 0 else fallback
+
+    if mode == "rotation":
+        return _rotate_symbols(universe, cfg, logger)
+    if mode == "full":
+        return universe
+
+    logger.warning("[universe] unknown mode=%s; falling back to core symbols", mode)
+    return fallback[: cfg.max_symbols_per_session] if cfg.max_symbols_per_session > 0 else fallback
+
+
 # ── Task implementations ──────────────────────────────────────────────────────
 
 def _normalize_history_for_db(hist) -> "pd.DataFrame":
@@ -183,12 +307,7 @@ def _sync_history_to_market_db(
     logger: logging.Logger,
 ) -> bool:
     """Persist idle backfill history to market_data with indicator features."""
-    db = None
-    get_db = getattr(loop, "_get_market_db", None)
-    if callable(get_db):
-        db = get_db()
-    else:
-        db = getattr(loop, "market_db", None)
+    db = _get_market_db(loop)
     if db is None:
         return False
 
@@ -207,6 +326,32 @@ def _sync_history_to_market_db(
         return False
 
 
+def _get_market_db(loop: "LiveTradingLoop"):
+    get_db = getattr(loop, "_get_market_db", None)
+    if callable(get_db):
+        return get_db()
+    return getattr(loop, "market_db", None)
+
+
+def _latest_is_fresh(symbol: str, loop: "LiveTradingLoop", cfg: IdleSchedulerConfig) -> bool:
+    if cfg.skip_if_latest_within_days <= 0:
+        return False
+    db = _get_market_db(loop)
+    if db is None or not hasattr(db, "get_latest_data"):
+        return False
+    try:
+        latest = db.get_latest_data(symbol, limit=1)
+        if latest is None or latest.empty or "timestamp" not in latest.columns:
+            return False
+        ts = pd.to_datetime(latest.iloc[0]["timestamp"], errors="coerce", utc=True)
+        if pd.isna(ts):
+            return False
+        cutoff = pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=cfg.skip_if_latest_within_days)
+        return ts >= cutoff
+    except Exception:
+        return False
+
+
 async def _run_historical_backfill(
     symbols: list[str],
     loop: "LiveTradingLoop",
@@ -222,11 +367,22 @@ async def _run_historical_backfill(
         if not rate_limiter.check_budget():
             logger.warning("[backfill] Budget exhausted — stopping early")
             break
-        batch = symbols[i : i + cfg.max_concurrent_symbols]
+        raw_batch = symbols[i : i + cfg.max_concurrent_symbols]
+        batch = [sym for sym in raw_batch if not _latest_is_fresh(sym, loop, cfg)]
+        if not batch:
+            _emit(
+                logger,
+                "backfill",
+                symbols_processed=0,
+                skipped_fresh=len(raw_batch),
+                duration_ms=0,
+                quota_remaining_h=round(rate_limiter.remaining_hours(), 2),
+            )
+            continue
         t0 = time.time()
         try:
             history_map = await asyncio.to_thread(
-                download_history, batch, "60d", "1d"
+                download_history, batch, cfg.history_period, cfg.history_interval
             )
             db_synced = 0
             for sym, hist in history_map.items():
@@ -244,6 +400,7 @@ async def _run_historical_backfill(
                 logger,
                 "backfill",
                 symbols_processed=len(batch),
+                skipped_fresh=len(raw_batch) - len(batch),
                 db_synced=db_synced,
                 duration_ms=duration_ms,
                 quota_remaining_h=round(rate_limiter.remaining_hours(), 2),
@@ -439,7 +596,8 @@ class IdleTaskScheduler:
 
     async def _run_tasks(self) -> None:
         # Use loop.symbols if non-empty; otherwise fall back to idle_symbols
-        symbols = self.loop.symbols if self.loop.symbols else self._idle_symbols
+        fallback_symbols = self.loop.symbols if self.loop.symbols else self._idle_symbols
+        symbols = _resolve_backfill_symbols(fallback_symbols, self.cfg, self.logger)
         if not symbols:
             self.logger.info("[IdleTaskScheduler] no symbols available, skipping")
             return

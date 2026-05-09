@@ -17,6 +17,7 @@ import importlib
 import inspect
 import logging
 import os
+from pathlib import Path
 import sys
 import types
 import unittest
@@ -334,6 +335,39 @@ class TestIdleSchedulerUsesYfProvider:
 
         assert "AAPL" in used_symbols
 
+    def test_rotation_universe_selects_next_batch_and_updates_cursor(self, tmp_path: Path):
+        import idle_task_scheduler as sched_mod
+
+        universe_path = tmp_path / "us_symbols.txt"
+        universe_path.write_text("AAPL\nMSFT\nNVDA\nTSLA\n", encoding="utf-8")
+        cursor_path = tmp_path / "cursor.json"
+        cfg = sched_mod.IdleSchedulerConfig(
+            universe_mode="rotation",
+            max_symbols_per_session=2,
+            universe_files=[str(universe_path)],
+            cursor_path=str(cursor_path),
+        )
+
+        first = sched_mod._resolve_backfill_symbols(["CORE"], cfg, logging.getLogger("test_rotation"))
+        second = sched_mod._resolve_backfill_symbols(["CORE"], cfg, logging.getLogger("test_rotation"))
+
+        assert first == ["AAPL", "MSFT"]
+        assert second == ["NVDA", "TSLA"]
+        assert cursor_path.exists()
+
+    def test_rotation_falls_back_to_core_when_universe_missing(self, tmp_path: Path):
+        import idle_task_scheduler as sched_mod
+
+        cfg = sched_mod.IdleSchedulerConfig(
+            universe_mode="rotation",
+            max_symbols_per_session=1,
+            universe_files=[str(tmp_path / "missing.txt")],
+        )
+
+        selected = sched_mod._resolve_backfill_symbols(["AAPL", "MSFT"], cfg, logging.getLogger("test_fallback"))
+
+        assert selected == ["AAPL"]
+
     def test_idle_backfill_syncs_indicator_frame_to_market_db(self):
         """Idle backfill should persist feature-enriched K-lines into market_data."""
         import idle_task_scheduler as sched_mod
@@ -391,6 +425,41 @@ class TestIdleSchedulerUsesYfProvider:
         assert symbol == "AAPL"
         assert {"Date", "Open", "High", "Low", "Close", "Volume"}.issubset(saved.columns)
         assert {"RSI_14", "MACD", "BB_UPPER", "BB_MIDDLE", "BB_LOWER"}.issubset(saved.columns)
+
+    def test_idle_backfill_skips_symbols_already_fresh(self):
+        import idle_task_scheduler as sched_mod
+        from v3_pipeline.data import yf_provider
+
+        class FreshDb:
+            def get_latest_data(self, symbol, limit=1):
+                return pd.DataFrame([{"timestamp": pd.Timestamp.now(tz="UTC").isoformat()}])
+
+        class LoopStub:
+            market_buffers = {"AAPL": pd.DataFrame()}
+            feature_generator = MagicMock()
+
+            def _get_market_db(self):
+                return FreshDb()
+
+        cfg = sched_mod.IdleSchedulerConfig(
+            max_concurrent_symbols=1,
+            cooldown_between_batches_sec=0,
+            skip_if_latest_within_days=1,
+        )
+
+        with patch.object(yf_provider, "download_history") as download_history:
+            processed = asyncio.run(
+                sched_mod._run_historical_backfill(
+                    ["AAPL"],
+                    LoopStub(),
+                    cfg,
+                    sched_mod.IdleRateLimiter(cfg),
+                    logging.getLogger("test_fresh_skip"),
+                )
+            )
+
+        assert processed == 0
+        download_history.assert_not_called()
 
 
 # ── 10 consecutive IDLE backfill rounds — FD stability ───────────────────────
