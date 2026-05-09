@@ -156,6 +156,57 @@ def _emit_fd_health(logger: logging.Logger, mode: str = "check") -> None:
 
 # ── Task implementations ──────────────────────────────────────────────────────
 
+def _normalize_history_for_db(hist) -> "pd.DataFrame":
+    """Return OHLCV history with Date/Open/High/Low/Close/Volume columns."""
+    if hist is None or hist.empty:
+        return pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume"])
+
+    frame = hist.copy()
+    if "Date" not in frame.columns:
+        frame = frame.reset_index()
+    if "Datetime" in frame.columns and "Date" not in frame.columns:
+        frame = frame.rename(columns={"Datetime": "Date"})
+    if "index" in frame.columns and "Date" not in frame.columns:
+        frame = frame.rename(columns={"index": "Date"})
+
+    required = ["Date", "Open", "High", "Low", "Close", "Volume"]
+    if any(col not in frame.columns for col in required):
+        return pd.DataFrame(columns=required)
+
+    return frame[required].dropna(subset=["Date", "Close"])
+
+
+def _sync_history_to_market_db(
+    symbol: str,
+    hist,
+    loop: "LiveTradingLoop",
+    logger: logging.Logger,
+) -> bool:
+    """Persist idle backfill history to market_data with indicator features."""
+    db = None
+    get_db = getattr(loop, "_get_market_db", None)
+    if callable(get_db):
+        db = get_db()
+    else:
+        db = getattr(loop, "market_db", None)
+    if db is None:
+        return False
+
+    frame = _normalize_history_for_db(hist)
+    if frame.empty:
+        return False
+
+    try:
+        generator = getattr(loop, "feature_generator", None)
+        if generator is not None:
+            frame = generator.generate(frame)
+        db.save_data(frame, symbol=symbol)
+        return True
+    except Exception as exc:
+        logger.warning("[backfill][%s] DB sync failed: %s", symbol, exc)
+        return False
+
+
 async def _run_historical_backfill(
     symbols: list[str],
     loop: "LiveTradingLoop",
@@ -177,11 +228,14 @@ async def _run_historical_backfill(
             history_map = await asyncio.to_thread(
                 download_history, batch, "60d", "1d"
             )
+            db_synced = 0
             for sym, hist in history_map.items():
                 if not hist.empty:
                     hist = hist.reset_index()
                     if sym in loop.market_buffers and loop.market_buffers[sym].empty:
                         loop.market_buffers[sym] = hist
+                    if _sync_history_to_market_db(sym, hist, loop, logger):
+                        db_synced += 1
                     processed += 1
                 else:
                     logger.warning("[backfill][%s] empty history from yf_provider", sym)
@@ -190,6 +244,7 @@ async def _run_historical_backfill(
                 logger,
                 "backfill",
                 symbols_processed=len(batch),
+                db_synced=db_synced,
                 duration_ms=duration_ms,
                 quota_remaining_h=round(rate_limiter.remaining_hours(), 2),
             )

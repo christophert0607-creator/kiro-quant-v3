@@ -154,6 +154,14 @@ class _DummyDataManager:
         return self.payload
 
 
+class _DummyMarketDb:
+    def __init__(self):
+        self.quotes = []
+
+    def save_market_quote(self, symbol, quote):
+        self.quotes.append((symbol, quote))
+
+
 class _PassFeatureGenerator:
     def generate(self, frame):
         return frame
@@ -753,3 +761,17 @@ def test_run_cycle_uses_data_manager_fallback_when_broker_is_down():
     assert latest_row["Volume"] == 0.0
     assert latest_row["data_source"] == "INFOWAY"
     assert any("QuoteSource[TSLA] broker_online=False source=INFOWAY" in line for line in captured)
+
+
+def test_run_cycle_syncs_fetched_quote_to_market_db():
+    market_db = _DummyMarketDb()
+    loop = _build_loop(prediction=102.5)
+    loop.market_db = market_db
+
+    asyncio.run(loop._run_symbol_cycle("TSLA"))
+
+    assert market_db.quotes
+    symbol, quote = market_db.quotes[-1]
+    assert symbol == "TSLA"
+    assert quote["Close"] == 100.0
+    assert quote["data_source"] == "test"

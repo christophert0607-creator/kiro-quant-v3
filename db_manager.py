@@ -122,8 +122,9 @@ class DatabaseManager:
             for col in df.columns:
                 if col not in existing_cols:
                     sanitized_col = "".join(c if c.isalnum() else "_" for c in col)
+                    col_type = "TEXT" if sanitized_col.lower() in {"symbol", "timestamp", "source", "data_source"} else "REAL"
                     try:
-                        conn.execute(f"ALTER TABLE market_data ADD COLUMN {sanitized_col} REAL")
+                        conn.execute(f"ALTER TABLE market_data ADD COLUMN {sanitized_col} {col_type}")
                         logger.info("Added column %s to market_data table", sanitized_col)
                     except sqlite3.OperationalError as e:
                         if "duplicate column name" not in str(e).lower():
@@ -154,6 +155,36 @@ class DatabaseManager:
         with self._connect() as conn:
             save_df.to_sql("market_data", conn, if_exists="append", index=False, method=self._upsert_method)
             conn.commit()
+
+    def save_market_quote(self, symbol: str, quote: dict[str, Any]) -> None:
+        """Persist one fetched quote/OHLCV snapshot to market_data.
+
+        This is intentionally tolerant: missing OHLC values fall back to the
+        available price/close so real-time quote snapshots can share the same
+        table as historical bars.
+        """
+        if not symbol or not quote:
+            return
+
+        close = quote.get("Close", quote.get("close", quote.get("price")))
+        if close is None:
+            return
+
+        timestamp = quote.get("Date", quote.get("timestamp", self._now()))
+        row = {
+            "symbol": symbol,
+            "Date": timestamp,
+            "Open": quote.get("Open", quote.get("open", close)),
+            "High": quote.get("High", quote.get("high", close)),
+            "Low": quote.get("Low", quote.get("low", close)),
+            "Close": close,
+            "Volume": quote.get("Volume", quote.get("volume", 0.0)),
+        }
+        source = quote.get("data_source", quote.get("source"))
+        if source is not None:
+            row["source"] = source
+
+        self.save_data(pd.DataFrame([row]), symbol=symbol)
 
     def _upsert_method(self, table, conn, keys, data_iter):
         columns = ", ".join(keys)

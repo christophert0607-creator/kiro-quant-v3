@@ -1,7 +1,9 @@
 import logging
 import math
+import os
 from copy import deepcopy
 from datetime import datetime
+from pathlib import Path
 
 try:
     import yfinance as yf
@@ -10,6 +12,16 @@ except Exception:  # optional dependency in test/minimal env
 
 from infoway_client import InfowayClient
 import config
+
+try:
+    from db_manager import DatabaseManager
+except Exception:  # optional in minimal/test environments
+    DatabaseManager = None
+
+try:
+    from v3_pipeline.features.indicators import TechnicalIndicatorGenerator
+except Exception:  # optional in minimal/test environments
+    TechnicalIndicatorGenerator = None
 
 # Try to import East Money fetcher
 try:
@@ -24,6 +36,7 @@ except ImportError:
     _get_east_money = None
 
 logger = logging.getLogger(__name__)
+DEFAULT_MARKET_DB_PATH = str(Path(__file__).resolve().parent / "kiro_quant.db")
 
 
 def _normalize_price(value):
@@ -41,11 +54,33 @@ def _normalize_price(value):
 
 
 class DataManager:
-    def __init__(self, futu_trader=None, massive_client=None, start_infoway=True):
+    def __init__(
+        self,
+        futu_trader=None,
+        massive_client=None,
+        start_infoway=True,
+        market_db=None,
+        market_db_path=DEFAULT_MARKET_DB_PATH,
+        sync_market_data=True,
+    ):
         api_key = (config.INFOWAY_CONFIG.get("API_KEY") or "").strip()
         self.infoway = InfowayClient(api_key, config.STOCK_LIST) if api_key else None
         self.futu = futu_trader
         self.massive = massive_client
+        self.market_db = None
+        self._feature_generator = None
+        if market_db is False:
+            self._sync_market_data = False
+        else:
+            self._sync_market_data = bool(sync_market_data)
+            if market_db is not None:
+                self.market_db = market_db
+            elif self._sync_market_data and DatabaseManager is not None and os.environ.get("PYTEST_CURRENT_TEST") is None:
+                try:
+                    self.market_db = DatabaseManager(market_db_path)
+                except Exception as exc:
+                    self._sync_market_data = False
+                    logger.warning("Market DB sync disabled: %s", exc)
         self._infoway_enabled = bool(api_key)
         self._max_data_age_seconds = int(getattr(config, "MARKET_DATA_MAX_AGE_SECONDS", 300))
         self._quality_warn_threshold = float(getattr(config, "DATA_INVALID_RATE_WARN_THRESHOLD", 0.2))
@@ -163,6 +198,47 @@ class DataManager:
             metrics[source].pop("_warned", None)
         return metrics
 
+    def _sync_quote_to_db(self, symbol, payload):
+        if not self._sync_market_data or self.market_db is None or not payload:
+            return
+        try:
+            self.market_db.save_market_quote(symbol, payload)
+        except Exception as exc:
+            logger.warning("Market DB sync failed for %s: %s", symbol, exc)
+
+    def _get_feature_generator(self):
+        if self._feature_generator is None and TechnicalIndicatorGenerator is not None:
+            self._feature_generator = TechnicalIndicatorGenerator()
+        return self._feature_generator
+
+    def _sync_kline_to_db(self, symbol, frame):
+        if not self._sync_market_data or self.market_db is None or frame is None or frame.empty:
+            return
+        try:
+            save_df = frame.copy()
+            rename_map = {
+                "time_key": "Date",
+                "open": "Open",
+                "high": "High",
+                "low": "Low",
+                "close": "Close",
+                "volume": "Volume",
+            }
+            save_df = save_df.rename(columns=rename_map)
+            required = ["Date", "Open", "High", "Low", "Close", "Volume"]
+            if any(col not in save_df.columns for col in required):
+                logger.warning("Market DB kline sync skipped for %s: missing OHLCV columns", symbol)
+                return
+            save_df = save_df[required]
+
+            feature_generator = self._get_feature_generator()
+            if feature_generator is not None:
+                save_df = feature_generator.generate(save_df)
+
+            self.market_db.save_data(save_df, symbol=symbol)
+        except Exception as exc:
+            logger.warning("Market DB kline sync failed for %s: %s", symbol, exc)
+
     def get_market_data(self, symbol, market="US"):
         """
         4-Tier Data Strategy (yfinance is now PRIMARY):
@@ -207,6 +283,7 @@ class DataManager:
                     }
                     validated_yfinance = self._validate_market_payload(payload, "YFINANCE")
                     if validated_yfinance:
+                        self._sync_quote_to_db(symbol, validated_yfinance)
                         return validated_yfinance
 
                 self._record_quality_sample("YFINANCE", valid=False, missing=True)
@@ -220,6 +297,7 @@ class DataManager:
                 if data:
                     validated_infoway = self._validate_market_payload(data, "INFOWAY")
                     if validated_infoway:
+                        self._sync_quote_to_db(symbol, validated_infoway)
                         return validated_infoway
             except Exception as e:
                 logger.debug(f"Infoway fetch failed for {symbol}: {e}")
@@ -238,6 +316,7 @@ class DataManager:
                         payload["volume"] = massive_data.get("volume")
                     validated_massive = self._validate_market_payload(payload, "MASSIVE")
                     if validated_massive:
+                        self._sync_quote_to_db(symbol, validated_massive)
                         return validated_massive
                 else:
                     self._record_quality_sample("MASSIVE", valid=False, missing=True)
@@ -251,6 +330,7 @@ class DataManager:
                 if futu_data and "price" in futu_data:
                     validated_futu = self._validate_market_payload(futu_data, "FUTU-HK")
                     if validated_futu:
+                        self._sync_quote_to_db(symbol, validated_futu)
                         return validated_futu
             except Exception as e:
                 logger.warning(f"Futu HK fallback failed for {symbol}: {e}")
@@ -274,6 +354,7 @@ class DataManager:
                         }
                         validated_em = self._validate_market_payload(payload, "EASTMONEY")
                         if validated_em:
+                            self._sync_quote_to_db(symbol, validated_em)
                             return validated_em
             except Exception as e:
                 logger.debug(f"East Money HK fallback failed for {symbol}: {e}")
@@ -314,6 +395,7 @@ class DataManager:
                     if ret == 0 and not data.empty:
                         df = data.sort_values("time_key")[["time_key", "open", "high", "low", "close", "volume"]]
                         logger.info(f"📥 [DataManager] Fetched {len(df)} klines for {symbol} via FUTU")
+                        self._sync_kline_to_db(symbol, df)
                         return df
             except Exception as e:
                 logger.debug(f"Futu kline fetch failed for {symbol}: {e}")
@@ -344,6 +426,7 @@ class DataManager:
                     })
                     df = df[["time_key", "open", "high", "low", "close", "volume"]]
                     logger.info(f"📥 [DataManager] Fetched {len(df)} klines for {symbol} via YFINANCE")
+                    self._sync_kline_to_db(symbol, df)
                     return df
             except Exception as e:
                 logger.debug(f"yfinance kline fetch failed for {symbol}: {e}")
@@ -362,6 +445,7 @@ class DataManager:
                     # MassiveClient.get_kline already provides standard columns
                     df = df.sort_values("time_key")[["time_key", "open", "high", "low", "close", "volume"]]
                     logger.info(f"📥 [DataManager] Fetched {len(df)} klines for {symbol} via MASSIVE")
+                    self._sync_kline_to_db(symbol, df)
                     return df
             except Exception as e:
                 logger.debug(f"Massive kline fetch failed for {symbol}: {e}")

@@ -789,3 +789,49 @@ CRON_JSON_PARSE_FAIL: Expecting value: line 1 column 1 (char 0)
 ## [2026-05-07 20:00 UTC]
 **Stats:** 303327 predictions | 1217 signals | 589 closed | PnL=-6214.5941
 **Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-08 00:00 UTC]
+**Stats:** 303462 predictions | 1222 signals | 589 closed | PnL=-6214.5941
+**Should Retrain:** True | **Retrain Done:** True
+**Retrain:** accuracy=0.8000 | win_rate=0.3800 | samples=500
+
+## [2026-05-08 04:00 UTC]
+**Stats:** 305126 predictions | 1222 signals | 589 closed | PnL=-6214.5941
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-08 08:00 UTC]
+**Stats:** 306711 predictions | 1222 signals | 589 closed | PnL=-6214.5941
+**Should Retrain:** True | **Retrain Done:** True
+**Retrain:** accuracy=0.8000 | win_rate=0.3800 | samples=500
+
+## [2026-05-08 12:00 UTC]
+**Stats:** 306756 predictions | 1222 signals | 589 closed | PnL=-6214.5941
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-08 16:00 UTC]
+**Stats:** 312466 predictions | 1222 signals | 589 closed | PnL=-6214.5941
+**Should Retrain:** True | **Retrain Done:** True
+**Retrain:** accuracy=0.8000 | win_rate=0.3800 | samples=500
+
+## [2026-05-08 20:00 UTC]
+**Stats:** 322116 predictions | 1222 signals | 589 closed | PnL=-6214.5941
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-09 00:00 UTC]
+**Stats:** 322136 predictions | 1222 signals | 589 closed | PnL=-6214.5941
+**Should Retrain:** True | **Retrain Done:** True
+**Retrain:** accuracy=0.8000 | win_rate=0.3800 | samples=500
+
+## [2026-05-09 04:00 UTC]
+**Stats:** 322136 predictions | 1222 signals | 589 closed | PnL=-6214.5941
+**Should Retrain:** True | **Retrain Done:** True
+**Retrain:** accuracy=0.8000 | win_rate=0.3800 | samples=500
+
+## [2026-05-09 08:00 UTC]
+**Stats:** 322136 predictions | 1222 signals | 589 closed | PnL=-6214.5941
+**Should Retrain:** True | **Retrain Done:** True
+**Retrain:** accuracy=0.8000 | win_rate=0.3800 | samples=500
+
+## [2026-05-09 12:00 UTC]
+**Stats:** 322211 predictions | 1222 signals | 589 closed | PnL=-6214.5941
+**Should Retrain:** False | **Retrain Done:** False

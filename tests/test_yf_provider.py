@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import importlib
 import inspect
+import logging
 import os
 import sys
 import types
@@ -332,6 +333,64 @@ class TestIdleSchedulerUsesYfProvider:
             asyncio.run(scheduler.run())
 
         assert "AAPL" in used_symbols
+
+    def test_idle_backfill_syncs_indicator_frame_to_market_db(self):
+        """Idle backfill should persist feature-enriched K-lines into market_data."""
+        import idle_task_scheduler as sched_mod
+        from v3_pipeline.data import yf_provider
+
+        class CaptureDb:
+            def __init__(self):
+                self.saved = []
+
+            def save_data(self, frame, symbol=None):
+                self.saved.append((symbol, frame.copy()))
+
+        class FeatureGenerator:
+            def generate(self, frame):
+                out = frame.copy()
+                out["RSI_14"] = 55.0
+                out["MACD"] = 1.0
+                out["BB_UPPER"] = out["Close"] + 2.0
+                out["BB_MIDDLE"] = out["Close"]
+                out["BB_LOWER"] = out["Close"] - 2.0
+                return out
+
+        class LoopStub:
+            def __init__(self):
+                self.market_buffers = {"AAPL": pd.DataFrame()}
+                self.feature_generator = FeatureGenerator()
+                self.db = CaptureDb()
+
+            def _get_market_db(self):
+                return self.db
+
+        loop = LoopStub()
+        cfg = sched_mod.IdleSchedulerConfig(
+            max_concurrent_symbols=1,
+            cooldown_between_batches_sec=0,
+            max_idle_hours_per_day=1.0,
+        )
+        hist = _fake_history_df()
+        hist.index = pd.to_datetime(["2026-05-09"])
+
+        with patch.object(yf_provider, "download_history", return_value={"AAPL": hist}):
+            processed = asyncio.run(
+                sched_mod._run_historical_backfill(
+                    ["AAPL"],
+                    loop,
+                    cfg,
+                    sched_mod.IdleRateLimiter(cfg),
+                    logging.getLogger("test_idle_backfill_db_sync"),
+                )
+            )
+
+        assert processed == 1
+        assert len(loop.db.saved) == 1
+        symbol, saved = loop.db.saved[0]
+        assert symbol == "AAPL"
+        assert {"Date", "Open", "High", "Low", "Close", "Volume"}.issubset(saved.columns)
+        assert {"RSI_14", "MACD", "BB_UPPER", "BB_MIDDLE", "BB_LOWER"}.issubset(saved.columns)
 
 
 # ── 10 consecutive IDLE backfill rounds — FD stability ───────────────────────

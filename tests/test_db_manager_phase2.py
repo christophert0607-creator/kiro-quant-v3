@@ -44,3 +44,28 @@ def test_phase2_record_writes(tmp_path: Path):
         assert conn.execute("select count(*) from pnl_snapshots").fetchone()[0] == 1
         assert conn.execute("select count(*) from risk_events").fetchone()[0] == 1
         assert conn.execute("select count(*) from alerts").fetchone()[0] == 1
+
+
+def test_save_market_quote_upserts_snapshot(tmp_path: Path):
+    db_path = tmp_path / "quotes.db"
+    db = DatabaseManager(str(db_path))
+
+    quote = {
+        "Date": "2026-05-09T10:00:00+00:00",
+        "Open": 100.0,
+        "High": 101.0,
+        "Low": 99.0,
+        "Close": 100.5,
+        "Volume": 12345,
+        "data_source": "unit",
+    }
+
+    db.save_market_quote("US.TSLA", quote)
+    db.save_market_quote("US.TSLA", {**quote, "Close": 101.5})
+
+    with sqlite3.connect(db_path) as conn:
+        rows = conn.execute(
+            "select symbol, timestamp, open, high, low, close, volume, source from market_data"
+        ).fetchall()
+
+    assert rows == [("US.TSLA", "2026-05-09T10:00:00+00:00", 100.0, 101.0, 99.0, 101.5, 12345.0, "unit")]

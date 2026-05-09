@@ -22,6 +22,8 @@ from v3_pipeline.features.indicators import TechnicalIndicatorGenerator
 from v3_pipeline.models.manager import DataPreparer, ModelManager
 from v3_pipeline.risk.manager import RiskController
 
+DEFAULT_MARKET_DB_PATH = str(Path(__file__).resolve().parents[2] / "kiro_quant.db")
+
 
 def _get_log_dir() -> Path:
     """Return the log directory, honouring KIRO_LOG_DIR env var for test isolation."""
@@ -197,6 +199,9 @@ class LiveTradingLoop:
         feature_generator: Optional[TechnicalIndicatorGenerator] = None,
         config: Optional[LiveConfig] = None,
         data_manager=None,
+        market_db=None,
+        market_db_path: str = DEFAULT_MARKET_DB_PATH,
+        sync_market_data: bool = True,
     ) -> None:
         self.model_manager = model_manager
         self.risk_controller = risk_controller
@@ -204,6 +209,9 @@ class LiveTradingLoop:
         self.feature_generator = feature_generator or TechnicalIndicatorGenerator()
         self.config = config or LiveConfig()
         self.data_manager = data_manager
+        self.market_db = market_db
+        self.market_db_path = market_db_path
+        self.sync_market_data = bool(sync_market_data)
         self.broker_offline_fallback_mode: bool = False
         self.futu_reconnect_failures: int = 0
         self.latest_prices: dict[str, float] = {}
@@ -289,6 +297,32 @@ class LiveTradingLoop:
             )
             for s in self.symbols
         }
+
+    def _get_market_db(self):
+        if not self.sync_market_data:
+            return None
+        if self.market_db is not None:
+            return self.market_db
+        if os.environ.get("PYTEST_CURRENT_TEST") is not None:
+            return None
+        try:
+            from db_manager import DatabaseManager
+
+            self.market_db = DatabaseManager(self.market_db_path)
+            return self.market_db
+        except Exception as exc:
+            self.sync_market_data = False
+            self.logger.warning("[DB_SYNC] disabled: %s", exc)
+            return None
+
+    def _sync_market_quote_to_db(self, symbol: str, quote: dict) -> None:
+        db = self._get_market_db()
+        if db is None or not quote:
+            return
+        try:
+            db.save_market_quote(symbol, quote)
+        except Exception as exc:
+            self.logger.warning("[DB_SYNC][%s] failed: %s", symbol, exc)
 
     def start(self) -> None:
         self.futu_connector.connect()
@@ -501,6 +535,7 @@ class LiveTradingLoop:
             # Append to buffer and return; skip model predictions when broker is offline
             existing = self.market_buffers.get(symbol, pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume", "data_source"]))
             self.market_buffers[symbol] = pd.concat([existing, pd.DataFrame([quote])], ignore_index=True)
+            self._sync_market_quote_to_db(symbol, quote)
             return
         else:
             # ── QuoteCache lookup (primary) ───────────────────────────────────────────
@@ -530,6 +565,7 @@ class LiveTradingLoop:
                     self.logger.warning("QuoteFetchFail[%s]: %s", symbol, exc)
                     return
 
+        self._sync_market_quote_to_db(symbol, quote)
         buffer_df = pd.concat([self.market_buffers[symbol], pd.DataFrame([quote])], ignore_index=True)
         buffer_df = self._normalize_market_buffer(buffer_df)
         self.market_buffers[symbol] = buffer_df
