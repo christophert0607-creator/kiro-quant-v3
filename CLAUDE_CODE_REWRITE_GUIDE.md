@@ -1,6 +1,6 @@
 # Claude Code Rewrite Guide — Kiro Quant V3
 
-> 最後更新：2026-05-08 07:50 CST（由 kiro-pr-health-merge-loop cron 自動生成）
+> 最後更新：2026-05-09 18:44 CST（由 Codex 代 Claude 執行健康檢查後更新）
 
 ---
 
@@ -16,18 +16,18 @@
 
 ## 2. 核心抽象（God Nodes）
 
-根據最新 Graph Report（2440 nodes · 4299 edges · 111 communities）：
+根據最新 Graph Report（2678 nodes · 4858 edges · 120 communities）：
 
 | 排名 | 組件 | 邊數 | 職責 |
 |------|------|------|------|
-| 1 | `FutuConnector` | 127 | OpenAPI 連接、報價緩存、重連邏輯 |
-| 2 | `LiveTradingLoop` | 77 | 主交易循環、狀態機、訂單執行 |
-| 3 | `FutuConfig` | 65 | 連線配置（host/port/trd_env） |
-| 4 | `TechnicalIndicatorGenerator` | 64 | 技術指標計算 |
-| 5 | `ModelManager` | 43 | 模型加載、註冊表、自動重建 |
-| 6 | `DataPreparer` | 41 | 數據預處理與特徵工程 |
-| 7 | `LiveConfig` | 34 | 運行時配置熱更新 |
-| 8 | `RiskController` | 33 | 倉位與風險限制 |
+| 1 | `FutuConnector` | 156 | OpenAPI 連接、報價緩存、重連邏輯 |
+| 2 | `LiveTradingLoop` | 101 | 主交易循環、狀態機、訂單執行 |
+| 3 | `FutuConfig` | 86 | 連線配置（host/port/trd_env） |
+| 4 | `TechnicalIndicatorGenerator` | 66 | 技術指標計算 |
+| 5 | `LiveConfig` | 54 | 運行時配置熱更新 |
+| 6 | `RiskController` | 54 | 倉位與風險限制 |
+| 7 | `ModelManager` | 47 | 模型加載、註冊表、自動重建 |
+| 8 | `DataPreparer` | 45 | 數據預處理與特徵工程 |
 
 **重要：** 任何改動上述組件都應該經過完整回歸測試（`pytest tests/`）。
 
@@ -37,14 +37,15 @@
 
 | 檢查項 | 狀態 | 備註 |
 |--------|------|------|
-| 代碼圖譜 | ✅ 健康 | 192 文件，2440 節點，結構完整 |
+| 代碼圖譜 | ✅ 健康 | 198 文件，2678 節點，結構完整 |
 | 服務端口 | ✅ 3000 (Next.js) / 8080 (OpenClaw) 正常監聽 |
-| 回歸測試 | ✅ 355 passed, 1 skipped |
-| 主分支 | ✅ `main` @ `b2a64f6`（已包含 PR#66） |
+| 回歸測試 | ✅ 402 passed, 101 warnings（runtime）；419 passed, 101 warnings（PR58 candidate + latest main + stub fix） |
+| 當前分支 | ✅ `feat/pr58-safety-rails` @ `local HEAD`（本地已提交，推送被 GitHub HTTPS 認證阻擋） |
+| Runtime FD | ⚠️ 需跟進 | `v3_launcher.py` PID 38186 約 1858 FDs；`py-yfinance/tkr-tz.db` / WAL 佔約 1806 |
 
 ---
 
-## 4. PR Merge Loop 結果（2026-05-08）
+## 4. PR Merge Loop 結果（更新至 2026-05-09）
 
 ### 已合併 / 已關閉
 
@@ -55,14 +56,16 @@
 | #54 | Enforce bounded Futu reconnect budget | 🔒 已關閉（代碼已透過 PR#53 合併） | `18f2674` |
 | #61 | Fix model loading with registry-based resolution | 🔒 已關閉（代碼已於 Phase 3/4/5 合併） | `31d3543` |
 | #60 | Fix/optimization parameters | 🚫 已關閉（含 __pycache__ / log，品質不合格） | — |
+| #58 | Harden Kiro Quant runtime and add safety rails | 🔴 原 PR 仍 open/dirty，head=`feat/system-hardening-and-safety-rails` @ `33a7e8f` | 需替換或更新 |
 
-### 仍阻塞（需手動處理）
+### 本次手動健康檢查
 
-| PR | 標題 | 狀態 | 阻塞原因 |
-|----|------|------|----------|
-| #58 | Harden Kiro Quant runtime and add safety rails | 🔴 BLOCKED | 與 `main` 存在多文件衝突（`.gitignore`, `config.json`, `config.py`, `v3_launcher.py`, `main_loop.py`）|
-
-**建議：** PR #58 引入了 `health_monitor.py`、`preflight.py`、`validate_config.py` 與煙霧測試 workflow，對系統穩定性有價值。需要手動 rebase 到最新 `main` 後再提交。
+- 修復 `tests/test_idle_collect.py` 的 module stub 污染：該測試匯入 `v3_launcher` 時暫時 stub `v3_pipeline.models.brain`，但未清理 `sys.modules`，導致 `tests/test_pattern_trainer_components.py` 無法匯入 `StockPatternModel`。
+- 使用 `/usr/bin/python3.12 -m pytest tests/ -q --tb=short -s` 驗證全量測試通過。
+- GitHub 目前只剩 open PR #58；REST API 顯示 `mergeable=false`, `mergeable_state=dirty`, `rebaseable=false`。
+- 替代分支 `origin/feat/pr58-safety-rails @ 3cc2721` 已存在；在 `/tmp/kiro-pr58-candidate` 合入 `origin/main @ 549794f` 無衝突。
+- 替代分支合入最新 main 後，必須帶上 `tests/test_idle_collect.py` stub 清理修補；帶修補後全量測試為 **419 passed, 101 warnings**。
+- 本地已提交 stub 修補與 guide 更新為 `local HEAD`；`git push origin HEAD:feat/pr58-safety-rails` 因 GitHub HTTPS 未登入而失敗。
 
 ---
 
@@ -104,8 +107,9 @@ class QuoteCache:
 
 ### 5.5 測試要求
 - 新增邏輯必須附帶對應測試（`tests/test_*.py`）。
-- 運行全量測試：`python3 -m pytest tests/ -x -q --tb=short`
-- 目前基線：**355 passed, 1 skipped**；任何改動不得使通過數下降。
+- 運行全量測試：`/usr/bin/python3.12 -m pytest tests/ -q --tb=short -s`
+- 目前 runtime 基線：**402 passed, 101 warnings**；PR58 candidate + latest main + stub fix 基線：**419 passed, 101 warnings**；任何改動不得使通過數下降。
+- 備註：本機 `python3` 目前指向 Python 3.14，且 pytest capture 會觸發 `FileNotFoundError`；測試應使用 CI 對齊的 Python 3.12 並加 `-s`。
 
 ---
 
@@ -114,15 +118,19 @@ class QuoteCache:
 1. **futu_connector.py 衝突熱點：** PR #62、#63、#54 都曾修改此文件。在最新 `main` 上，它已同時包含 `ConnectionState`、`QuoteCache` 與配置加載邏輯，rebase 時極易衝突。
 2. **config.json 雙向同步：** `main` 上的 `config.json` 已經歷多輪擴展（MarketContext、idle scheduler、trd_env），舊分支的 config 變更幾乎必然衝突。
 3. **模型註冊表漂移：** `v3_pipeline/models/registry.py` 與 `models_registry.json` 已於 Phase 3/4/5 引入，舊 PR 若也改模型加載，需確認是否已涵蓋。
+4. **測試 stub 污染：** 測試若向 `sys.modules` 注入假 module，必須在匯入目標後清理，否則會污染後續測試收集。
 
 ---
 
 ## 7. 待辦（Next Action）
 
-- [ ] **手動處理 PR #58**：rebase 到 `main`，解決 `.gitignore`、`config.json`、`config.py`、`v3_launcher.py`、`main_loop.py` 衝突，重新提交。
-- [ ] 持續監控 `origin/main` 與本地 `main` 同步（目前本地已同步至 `b2a64f6`）。
+- [x] **處理 PR #58 safety rails 本地整合**：當前分支 `feat/pr58-safety-rails` 已在 `local HEAD`。
+- [x] 修復 `test_idle_collect` stub 污染並通過全量測試。
+- [ ] 將 `test_idle_collect` stub 修補推送到 `origin/feat/pr58-safety-rails`，再以此分支替換舊 PR #58（或開 replacement PR）。
+- [ ] 舊 PR #58 (`feat/system-hardening-and-safety-rails`) 不應直接 merge；它仍是 dirty/stale。
+- [ ] 跟進 live runtime FD 增長：yfinance timezone cache sqlite descriptors 未釋放，雖未達 fd limit，但屬資源泄漏風險。
 - [ ] 下次 PR Health Merge Loop 預計運行時間：每日 07:45 CST。
 
 ---
 
-*Generated by kiro-pr-health-merge-loop cron — do not edit manually unless you know what you're doing.*
+*Maintained by kiro-pr-health-merge-loop / manual Claude-compatible health runs.*

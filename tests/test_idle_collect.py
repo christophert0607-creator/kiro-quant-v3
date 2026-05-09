@@ -28,31 +28,29 @@ def _make_stub_preparer(**kwargs):
 
 
 sys.modules.setdefault("requests", SimpleNamespace(post=lambda *a, **k: None))
-sys.modules.setdefault(
-    "v3_pipeline.models.manager",
-    SimpleNamespace(
+_PREEXISTING_V3_LAUNCHER = sys.modules.get("v3_launcher")
+_IMPORT_STUBS = {
+    "v3_pipeline.models.manager": SimpleNamespace(
         DataPreparer=_make_stub_preparer,
         ModelManager=object,
     ),
-)
-sys.modules.setdefault(
-    "v3_pipeline.models.brain",
-    SimpleNamespace(KiroLSTM=object),
-)
-sys.modules.setdefault(
-    "v3_pipeline.risk.manager",
-    SimpleNamespace(RiskConfig=object, RiskController=object),
-)
-sys.modules.setdefault(
-    "v3_pipeline.features.screener",
-    SimpleNamespace(V3FunnelScreener=object),
-)
-sys.modules.setdefault(
-    "v3_pipeline.core.market_analyzer",
-    SimpleNamespace(MarketAnalyzer=object),
-)
+    "v3_pipeline.models.brain": SimpleNamespace(KiroLSTM=object),
+    "v3_pipeline.risk.manager": SimpleNamespace(RiskConfig=object, RiskController=object),
+    "v3_pipeline.features.screener": SimpleNamespace(V3FunnelScreener=object),
+    "v3_pipeline.core.market_analyzer": SimpleNamespace(MarketAnalyzer=object),
+}
+
+for _module_name, _stub in _IMPORT_STUBS.items():
+    sys.modules.setdefault(_module_name, _stub)
 
 from v3_launcher import _collect_only_cycle  # noqa: E402
+
+for _module_name, _stub in _IMPORT_STUBS.items():
+    if sys.modules.get(_module_name) is _stub:
+        del sys.modules[_module_name]
+
+if _PREEXISTING_V3_LAUNCHER is None:
+    del sys.modules["v3_launcher"]
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
