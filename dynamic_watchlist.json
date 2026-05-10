@@ -1,9 +1,9 @@
 {
-    "date": "2026-05-09 08:00:30",
+    "date": "2026-05-10 08:00:54",
     "picks": [
-        "NVDA",
         "GOOGL",
         "MSFT",
+        "NVDA",
         "AMD",
         "AVGO",
         "TSM",
@@ -11,49 +11,49 @@
     ],
     "details": [
         {
-            "symbol": "NVDA",
-            "pe": 19.068007,
-            "eps_growth": 0.945,
-            "rev_growth": 0.732,
-            "peg": 0.66,
-            "price": 215.2,
-            "ma50": 188.0448
-        },
-        {
             "symbol": "GOOGL",
             "pe": 27.709045,
             "eps_growth": 0.812,
             "rev_growth": 0.218,
-            "peg": 1.57,
+            "peg": 1.58,
             "price": 400.8,
-            "ma50": 321.8606
+            "ma50": 323.729
         },
         {
             "symbol": "MSFT",
             "pe": 21.448198,
             "eps_growth": 0.231,
             "rev_growth": 0.183,
-            "peg": 1.28,
+            "peg": 1.29,
             "price": 415.12,
-            "ma50": 397.879
+            "ma50": 398.147
+        },
+        {
+            "symbol": "NVDA",
+            "pe": 19.068007,
+            "eps_growth": 0.945,
+            "rev_growth": 0.732,
+            "peg": 0.68,
+            "price": 215.2,
+            "ma50": 188.651
         },
         {
             "symbol": "AMD",
-            "pe": 35.280003,
+            "pe": 35.279404,
             "eps_growth": 0.951,
             "rev_growth": 0.378,
-            "peg": 1.25,
+            "peg": 1.1,
             "price": 455.19,
-            "ma50": 249.4808
+            "ma50": 254.511
         },
         {
             "symbol": "AVGO",
             "pe": 23.733368,
             "eps_growth": 0.335,
             "rev_growth": 0.295,
-            "peg": 0.93,
+            "peg": 0.94,
             "price": 430.0,
-            "ma50": 356.697
+            "ma50": 358.863
         },
         {
             "symbol": "TSM",
@@ -62,7 +62,7 @@
             "rev_growth": 0.351,
             "peg": 1.31,
             "price": 411.68,
-            "ma50": 362.5838
+            "ma50": 363.2812
         },
         {
             "symbol": "MSTR",
@@ -71,7 +71,7 @@
             "rev_growth": 0.119,
             "peg": 2.85,
             "price": 187.59,
-            "ma50": 146.322
+            "ma50": 147.4058
         }
     ],
     "failed_symbols": []

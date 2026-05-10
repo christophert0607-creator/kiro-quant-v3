@@ -1,0 +1,39 @@
+{
+  "version": "2.0",
+  "name": "Kiro Enhanced Buy Filter V2",
+  "description": "\u57fa\u65bc EDA + K-line \u6280\u8853\u6307\u6a19\u7684\u8cb7\u8ce3\u904e\u6ffe\u7b56\u7565",
+  "created_at": "2026-05-09T22:01:29.385336",
+  "performance": {
+    "total_trades": 249,
+    "passed_trades": 83,
+    "pass_rate": 0.3333333333333333,
+    "win_rate": 0.4819277108433735,
+    "avg_pnl_pct": 0.042831083772338734,
+    "total_pnl_pct": 3.5549799531041146
+  },
+  "rules": {
+    "min_swing_conf": 0.75,
+    "min_hist_win_rate": 0.5,
+    "rsi_range": [
+      30,
+      60
+    ],
+    "macd_hist_min": -1.5,
+    "macd_hist_bonus": 0.0,
+    "atr_max": 12.0,
+    "avoid_first_30_min": true,
+    "volume_spike_max": 2.5,
+    "bad_symbols": [
+      "DASH",
+      "ZS",
+      "UBER",
+      "CRWD",
+      "V"
+    ]
+  },
+  "thresholds": {
+    "strong_buy": 85,
+    "buy": 70,
+    "weak_buy": 55
+  }
+}
