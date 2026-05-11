@@ -279,6 +279,7 @@ class LiveTradingLoop:
         self._short_entry_pred_price_by_symbol: dict[str, float] = {}  # 2026-04-23
         self._last_sell_time_by_symbol: dict[str, datetime] = {}  # 2026-04-24: prevent re-sync race
         self.account_value = 100000.0
+        self.day_start_equity = self.account_value  # track daily opening equity for allow_daily_loss()
         self.strategy_factory = StrategyFactory()
         self.alpha_engine = KiroAlphaEngine(AlphaConfig())
         self.monte_carlo = MonteCarloSimulator()
@@ -1666,7 +1667,7 @@ class LiveTradingLoop:
                 return
 
             # daily loss gate
-            if hasattr(self.risk_controller, "allow_daily_loss") and not self.risk_controller.allow_daily_loss():
+            if hasattr(self.risk_controller, "allow_daily_loss") and not self.risk_controller.allow_daily_loss(self.day_start_equity, self.account_value):
                 self.logger.warning("[DAILY_LOSS_GATE][%s] blocked BUY: daily loss limit reached", symbol)
                 return
 
