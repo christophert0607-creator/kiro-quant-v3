@@ -2275,15 +2275,13 @@ class LiveTradingLoop:
 
     def _emit_structured(self, event_type: str, **fields) -> None:
         """Emit one structured JSON event to logs/decisions.jsonl (best-effort, never raises)."""
-        try:
-            record = {
-                "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                "event": event_type,
-                **fields,
-            }
-            self.structured_logger.info(json.dumps(record, ensure_ascii=False))
-        except Exception:
-            pass
+        from v3_pipeline.core.decision_events import emit_event
+        record = {
+            "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "event": event_type,
+            **fields,
+        }
+        emit_event(self.structured_logger, record)
 
     def _append_decision_trace(self, payload: dict) -> None:
         """Append Layer-0 decision trace for US SIM learning.
