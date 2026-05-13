@@ -1,7 +1,8 @@
 import logging
 import math
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
 
 
 def _build_stderr_logger(name: str) -> logging.Logger:
@@ -18,6 +19,37 @@ def _build_stderr_logger(name: str) -> logging.Logger:
     logger.addHandler(handler)
     logger.propagate = False
     return logger
+
+
+@dataclass
+class RiskDecision:
+    """Structured result of a risk gate evaluation.
+
+    Every blocked trade produces a machine-readable reason so downstream
+    callers (observability, wiki writer, tests) can inspect exactly which
+    gate fired and why.
+
+    Attributes:
+        allowed:   True if the trade is permitted, False if blocked.
+        gate_name: Identifier for the gate that produced this decision.
+                   Examples: "ror", "daily_loss", "var_cvar", "position_cap",
+                   "circuit_breaker".
+        reason:    Human-readable explanation.
+        metrics:   Key/value snapshot of the values that drove the decision.
+    """
+
+    allowed: bool
+    gate_name: str
+    reason: str = ""
+    metrics: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def permit(cls, gate_name: str, **metrics: Any) -> "RiskDecision":
+        return cls(allowed=True, gate_name=gate_name, reason="allowed", metrics=dict(metrics))
+
+    @classmethod
+    def block(cls, gate_name: str, reason: str, **metrics: Any) -> "RiskDecision":
+        return cls(allowed=False, gate_name=gate_name, reason=reason, metrics=dict(metrics))
 
 
 @dataclass
@@ -199,3 +231,117 @@ class RiskController:
             return False
 
         return True
+
+    # ── Structured RiskDecision wrappers ──────────────────────────────────────
+
+    def decide_circuit_breaker(
+        self,
+        equity_peak: float,
+        current_equity: float,
+    ) -> RiskDecision:
+        if equity_peak <= 0:
+            return RiskDecision.permit("circuit_breaker", equity_peak=equity_peak)
+        drawdown = max(0.0, (equity_peak - current_equity) / equity_peak)
+        if drawdown >= self.config.max_drawdown:
+            return RiskDecision.block(
+                "circuit_breaker",
+                reason=f"drawdown {drawdown*100:.2f}% >= limit {self.config.max_drawdown*100:.2f}%",
+                drawdown=round(drawdown, 4),
+                limit=self.config.max_drawdown,
+                equity_peak=equity_peak,
+                current_equity=current_equity,
+            )
+        return RiskDecision.permit("circuit_breaker", drawdown=round(drawdown, 4))
+
+    def decide_daily_loss(
+        self,
+        day_start_equity: float,
+        current_equity: float,
+    ) -> RiskDecision:
+        if day_start_equity <= 0:
+            return RiskDecision.permit("daily_loss", day_start_equity=day_start_equity)
+        loss_fraction = max(0.0, (day_start_equity - current_equity) / day_start_equity)
+        limit = max(0.0, float(self.config.max_daily_loss_fraction))
+        if loss_fraction > limit:
+            return RiskDecision.block(
+                "daily_loss",
+                reason=f"intraday loss {loss_fraction*100:.2f}% > limit {limit*100:.2f}%",
+                loss_fraction=round(loss_fraction, 4),
+                limit=limit,
+                day_start_equity=day_start_equity,
+                current_equity=current_equity,
+            )
+        return RiskDecision.permit("daily_loss", loss_fraction=round(loss_fraction, 4))
+
+    def decide_ror(
+        self,
+        win_rate: float,
+        reward_risk_ratio: float,
+        risk_fraction: float,
+        mc_var_95: float,
+    ) -> RiskDecision:
+        ror = self.estimate_risk_of_ruin(
+            win_rate=win_rate,
+            reward_risk_ratio=reward_risk_ratio,
+            risk_fraction=risk_fraction,
+        )
+        survival_score = 1.0 - ror
+        if survival_score < self.config.ruin_threshold:
+            return RiskDecision.block(
+                "ror",
+                reason=f"survival {survival_score:.3f} < threshold {self.config.ruin_threshold}",
+                ror=round(ror, 4),
+                survival=round(survival_score, 4),
+                threshold=self.config.ruin_threshold,
+            )
+        var_decision = self.decide_var_cvar(mc_var_95=mc_var_95)
+        if not var_decision.allowed:
+            return var_decision
+        return RiskDecision.permit(
+            "ror",
+            ror=round(ror, 4),
+            survival=round(survival_score, 4),
+            mc_var_95=mc_var_95,
+        )
+
+    def decide_var_cvar(
+        self,
+        mc_var_95: float,
+        return_samples: "list[float] | tuple[float, ...] | None" = None,
+        tail_losses_95: "list[float] | tuple[float, ...] | None" = None,
+    ) -> RiskDecision:
+        if mc_var_95 < -abs(self.config.max_trade_var_95):
+            return RiskDecision.block(
+                "var_cvar",
+                reason=f"VaR {mc_var_95:.4f} < limit -{abs(self.config.max_trade_var_95):.4f}",
+                var_95=mc_var_95,
+                var_limit=self.config.max_trade_var_95,
+            )
+        cvar_95 = self.estimate_cvar_95(return_samples=return_samples, tail_losses_95=tail_losses_95)
+        max_cvar = self.config.max_trade_cvar_95
+        if max_cvar is not None and cvar_95 < -abs(max_cvar):
+            return RiskDecision.block(
+                "var_cvar",
+                reason=f"CVaR {cvar_95:.4f} < limit -{abs(max_cvar):.4f}",
+                cvar_95=cvar_95,
+                cvar_limit=max_cvar,
+            )
+        return RiskDecision.permit("var_cvar", var_95=mc_var_95, cvar_95=cvar_95)
+
+    def decide_position_cap(
+        self,
+        active_positions: int,
+        max_positions: int,
+    ) -> RiskDecision:
+        if active_positions >= max_positions:
+            return RiskDecision.block(
+                "position_cap",
+                reason=f"active positions {active_positions} >= cap {max_positions}",
+                active_positions=active_positions,
+                max_positions=max_positions,
+            )
+        return RiskDecision.permit(
+            "position_cap",
+            active_positions=active_positions,
+            max_positions=max_positions,
+        )
