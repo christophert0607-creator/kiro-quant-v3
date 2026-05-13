@@ -307,3 +307,31 @@ def test_load_runtime_config_env_overrides_per_market(tmp_path, monkeypatch):
 
     # Env var must win over config.json value
     assert conn.config_market_accounts.get("HK") == 55551111
+
+
+def test_hk_not_using_us_global_acc_id_when_accounts_configured(tmp_path):
+    """Regression: config.json with futu.accounts must route HK to HK acc_id,
+    not fall back to the global target_acc_id (which is the US account)."""
+    cfg_data = {
+        "futu": {
+            "target_acc_id": 18526451,   # US account as global target
+            "accounts": {
+                "HK": {"target_acc_id": 14239754},
+                "US": {"target_acc_id": 18526451},
+            },
+        }
+    }
+    p = tmp_path / "config.json"
+    p.write_text(json.dumps(cfg_data), encoding="utf-8")
+
+    conn = FutuConnector.__new__(FutuConnector)
+    conn.config = FutuConfig()
+    conn.config_market_accounts = {}
+    conn.account_ids = {}
+    conn.logger = MagicMock()
+
+    conn._load_runtime_config(str(p))
+
+    assert conn._account_kwargs_for_market("HK") == {"acc_id": 14239754}, \
+        "HK must use 14239754, not the global US target_acc_id 18526451"
+    assert conn._account_kwargs_for_market("US") == {"acc_id": 18526451}

@@ -67,7 +67,15 @@
     "target_acc_id": 18526451,
     "host": "127.0.0.1",
     "port": 11112,
-    "trd_env": "SIMULATE"
+    "trd_env": "SIMULATE",
+    "accounts": {
+      "HK": {
+        "target_acc_id": 14239754
+      },
+      "US": {
+        "target_acc_id": 18526451
+      }
+    }
   },
   "idle_scheduler": {
     "enabled": true,
