@@ -719,6 +719,19 @@ async def _run_market_aware(
 
 
 def run_kiro_v35(*, dry_run: bool = False, once: bool = False, config_path: str = "config.json") -> None:
+    from v3_pipeline.core.runtime_lock import RuntimeLock
+    import logging as _logging
+    _startup_log = _logging.getLogger("v3_launcher")
+    lock = RuntimeLock()
+    if not lock.acquire():
+        existing = lock._read_existing_pid()
+        _startup_log.error(
+            "Another launcher instance is already running (PID %s). "
+            "Refusing to start a second live trading loop.",
+            existing,
+        )
+        return
+
     disable_trade = dry_run or once
     live_cfg = build_live_config(config_path)
     if disable_trade:
@@ -844,6 +857,7 @@ def run_kiro_v35(*, dry_run: bool = False, once: bool = False, config_path: str 
     # Cleanup on normal exit or after max attempts
     loop._archive_market_data()
     loop.futu_connector.close()
+    lock.release()
 
 
 if __name__ == "__main__":
