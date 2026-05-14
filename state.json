@@ -1,9 +1,7 @@
 {
-  "date": "2026-05-06",
-  "mode": "HK_lite",
-  "runtime_profile": "lite",
+  "date": "2026-05-14",
   "daily_pnl": 0.0,
-  "daily_trades": 14,
+  "daily_trades": 1,
   "consecutive_errors": 0,
   "circuit_broken": false,
   "circuit_break_time": null,
@@ -32,11 +30,11 @@
       "reason": "model_signal_confirmed"
     },
     "US.JPM": {
-      "time": 1778087168.747304,
+      "time": 1778769531.6291525,
       "signal": "SELL",
-      "qty": 12,
-      "price": 315.2250061035156,
-      "reason": "model_signal_confirmed"
+      "qty": 176,
+      "price": 301.30999755859375,
+      "reason": "model_signal"
     },
     "US.PG": {
       "time": 1778087169.3063364,
@@ -51,22 +49,138 @@
       "qty": 6,
       "price": 323.6300048828125,
       "reason": "model_signal_confirmed"
+    },
+    "US.MRK": {
+      "time": 1778769301.7075675,
+      "signal": "SELL",
+      "qty": 500,
+      "price": 113.13999938964844,
+      "reason": "model_signal"
+    },
+    "US.INTC": {
+      "time": 1778771307.3882782,
+      "signal": "BUY",
+      "qty": 43,
+      "price": 116.69499969482422,
+      "reason": "model_signal_conf=0.970"
+    },
+    "US.MSTR": {
+      "time": 1778770311.3648834,
+      "signal": "BUY",
+      "qty": 46,
+      "price": 182.6699981689453,
+      "reason": "model_signal_conf=0.400"
+    },
+    "US.AMD": {
+      "time": 1778770231.6895275,
+      "signal": "SELL",
+      "qty": 9,
+      "price": 451.8800048828125,
+      "reason": "model_signal"
+    },
+    "US.QCOM": {
+      "time": 1778771307.7235134,
+      "signal": "BUY",
+      "qty": 104,
+      "price": 203.30999755859375,
+      "reason": "model_signal_conf=1.000"
+    },
+    "US.JNJ": {
+      "time": 1778770232.7117207,
+      "signal": "SELL",
+      "qty": 730,
+      "price": 230.0500030517578,
+      "reason": "model_signal"
+    },
+    "US.AMZN": {
+      "time": 1778772917.5242534,
+      "signal": "BUY",
+      "qty": 35,
+      "price": 267.69500732421875,
+      "reason": "swing_signal_conf=0.659"
+    },
+    "US.SMCI": {
+      "time": 1778770389.143208,
+      "signal": "BUY",
+      "qty": 89,
+      "price": 33.529998779296875,
+      "reason": "model_signal_conf=0.400"
+    },
+    "US.NFLX": {
+      "time": 1778772611.6800032,
+      "signal": "BUY",
+      "qty": 63,
+      "price": 87.79019927978516,
+      "reason": "swing_signal_conf=0.833"
+    },
+    "US.AMAT": {
+      "time": 1778771383.7171228,
+      "signal": "SELL",
+      "qty": 79,
+      "price": 443.8299865722656,
+      "reason": "model_signal"
+    },
+    "US.ARM": {
+      "time": 1778778228.4355073,
+      "signal": "SELL",
+      "qty": 2,
+      "price": 223.74000549316406,
+      "reason": "stop_loss_0.0200"
     }
   },
-  "last_review": "2026-03-18T19:22:00Z",
-  "review_notes": "Hourly self-review 2026-03-18 19:22 UTC: System healthy. HK lite profile running with no errors. Logs show clean execution - multiple trade cycles processed. 9 trades executed this hour: mixed BUY (6) and SELL (3). Model predictions negative (-0.38% to -6.47%). Position cap at 10/10 - full. PnL: daily=$0, cumulative=-$3,219.28. Code review: syntax OK, no bare except, async/await implemented, Kelly sizer integrated, transaction cost calculator present. TA-Lib still using pandas fallback. No code changes applied this hour.",
   "positions": {
     "US.META": 0,
     "US.NVDA": 0,
     "US.JPM": 0,
     "US.PG": 0,
-    "US.HD": 0
+    "US.HD": 0,
+    "US.MRK": 0,
+    "US.INTC": 43,
+    "US.MSTR": 46,
+    "US.AMD": 0,
+    "US.QCOM": 104,
+    "US.JNJ": 0,
+    "US.AMZN": 35,
+    "US.SMCI": 89,
+    "US.NFLX": 63,
+    "US.AMAT": 0,
+    "US.ARM": 0
   },
+  "total_invested": 0.0,
+  "mode": "HK_lite",
+  "runtime_profile": "lite",
+  "last_review": "2026-03-18T19:22:00Z",
+  "review_notes": "Hourly self-review 2026-03-18 19:22 UTC: System healthy. HK lite profile running with no errors. Logs show clean execution - multiple trade cycles processed. 9 trades executed this hour: mixed BUY (6) and SELL (3). Model predictions negative (-0.38% to -6.47%). Position cap at 10/10 - full. PnL: daily=$0, cumulative=-$3,219.28. Code review: syntax OK, no bare except, async/await implemented, Kelly sizer integrated, transaction cost calculator present. TA-Lib still using pandas fallback. No code changes applied this hour.",
   "short_positions": {
     "US.META": 0,
     "US.NVDA": 0,
     "US.JPM": 0,
     "US.PG": 0,
-    "US.HD": 0
+    "US.HD": 0,
+    "US.MRK": 0,
+    "US.INTC": 0,
+    "US.MSTR": 0,
+    "US.AMD": 0,
+    "US.QCOM": 0,
+    "US.JNJ": 0,
+    "US.AMZN": 0,
+    "US.SMCI": 0,
+    "US.NFLX": 0,
+    "US.AMAT": 0,
+    "US.ARM": 0
+  },
+  "account_routing": {
+    "account_routing": {
+      "HK": {
+        "resolved_acc_id": 14239754,
+        "source": "config"
+      },
+      "US": {
+        "resolved_acc_id": 18526451,
+        "source": "config"
+      }
+    },
+    "global_fallback_acc_id": 18526451,
+    "trd_env": "SIMULATE"
   }
 }

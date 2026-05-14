@@ -20,6 +20,7 @@ from v3_pipeline.core.monte_carlo import MonteCarloSimulator
 from v3_pipeline.core.strategy_factory import StrategyFactory
 from v3_pipeline.features.indicators import TechnicalIndicatorGenerator
 from v3_pipeline.models.manager import DataPreparer, ModelManager
+from v3_pipeline.risk.kelly_sizer import KellyPositionSizer
 from v3_pipeline.risk.manager import RiskController
 
 
@@ -276,6 +277,7 @@ class LiveTradingLoop:
         self.strategy_factory = StrategyFactory()
         self.alpha_engine = KiroAlphaEngine(AlphaConfig())
         self.monte_carlo = MonteCarloSimulator()
+        self._kelly_sizer = KellyPositionSizer()
         self.history_primer = HistoryPrimer(
             self.logger,
             PrimingConfig(
@@ -1070,7 +1072,14 @@ class LiveTradingLoop:
             else:
                 returns = self.market_buffers[symbol]["Close"].pct_change().dropna()
                 mc = self.monte_carlo.stress_test(returns)
-                risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
+                if mc.get("avg_win", 0.0) > 0 and mc.get("avg_loss", 0.0) > 0:
+                    kelly = self._kelly_sizer.calculate_details(
+                        win_rate=mc["win_rate"], avg_win=mc["avg_win"], avg_loss=mc["avg_loss"]
+                    )
+                    risk_pct = kelly["capped_fraction"] if not kelly["zero_edge"] else self.strategy_factory.confidence_to_risk_pct(confidence)
+                else:
+                    kelly = None
+                    risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
                 rr = max(0.5, abs(prediction - current_price) / max(current_price * symbol_threshold, 1e-6))
                 if not self.risk_controller.allow_trade_with_ror(
                     win_rate=mc["win_rate"],
@@ -1152,7 +1161,8 @@ class LiveTradingLoop:
                                 "short_reason": str(short_reason),
                             })
                         else:
-                            alloc = available_bucket * 0.10 * float(risk_multiplier)
+                            short_kelly_frac = (kelly["capped_fraction"] if kelly is not None and not kelly["zero_edge"] else None) or 0.10
+                            alloc = available_bucket * short_kelly_frac * float(risk_multiplier)
                             short_alloc_qty = max(0, int(alloc / max(current_price, 1e-9)))
                             max_pos_value = float(getattr(self.config, 'max_position_value', 2000.0))
                             short_alloc_qty = min(short_alloc_qty, max(0, int(max_pos_value / max(current_price, 1e-9))))
@@ -1199,7 +1209,23 @@ class LiveTradingLoop:
         if allow_long and prediction > threshold_up and qty == 0:
             returns = self.market_buffers[symbol]["Close"].pct_change().dropna()
             mc = self.monte_carlo.stress_test(returns)
-            risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
+            # Use Kelly when simulation produced both wins and losses; fall back to confidence otherwise
+            if mc.get("avg_win", 0.0) > 0 and mc.get("avg_loss", 0.0) > 0:
+                kelly = self._kelly_sizer.calculate_details(
+                    win_rate=mc["win_rate"], avg_win=mc["avg_win"], avg_loss=mc["avg_loss"]
+                )
+                if kelly["zero_edge"]:
+                    self.logger.info(
+                        "[KELLY_ZERO_EDGE][%s] skip BUY: win_rate=%.3f avg_win=%.4f avg_loss=%.4f",
+                        symbol, mc["win_rate"], mc["avg_win"], mc["avg_loss"],
+                    )
+                    self._append_decision_trace({**trace_base, "action": "BUY_BLOCKED_KELLY_ZERO_EDGE",
+                        "kelly_raw": kelly["kelly_raw"], "win_rate": float(mc["win_rate"])})
+                    return
+                risk_pct = kelly["capped_fraction"]
+            else:
+                kelly = None
+                risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
             rr = max(0.5, abs(prediction - current_price) / max(current_price * symbol_threshold, 1e-6))
             if not self.risk_controller.allow_trade_with_ror(
                 win_rate=mc["win_rate"],
@@ -1283,6 +1309,13 @@ class LiveTradingLoop:
 
             max_alloc = self.account_value * 0.25
             alloc = min(self.account_value * risk_pct, max_alloc, available_total, available_bucket)
+            if kelly is not None:
+                self.logger.info(
+                    "[KELLY_SIZING][%s] kelly_raw=%.4f kelly_scaled=%.4f capped=%.4f "
+                    "win_rate=%.3f avg_win=%.4f avg_loss=%.4f regime_mult=%.2f final_alloc=%.2f",
+                    symbol, kelly["kelly_raw"], kelly["kelly_scaled"], kelly["capped_fraction"],
+                    mc["win_rate"], mc["avg_win"], mc["avg_loss"], risk_multiplier, alloc,
+                )
             # Meta-labeling hard gate (US SIM) — blocks BUY when meta prob < threshold.
             try:
                 from v3_pipeline.ml import meta_gate as _meta_gate
@@ -1626,9 +1659,18 @@ class LiveTradingLoop:
 
         if getattr(self.config, "swing_strategy_enabled", True):
             if qty == 0 and allow_long and swing["buy_signal"]:
-                risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
+                returns = self.market_buffers[symbol]["Close"].pct_change().dropna()
+                mc_swing = self.monte_carlo.stress_test(returns)
+                kelly_swing = self._kelly_sizer.calculate_details(
+                    win_rate=mc_swing["win_rate"], avg_win=mc_swing["avg_win"], avg_loss=mc_swing["avg_loss"]
+                )
                 cap_fraction = max(0.0, min(1.0, float(getattr(self.config, "max_position_fraction", 0.30))))
-                alloc = min(self.account_value * risk_pct, self.account_value * cap_fraction)
+                if kelly_swing["zero_edge"]:
+                    # Fall back to confidence-based sizing when Kelly has no edge signal
+                    swing_risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
+                else:
+                    swing_risk_pct = kelly_swing["capped_fraction"]
+                alloc = min(self.account_value * swing_risk_pct, self.account_value * cap_fraction)
                 buy_qty = max(0, int(alloc / max(current_price, 1e-9)))
                 if buy_qty > 0:
                     self._execute(symbol, "BUY", buy_qty, current_price, f"swing_signal_conf={confidence:.3f}")
@@ -1655,7 +1697,19 @@ class LiveTradingLoop:
 
             returns = self.market_buffers[symbol]["Close"].pct_change().dropna()
             mc = self.monte_carlo.stress_test(returns)
-            risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
+            if mc.get("avg_win", 0.0) > 0 and mc.get("avg_loss", 0.0) > 0:
+                kelly2 = self._kelly_sizer.calculate_details(
+                    win_rate=mc["win_rate"], avg_win=mc["avg_win"], avg_loss=mc["avg_loss"]
+                )
+                if kelly2["zero_edge"]:
+                    self.logger.info(
+                        "[KELLY_ZERO_EDGE][%s] skip BUY: win_rate=%.3f avg_win=%.4f avg_loss=%.4f",
+                        symbol, mc["win_rate"], mc["avg_win"], mc["avg_loss"],
+                    )
+                    return
+                risk_pct = kelly2["capped_fraction"]
+            else:
+                risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
             rr = max(0.5, abs(prediction - current_price) / max(current_price * symbol_threshold, 1e-6))
             bypass_ror = getattr(self.config, "bypass_ror_gate", False)
             if bypass_ror:
