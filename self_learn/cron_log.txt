@@ -3137,3 +3137,8 @@ STATS: {"total_predictions": 303327, "total_signals": 1217, "open_signals": 356,
 RETRAIN_CHECK: {"stats": {"total_predictions": 303327, "total_signals": 1217, "open_signals": 356, "closed_signals": 589, "total_outcomes": 589, "total_pnl": -6214.5941, "avg_pnl_pct": -0.303, "current_model_version": {"id": "fd54cb41-3005-4025-980f-9f255337fd46", "accuracy": 0.8, "trained_at": "2026-05-07T16:00:32.698400"}}, "should_retrain": false, "retrain_done": false}
 ---
 Done at Fri May  8 04:00:03 CST 2026
+=== [2026-05-15 00:00:04] Self-Learn Cron ===
+STATS: {"total_predictions": 386745, "total_signals": 1222, "open_signals": 361, "closed_signals": 589, "total_outcomes": 589, "total_pnl": -6214.5941, "avg_pnl_pct": -0.303, "current_model_version": {"id": "acf0c5ed-4b4e-42f0-84c6-e0b88463acad", "accuracy": 0.8, "trained_at": "2026-05-14T12:00:04.881351"}}
+RETRAIN_CHECK: {"stats": {"total_predictions": 386745, "total_signals": 1222, "open_signals": 361, "closed_signals": 589, "total_outcomes": 589, "total_pnl": -6214.5941, "avg_pnl_pct": -0.303, "current_model_version": {"id": "acf0c5ed-4b4e-42f0-84c6-e0b88463acad", "accuracy": 0.8, "trained_at": "2026-05-14T12:00:04.881351"}}, "should_retrain": true, "retrain_done": true, "retrain_result": {"status": "ok", "version_id": "b41fae22-2315-4208-a7e1-fdd9fa050093", "model_path": "/home/tsukii0607/.openclaw/workspace-quant/kiro-quant-v3/self_learn/models/model_20260515_000007.pkl", "metrics": {"accuracy": 0.8, "win_rate": 0.38, "train_size": 400, "test_size": 100, "total_samples": 500, "actual_iterations": 148, "early_stopped": true}}}
+---
+Done at Fri May 15 00:00:07 CST 2026
