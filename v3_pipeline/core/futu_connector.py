@@ -1106,10 +1106,35 @@ class FutuConnector:
 
         if side_upper == "BUY":
             est_cost = float(max(est_price, 0.0)) * int(qty)
-            cash = float(row.get("cash", row.get("available_funds", row.get("power", 0.0))) or 0.0)
-            if est_cost > 0 and cash < est_cost:
+            
+            # ── Buying Power Guard (smart preflight) ──
+            # Use max_buying_power if available, fall back to cash / available_funds
+            cash = float(row.get("cash", 0.0) or 0.0)
+            available_funds = float(row.get("available_funds", 0.0) or 0.0)
+            power = float(row.get("power", 0.0) or 0.0)
+            max_buying_power = float(row.get("max_buying_power", 0.0) or 0.0)
+            
+            # Use the most permissive available metric
+            effective_bp = max(cash, available_funds, power, max_buying_power)
+            
+            if est_cost > 0 and effective_bp < est_cost:
+                event = {
+                    "event": "buying_power_insufficient",
+                    "symbol": symbol,
+                    "qty": qty,
+                    "est_cost": round(est_cost, 2),
+                    "cash": round(cash, 2),
+                    "available_funds": round(available_funds, 2),
+                    "power": round(power, 2),
+                    "max_buying_power": round(max_buying_power, 2),
+                    "effective_bp": round(effective_bp, 2),
+                    "reason": "effective_bp < est_cost",
+                }
+                self.logger.warning("%s", json.dumps(event))
                 raise RuntimeError(
-                    f"insufficient_cash: cash={cash:.2f} est_cost={est_cost:.2f} symbol={symbol} qty={qty}"
+                    f"insufficient_buying_power: effective_bp={effective_bp:.2f} "
+                    f"est_cost={est_cost:.2f} symbol={symbol} qty={qty} "
+                    f"(cash={cash:.2f}, power={power:.2f}, max_bp={max_buying_power:.2f})"
                 )
 
     def _round_price(self, price: float, symbol: str) -> float:
