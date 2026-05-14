@@ -1870,8 +1870,8 @@ class LiveTradingLoop:
                 except Exception:
                     pass
 
-        # Mirror flat position dicts into per-market MarketContext objects so callers
-        # have an explicit market-scoped view of positions alongside the global dicts.
+        # Sync positions into per-market MarketContext objects, then reverse-sync
+        # MarketContext back to flat dicts so MarketContext is the canonical view.
         try:
             broker_rows = [
                 {"code": self.futu_connector.resolve_symbol(s)[0], "qty": q}
@@ -1884,6 +1884,12 @@ class LiveTradingLoop:
                 if q > 0
             ]
             sync_positions_to_contexts(self.market_contexts, broker_rows)
+            # Reverse-sync: make flat dicts consistent with MarketContext state.
+            for _mctx in self.market_contexts.values():
+                for _sym, _qty in _mctx.position_qty.items():
+                    self.position_qty_by_symbol[_sym] = _qty
+                for _sym, _qty in _mctx.short_position_qty.items():
+                    self.short_position_qty_by_symbol[_sym] = _qty
         except Exception as exc:
             self.logger.debug("market_contexts sync skipped: %s", exc)
 
@@ -1997,6 +2003,11 @@ class LiveTradingLoop:
                 return  # Graceful exit — do not crash
 
         self.logger.info("EXEC %s %s qty=%d fill=%.4f reason=%s", symbol, side, qty, fill_price, reason)
+        from v3_pipeline.core.market_context import infer_market as _infer_market
+        _order_market = _infer_market(symbol)
+        _order_account_id: int | None = None
+        if hasattr(self.futu_connector, "_account_kwargs_for_market"):
+            _order_account_id = self.futu_connector._account_kwargs_for_market(_order_market).get("acc_id")
         self._emit_structured(
             "order_attempt",
             symbol=symbol,
@@ -2005,6 +2016,8 @@ class LiveTradingLoop:
             price=round(float(fill_price), 4),
             reason=reason,
             paper=bool(self.config.paper_trading),
+            market=_order_market,
+            account_id=_order_account_id,
         )
 
         # Log to trades.jsonl
