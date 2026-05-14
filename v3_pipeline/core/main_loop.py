@@ -1914,8 +1914,15 @@ class LiveTradingLoop:
         )
 
     def _execute(self, symbol: str, side: str, qty: int, price: float, reason: str, indicators: dict | None = None, prediction: float | None = None) -> None:
-        # Guard: 所有副作用（position mutation + 下單）必須喺同一個 auto_trade block 內
-        if not self.config.auto_trade:
+        from v3_pipeline.execution.state_machine import (
+            PositionDelta, dispatch_execution, resolve_execution_mode, ExecutionMode, simulate_only,
+        )
+        mode = resolve_execution_mode(self.config.auto_trade, self.config.paper_trading)
+        if mode == ExecutionMode.SIMULATE:
+            simulate_only(
+                PositionDelta(symbol=symbol, side=side, qty=qty, fill_price=price, reason=reason),
+                log_decision=self._append_decision_trace,
+            )
             return
 
         # 2026-04-24 Fix: Double-check broker position before placing order.
@@ -1964,43 +1971,37 @@ class LiveTradingLoop:
                 )
                 return
 
-            self.position_qty_by_symbol[symbol] += qty
+        # Route through execution state machine: PAPER fills locally, LIVE places broker order first
+        delta = PositionDelta(symbol=symbol, side=side, qty=qty, fill_price=fill_price, reason=reason)
+        accepted = dispatch_execution(
+            delta,
+            mode,
+            self.position_qty_by_symbol,
+            place_order_fn=(lambda sym, q, s, p: self.futu_connector.place_order(sym, q, s, p))
+                if mode == ExecutionMode.LIVE else None,
+            log_decision=self._append_decision_trace,
+        )
+
+        if not accepted:
+            # LIVE broker rejection — position state is unchanged, do not log or persist
+            return
+
+        # Position was accepted (PAPER fill or LIVE broker accepted) — update secondary state
+        if side == "BUY":
             self.highest_price_since_entry_by_symbol[symbol] = fill_price
             self.entry_price_by_symbol[symbol] = fill_price
             self.cycles_since_buy_by_symbol[symbol] = 0
-            # v2: Store entry RSI for RSI-gated take profit at exit
             if indicators:
                 self.entry_rsi_by_symbol[symbol] = float(indicators.get("RSI_14", 50.0))
-        if side == "SELL":
-            self.position_qty_by_symbol[symbol] = max(0, self.position_qty_by_symbol[symbol] - qty)
-            if self.position_qty_by_symbol[symbol] == 0:
+        elif side == "SELL":
+            if self.position_qty_by_symbol.get(symbol, 0) == 0:
                 self.highest_price_since_entry_by_symbol[symbol] = 0.0
                 self.bars_held_by_symbol[symbol] = 0
                 self.cycles_since_buy_by_symbol[symbol] = 999999
-                # 2026-04-24 Fix: Mark last sell time to prevent immediate re-sync
                 self._last_sell_time_by_symbol[symbol] = datetime.now(timezone.utc)
 
-        if self.config.paper_trading:
+        if mode == ExecutionMode.PAPER:
             self.logger.info("PAPER_ORDER %s %s qty=%d limit=%.4f type=NORMAL", symbol, side, qty, fill_price)
-        else:
-            try:
-                self.futu_connector.place_order(symbol, qty, side, fill_price)
-            except Exception as exc:
-                self.logger.error("[%s] Order failed: %s — reverting local state", symbol, exc)
-                # Revert local position state on failure
-                if side == "BUY":
-                    self.position_qty_by_symbol[symbol] = max(0, self.position_qty_by_symbol.get(symbol, 0) - qty)
-                else:
-                    self.position_qty_by_symbol[symbol] += qty
-                self._append_decision_trace({
-                    "ts": datetime.now(timezone.utc).isoformat(),
-                    "symbol": symbol,
-                    "action": "ORDER_FAILED_REVERTED",
-                    "side": side,
-                    "qty": qty,
-                    "error": str(exc),
-                })
-                return  # Graceful exit — do not crash
 
         self.logger.info("EXEC %s %s qty=%d fill=%.4f reason=%s", symbol, side, qty, fill_price, reason)
         from v3_pipeline.core.market_context import infer_market as _infer_market
