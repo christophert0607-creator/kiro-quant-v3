@@ -1765,8 +1765,6 @@ class LiveTradingLoop:
     def _sync_broker_state(self) -> None:
         import os as _os
         import json as _json
-        workspace_root = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..", "..", ".."))
-        state_file = _os.path.join(workspace_root, "state.json")
 
         # 1. Sync total account value across all active market accounts.
         # When both HK and US trade contexts are live, sum assets from each so that
@@ -1847,28 +1845,26 @@ class LiveTradingLoop:
                 self.logger.warning("Broker returned empty positions DataFrame")
         except Exception as exc:
             self.logger.warning("Broker position sync failed: %s — falling back to state.json", exc)
-            # Fallback: try state.json
-            if _os.path.exists(state_file):
-                try:
-                    with open(state_file, "r") as f:
-                        state = _json.load(f)
-                    positions_map = state.get("positions", {})
-                    for symbol in self.symbols:
-                        for key, qty in positions_map.items():
-                            norm = key.replace("US.", "").replace(".HK", "HK")
-                            if symbol.replace(".HK", "HK") == norm or symbol == key:
-                                self.position_qty_by_symbol[symbol] = max(0, int(qty))
-                                break
-                    short_positions_map = state.get("short_positions", {})
-                    for symbol in self.symbols:
-                        for key, sqty in short_positions_map.items():
-                            norm = key.replace("US.", "").replace(".HK", "HK")
-                            if symbol.replace(".HK", "HK") == norm or symbol == key:
-                                self.short_position_qty_by_symbol[symbol] = max(0, int(sqty))
-                                break
-                    self.logger.info("Fallback: positions synced from state.json")
-                except Exception:
-                    pass
+            try:
+                import state_store as _ss
+                state = _ss.load()
+                positions_map = state.get("positions", {})
+                for symbol in self.symbols:
+                    for key, qty in positions_map.items():
+                        norm = key.replace("US.", "").replace(".HK", "HK")
+                        if symbol.replace(".HK", "HK") == norm or symbol == key:
+                            self.position_qty_by_symbol[symbol] = max(0, int(qty))
+                            break
+                short_positions_map = state.get("short_positions", {})
+                for symbol in self.symbols:
+                    for key, sqty in short_positions_map.items():
+                        norm = key.replace("US.", "").replace(".HK", "HK")
+                        if symbol.replace(".HK", "HK") == norm or symbol == key:
+                            self.short_position_qty_by_symbol[symbol] = max(0, int(sqty))
+                            break
+                self.logger.info("Fallback: positions synced from state.json")
+            except Exception:
+                pass
 
         # Sync positions into per-market MarketContext objects, then reverse-sync
         # MarketContext back to flat dicts so MarketContext is the canonical view.
@@ -2042,12 +2038,9 @@ class LiveTradingLoop:
 
         # Persist positions into state.json to avoid repeated SELL/BUY after restart
         # Works in both paper (NO_FUTU=1) and real/SIM trading (NO_FUTU=0) modes
-        state_file = _os.path.join(_os.path.dirname(__file__), "..", "..", "state.json")
         try:
-            state: dict = {}
-            if _os.path.exists(state_file):
-                with open(state_file, "r", encoding="utf-8") as f:
-                    state = _json.load(f) or {}
+            import state_store as _ss
+            state = _ss.load()
 
             code, _ = self.futu_connector.resolve_symbol(symbol)
             state["date"] = datetime.now(timezone.utc).date().isoformat()
@@ -2076,8 +2069,7 @@ class LiveTradingLoop:
                 except Exception:
                     pass
 
-            with open(state_file, "w", encoding="utf-8") as f:
-                f.write(_json.dumps(state, ensure_ascii=False, indent=2) + "\n")
+            _ss.save(state)
         except Exception as exc:
             self.logger.warning("Failed to persist state.json: %s", exc)
 
