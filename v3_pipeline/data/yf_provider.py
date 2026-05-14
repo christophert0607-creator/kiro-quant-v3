@@ -8,6 +8,8 @@ Features:
 - Thread-safe semaphore limiting concurrency (default 1).
 - FD guard: reads /proc/self/fd; skips yfinance if usage exceeds 80% of soft limit.
 - fd_health_event() for structured telemetry.
+- Session cleanup: every Ticker session is explicitly closed after each call
+  to prevent FD leaks from yfinance's internal SQLite cache connections.
 """
 
 from __future__ import annotations
@@ -82,6 +84,62 @@ def _is_fd_safe() -> tuple[bool, dict]:
     return safe, event
 
 
+# ── Internal helpers ───────────────────────────────────────────────────────────
+
+def _close_ticker_session(ticker) -> None:
+    """Close the underlying requests session of a yfinance Ticker.
+
+    yfinance >= 0.2 exposes ``ticker.session`` as a curl_cffi Session.
+    Silently no-ops on older versions or when session is unavailable.
+    """
+    try:
+        session = getattr(ticker, "session", None)
+        if session is not None and callable(getattr(session, "close", None)):
+            session.close()
+    except Exception:
+        pass
+
+
+def _reset_yf_cache_fds() -> None:
+    """
+    Close yfinance's module-level Peewee/SQLite connections to reclaim FDs.
+
+    yfinance 1.x holds three SqliteDatabase singletons (_TzDBManager,
+    _CookieDBManager, _ISINDBManager) as module-level class vars. They are
+    opened on first use and never closed between Ticker calls, which causes
+    tkr-tz.db + tkr-tz.db-wal FDs to accumulate across the process lifetime.
+
+    Calling set_location(same_dir) closes the Peewee db and sets _db=None so
+    the next yfinance call re-connects cleanly (one FD pair, not hundreds).
+    The paired cache singleton's .db handle and .initialised flag are reset so
+    the cache object re-acquires a fresh connection rather than reusing the
+    now-dead handle.
+    """
+    try:
+        import yfinance.cache as _yfc
+
+        _PAIRS = (
+            ("_TzDBManager",     "_TzCacheManager",     "_tz_cache"),
+            ("_CookieDBManager", "_CookieCacheManager", "_Cookie_cache"),
+            ("_ISINDBManager",   "_ISINCacheManager",   "_isin_cache"),
+        )
+        for db_mgr_name, cache_mgr_name, cache_attr in _PAIRS:
+            db_mgr = getattr(_yfc, db_mgr_name, None)
+            if db_mgr is not None:
+                cache_dir = getattr(db_mgr, "_cache_dir", None)
+                if cache_dir:
+                    db_mgr.set_location(cache_dir)  # close() + _db = None
+
+            cache_mgr = getattr(_yfc, cache_mgr_name, None)
+            if cache_mgr is not None:
+                singleton = getattr(cache_mgr, cache_attr, None)
+                if singleton is not None:
+                    singleton.db = None
+                    singleton.initialised = -1
+    except Exception:
+        pass
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def get_latest_quote(symbol: str) -> Optional[dict]:
@@ -101,6 +159,7 @@ def get_latest_quote(symbol: str) -> Optional[dict]:
         )
         return None
 
+    ticker = None
     with _semaphore:
         try:
             import yfinance as yf
@@ -111,7 +170,7 @@ def get_latest_quote(symbol: str) -> Optional[dict]:
                 return None
             row = hist.iloc[-1]
             close = float(row.get("Close", 0.0))
-            return {
+            result = {
                 "Date": pd.Timestamp.now(),
                 "Open": float(row.get("Open", close)),
                 "High": float(row.get("High", close)),
@@ -120,9 +179,14 @@ def get_latest_quote(symbol: str) -> Optional[dict]:
                 "Volume": float(row.get("Volume", 0.0)),
                 "data_source": "YF_LIVE",
             }
+            return result
         except Exception as exc:
             logger.warning("[yf_provider] get_latest_quote failed for %s: %s", symbol, exc)
             return None
+        finally:
+            if ticker is not None:
+                _close_ticker_session(ticker)
+            _reset_yf_cache_fds()
 
 
 def download_history(
@@ -135,6 +199,9 @@ def download_history(
 
     Respects the FD guard and concurrency semaphore.
     Returns dict of symbol -> DataFrame (empty DataFrame on failure).
+
+    Session cleanup is performed after each Ticker.history() call to prevent
+    FD accumulation from yfinance's SQLite cache connections.
     """
     if not symbols:
         return {}
@@ -152,14 +219,21 @@ def download_history(
         try:
             import yfinance as yf
             for sym in symbols:
+                ticker = None
                 try:
-                    hist = yf.Ticker(sym).history(period=period, interval=interval)
+                    ticker = yf.Ticker(sym)
+                    hist = ticker.history(period=period, interval=interval)
                     results[sym] = hist if not hist.empty else pd.DataFrame()
                 except Exception as exc:
                     logger.warning("[yf_provider] history failed for %s: %s", sym, exc)
                     results[sym] = pd.DataFrame()
+                finally:
+                    if ticker is not None:
+                        _close_ticker_session(ticker)
         except Exception as exc:
             logger.warning("[yf_provider] download_history error: %s", exc)
             for s in symbols:
                 results.setdefault(s, pd.DataFrame())
+        finally:
+            _reset_yf_cache_fds()
     return results

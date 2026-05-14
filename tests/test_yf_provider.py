@@ -334,6 +334,88 @@ class TestIdleSchedulerUsesYfProvider:
         assert "AAPL" in used_symbols
 
 
+# ── _reset_yf_cache_fds ───────────────────────────────────────────────────────
+
+class TestResetYfCacheFds:
+    """Verify _reset_yf_cache_fds correctly closes and nullifies Peewee singletons."""
+
+    def test_noop_before_yfinance_cache_init(self):
+        """reset must not raise even before yfinance cache is ever initialised."""
+        from v3_pipeline.data.yf_provider import _reset_yf_cache_fds
+        _reset_yf_cache_fds()  # must be silent
+
+    def test_nullifies_tz_db_manager_db(self):
+        """After reset, _TzDBManager._db is None so next call re-connects."""
+        import yfinance.cache as yfc
+        from v3_pipeline.data.yf_provider import _reset_yf_cache_fds
+
+        yfc._TzDBManager.get_database()
+        assert yfc._TzDBManager._db is not None
+
+        _reset_yf_cache_fds()
+        assert yfc._TzDBManager._db is None
+
+    def test_nullifies_tz_cache_singleton_db(self):
+        """After reset, _TzCacheManager._tz_cache.db is None and initialised is -1."""
+        import yfinance.cache as yfc
+        from v3_pipeline.data.yf_provider import _reset_yf_cache_fds
+
+        yfc._TzCacheManager.get_tz_cache()
+        singleton = yfc._TzCacheManager._tz_cache
+        assert singleton is not None
+
+        _reset_yf_cache_fds()
+        assert singleton.db is None
+        assert singleton.initialised == -1
+
+    def test_reinit_works_after_reset(self):
+        """After reset, get_database() returns a fresh SqliteDatabase (not None)."""
+        import yfinance.cache as yfc
+        from v3_pipeline.data.yf_provider import _reset_yf_cache_fds
+
+        _reset_yf_cache_fds()
+        db = yfc._TzDBManager.get_database()
+        assert db is not None
+
+    def test_called_in_get_latest_quote_finally(self):
+        """_reset_yf_cache_fds is invoked after every get_latest_quote call."""
+        from v3_pipeline.data import yf_provider
+
+        reset_calls = []
+        original = yf_provider._reset_yf_cache_fds
+
+        def _spy():
+            reset_calls.append(1)
+            original()
+
+        with patch.object(yf_provider, "_reset_yf_cache_fds", side_effect=_spy):
+            with patch.object(yf_provider, "_get_fd_stats", return_value=(100, 1024)):
+                with patch("yfinance.Ticker") as mock_ticker:
+                    mock_ticker.return_value.history.return_value = _fake_history_df()
+                    yf_provider.get_latest_quote("AAPL")
+
+        assert len(reset_calls) == 1
+
+    def test_called_in_download_history_finally(self):
+        """_reset_yf_cache_fds is invoked once after every download_history call."""
+        from v3_pipeline.data import yf_provider
+
+        reset_calls = []
+        original = yf_provider._reset_yf_cache_fds
+
+        def _spy():
+            reset_calls.append(1)
+            original()
+
+        with patch.object(yf_provider, "_reset_yf_cache_fds", side_effect=_spy):
+            with patch.object(yf_provider, "_get_fd_stats", return_value=(100, 1024)):
+                with patch("yfinance.Ticker") as mock_ticker:
+                    mock_ticker.return_value.history.return_value = _fake_history_df()
+                    yf_provider.download_history(["AAPL", "MSFT"])
+
+        assert len(reset_calls) == 1  # once per batch, not per symbol
+
+
 # ── 10 consecutive IDLE backfill rounds — FD stability ───────────────────────
 
 class TestIdleBackfillFdStability:
