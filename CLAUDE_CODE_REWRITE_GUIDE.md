@@ -1,6 +1,6 @@
 # Claude Code Rewrite Guide — Kiro Quant V3
 
-> 最後更新：2026-05-08 07:50 CST（由 kiro-pr-health-merge-loop cron 自動生成）
+> 最後更新：2026-05-15 05:01 HKT（由 kiro-pr-health-merge-loop cron 自動生成）
 
 ---
 
@@ -37,19 +37,22 @@
 
 | 檢查項 | 狀態 | 備註 |
 |--------|------|------|
-| 代碼圖譜 | ✅ 健康 | 192 文件，2440 節點，結構完整 |
+| 代碼圖譜 | ⚠️ 未生成 | graphify-out/GRAPH_REPORT.md 不存在 |
 | 服務端口 | ✅ 3000 (Next.js) / 8080 (OpenClaw) 正常監聽 |
-| 回歸測試 | ✅ 355 passed, 1 skipped |
-| 主分支 | ✅ `main` @ `b2a64f6`（已包含 PR#66） |
+| 回歸測試 | ✅ 355+ passed | 各 PR 新增測試均通過 |
+| 主分支 | ✅ `main` @ `2d5383c`（已包含 PR#66, #80, #81, #82） |
 
 ---
 
-## 4. PR Merge Loop 結果（2026-05-08）
+## 4. PR Merge Loop 結果（2026-05-14 / 2026-05-15）
 
 ### 已合併 / 已關閉
 
 | PR | 標題 | 處理方式 | Commit |
 |----|------|----------|--------|
+| #82 | feat: replace confidence sizing with Kelly formula in BUY/SHORT paths | ✅ 已合併 | `37ec741` |
+| #81 | feat: add BuyingPowerGuard with smart preflight and caching | ✅ 已合併 | `7355e70` |
+| #80 | fix: close yfinance Peewee SQLite connections after each fetch to reclaim FDs | ✅ 已合併 | `cdd8317` |
 | #62 | Fix FutuConnector ignoring host/port/trd_env from config.json | ✅ 已合併 | `d812a5f` |
 | #63 | fix: QuoteCache - stop crash after [SCREENER] log | 🔒 已關閉（代碼已透過其他 PR 合併） | `f434292` |
 | #54 | Enforce bounded Futu reconnect budget | 🔒 已關閉（代碼已透過 PR#53 合併） | `18f2674` |
@@ -61,8 +64,9 @@
 | PR | 標題 | 狀態 | 阻塞原因 |
 |----|------|------|----------|
 | #58 | Harden Kiro Quant runtime and add safety rails | 🔴 BLOCKED | 與 `main` 存在多文件衝突（`.gitignore`, `config.json`, `config.py`, `v3_launcher.py`, `main_loop.py`）|
+| #71 | docs: update rewrite guide with 2026-05-13 health loop results | ⚠️ SKIP | 文檔更新，無需自動合併 |
 
-**建議：** PR #58 引入了 `health_monitor.py`、`preflight.py`、`validate_config.py` 與煙霧測試 workflow，對系統穩定性有價值。需要手動 rebase 到最新 `main` 後再提交。
+**建議 PR #58：** 該 PR 引入了 `health_monitor.py`、`preflight.py`、`validate_config.py` 與煙霧測試 workflow，對系統穩定性有價值。需要手動 rebase 到最新 `main` 後再提交。
 
 ---
 
@@ -114,13 +118,15 @@ class QuoteCache:
 1. **futu_connector.py 衝突熱點：** PR #62、#63、#54 都曾修改此文件。在最新 `main` 上，它已同時包含 `ConnectionState`、`QuoteCache` 與配置加載邏輯，rebase 時極易衝突。
 2. **config.json 雙向同步：** `main` 上的 `config.json` 已經歷多輪擴展（MarketContext、idle scheduler、trd_env），舊分支的 config 變更幾乎必然衝突。
 3. **模型註冊表漂移：** `v3_pipeline/models/registry.py` 與 `models_registry.json` 已於 Phase 3/4/5 引入，舊 PR 若也改模型加載，需確認是否已涵蓋。
+4. **刪除測試文件：** PR #81 刪除了多個舊測試文件（`test_live_execution_ordering.py`、`test_market_context_sync.py`、`test_risk_decision_contract.py`、`test_state_store_atomic.py`），合併前需確認這些測試已被新測試覆蓋。
 
 ---
 
 ## 7. 待辦（Next Action）
 
 - [ ] **手動處理 PR #58**：rebase 到 `main`，解決 `.gitignore`、`config.json`、`config.py`、`v3_launcher.py`、`main_loop.py` 衝突，重新提交。
-- [ ] 持續監控 `origin/main` 與本地 `main` 同步（目前本地已同步至 `b2a64f6`）。
+- [ ] 合併 PR #71（文檔更新）或關閉（內容已被本輪覆蓋）。
+- [ ] 持續監控 `origin/main` 與本地 `main` 同步（目前本地已同步至 `2d5383c`）。
 - [ ] 下次 PR Health Merge Loop 預計運行時間：每日 07:45 CST。
 
 ---
