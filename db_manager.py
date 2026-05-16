@@ -2,6 +2,7 @@ import sqlite3
 import pandas as pd
 import os
 import logging
+from contextlib import closing
 from typing import Optional, List
 
 logger = logging.getLogger("DBManager")
@@ -15,7 +16,7 @@ class DatabaseManager:
 
     def _init_db(self):
         """Initialize the database and base table."""
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS market_data (
                     symbol TEXT,
@@ -33,7 +34,7 @@ class DatabaseManager:
 
     def _ensure_columns(self, df: pd.DataFrame):
         """Ensure all columns in the DataFrame exist in the database table."""
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
             cursor = conn.execute("PRAGMA table_info(market_data)")
             existing_cols = [row[1] for row in cursor.fetchall()]
             
@@ -66,7 +67,7 @@ class DatabaseManager:
         # Ensure schema matches
         self._ensure_columns(save_df)
         
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
             # We use to_sql with a temporary table for UPSERT-like behavior in SQLite < 3.24
             # or just 'REPLACE' if we trust the primary key
             save_df.to_sql("market_data", conn, if_exists="append", index=False, method=self._upsert_method)
@@ -83,14 +84,14 @@ class DatabaseManager:
 
     def get_latest_data(self, symbol: str, limit: int = 100) -> pd.DataFrame:
         """Retrieve the latest entries for a symbol."""
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
             query = f"SELECT * FROM market_data WHERE symbol = ? ORDER BY timestamp DESC LIMIT ?"
             return pd.read_sql_query(query, conn, params=(symbol, limit))
 
     def check_health(self, symbols: List[str]) -> dict:
         """Check the data range for each symbol and return a report of missing chunks."""
         report = {}
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
             for sym in symbols:
                 cursor = conn.execute("SELECT MIN(timestamp), MAX(timestamp), COUNT(*) FROM market_data WHERE symbol = ?", (sym,))
                 min_t, max_t, count = cursor.fetchone()
