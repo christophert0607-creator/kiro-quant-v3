@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
@@ -74,6 +75,8 @@ class LiveDbPersist:
         if db_path:
             self.cfg.db_path = db_path
         self._conn: Optional[sqlite3.Connection] = None
+        self._conn_inode: Optional[int] = None  # inode the live conn was opened against
+        self._reconnect_count: int = 0
         self._queue: asyncio.Queue[_PendingRow | None] = asyncio.Queue()
         self._worker_task: Optional[asyncio.Task] = None
         self._closed = False
@@ -169,9 +172,57 @@ class LiveDbPersist:
 
     # ── Sync helpers (run via asyncio.to_thread) ───────────────────────────────
 
+    def _current_path_inode(self) -> Optional[int]:
+        """Return the inode of the file currently at cfg.db_path, or None if absent."""
+        try:
+            return os.stat(self.cfg.db_path).st_ino
+        except FileNotFoundError:
+            return None
+        except OSError as exc:
+            logger.warning("[db_persist] stat(%s) failed: %s", self.cfg.db_path, exc)
+            return None
+
+    def _db_path_changed(self) -> bool:
+        """True when the on-disk path's inode no longer matches the live connection's inode.
+
+        Indicates the DB file was deleted, replaced, or moved out from under us — in
+        which case ``self._conn`` is now writing to an orphan inode and every commit
+        is silently lost. Caller should reopen via ``_reconnect_if_path_changed``.
+        """
+        if self._conn is None or self._conn_inode is None:
+            return False
+        current = self._current_path_inode()
+        return current is not None and current != self._conn_inode
+
+    def _reconnect_if_path_changed(self) -> bool:
+        """Detect a swapped inode and rebuild the connection.
+
+        Returns True when a reconnect happened. Safe to call from the writer thread
+        before each batch.
+        """
+        if not self._db_path_changed():
+            return False
+        self._reconnect_count += 1
+        logger.error(
+            "[db_persist] db_path inode changed (was=%s now=%s) — reconnecting (count=%d)",
+            self._conn_inode, self._current_path_inode(), self._reconnect_count,
+        )
+        # Close the old conn (still pointing to orphan inode); ignore errors
+        old = self._conn
+        self._conn = None
+        self._conn_inode = None
+        try:
+            if old is not None:
+                old.close()
+        except Exception:
+            pass
+        self._ensure_db()
+        return True
+
     def _ensure_db(self) -> None:
-        """Initialise DB, enable WAL, create tables if missing."""
+        """Initialise DB, enable WAL, create tables if missing. Records inode."""
         self._conn = sqlite3.connect(self.cfg.db_path, check_same_thread=False)
+        self._conn_inode = self._current_path_inode()
         self._conn.execute("PRAGMA journal_mode = WAL")
         self._conn.execute("PRAGMA synchronous = NORMAL")
         self._conn.execute(f"PRAGMA wal_autocheckpoint = {self.cfg.wal_checkpoint_pages}")
@@ -226,10 +277,15 @@ class LiveDbPersist:
                 pass
             self._conn.close()
             self._conn = None
+            self._conn_inode = None
 
     def _batch_upsert(self, rows: list[_PendingRow]) -> int:
         """Synchronous batch write inside the background worker."""
-        if not rows or self._conn is None:
+        if not rows:
+            return 0
+        # Detect a swapped inode (file deleted/replaced under us) and reopen before write
+        self._reconnect_if_path_changed()
+        if self._conn is None:
             return 0
         sql = """
             INSERT OR REPLACE INTO market_data
