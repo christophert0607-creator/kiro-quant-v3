@@ -478,6 +478,27 @@ class IdleTaskScheduler:
                     duration_sec=round(time.time() - t0, 1),
                 )
 
+            # Task 5: DB archive — move old live rows to archive table (PR #83)
+            if self._stop_event.is_set():
+                return
+            try:
+                if hasattr(self.loop, 'db_persist') and self.loop.db_persist is not None:
+                    t0 = time.time()
+                    archived = await self.loop.db_persist.archive_old_data()
+                    self.logger.info(
+                        '[db_archive] done in %.1fs — archived=%d rows',
+                        time.time() - t0,
+                        archived,
+                    )
+                    _emit(
+                        self.logger,
+                        'db_archive',
+                        archived_rows=archived,
+                        duration_sec=round(time.time() - t0, 1),
+                    )
+            except Exception as exc:
+                self.logger.warning('[db_archive] failed: %s', exc)
+
         except asyncio.CancelledError:
             self.logger.info("[IdleTaskScheduler] cancelled")
             raise

@@ -22,6 +22,7 @@ from v3_pipeline.features.indicators import TechnicalIndicatorGenerator
 from v3_pipeline.models.manager import DataPreparer, ModelManager
 from v3_pipeline.risk.kelly_sizer import KellyPositionSizer
 from v3_pipeline.risk.manager import RiskController
+from v3_pipeline.data.db_persist import LiveDbPersist
 
 
 def _get_log_dir() -> Path:
@@ -294,11 +295,17 @@ class LiveTradingLoop:
             for s in self.symbols
         }
 
+        # -- DB persistence (PR #83) --
+        self.db_persist = LiveDbPersist(db_path="kiro_quant.db")
+
     def start(self) -> None:
         self.futu_connector.connect()
+        asyncio.run(self.db_persist.start())
         try:
             asyncio.run(self._run_forever())
         finally:
+            asyncio.run(self.db_persist.flush())
+            asyncio.run(self.db_persist.close())
             self._archive_market_data()
             self.futu_connector.close()
 
@@ -387,6 +394,14 @@ class LiveTradingLoop:
                 await self._run_symbol_cycle(symbol)
 
         await asyncio.gather(*(guarded(symbol) for symbol in self.symbols))
+
+        # -- Persist market buffers to DB (PR #83) --
+        try:
+            for sym, df in self.market_buffers.items():
+                if not df.empty:
+                    await self.db_persist.enqueue(sym, df)
+        except Exception as exc:
+            self.logger.warning('[DB_PERSIST] enqueue failed: %s', exc)
 
     async def _prefetch_quotes(self) -> None:
         """
