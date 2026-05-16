@@ -38,11 +38,11 @@ _POISON = object()
 @dataclass
 class PersistConfig:
     db_path: str = "kiro_quant.db"
-    batch_size: int = 500          # Max rows per SQLite executemany batch
-    max_queue_size: int = 20000  # Rows; oldest dropped if exceeded to protect memory
-    flush_interval_sec: float = 5.0   # Force flush every N seconds
+    batch_size: int = 1000         # Max rows per SQLite executemany batch (up from 500)
+    max_queue_size: int = 50000    # Rows; oldest dropped if exceeded to protect memory
+    flush_interval_sec: float = 60.0  # Force flush every 60s (up from 5s for 300 symbols)
     wal_checkpoint_pages: int = 1000  # PRAGMA wal_autocheckpoint
-    archive_after_days: int = 30      # Move rows older than N days to archive table
+    archive_after_days: int = 14      # Move rows older than 14 days to archive table (more aggressive)
 
 
 @dataclass

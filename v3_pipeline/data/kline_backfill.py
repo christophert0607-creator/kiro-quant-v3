@@ -6,17 +6,23 @@ Responsibilities:
   - Incremental daily updates (last 5d) for all watchlist symbols
   - Proper data_source tagging: "YF_HIST" (backfill) / "YF_LIVE" (incremental)
   - Timezone-normalised timestamps (UTC naive, no offset suffix)
+  - Batch parallel processing with resume capability for 300+ symbols
 
 Integration point: called from IdleTaskScheduler Task 4 via asyncio.to_thread.
 """
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
+import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
 import pandas as pd
 
@@ -24,12 +30,15 @@ logger = logging.getLogger("kiro.kline_backfill")
 
 _REPO_ROOT = Path(__file__).parent.parent.parent
 _DB_PATH = _REPO_ROOT / "kiro_quant.db"
+_PROGRESS_PATH = _REPO_ROOT / "data" / "backfill_progress.json"
 
 MIN_BARS = 60
 FULL_PERIOD = "2y"
 INCREMENTAL_PERIOD = "5d"
 _DEFAULT_BATCH_SIZE = 10
 _DEFAULT_COOLDOWN_SEC = 2.0
+_DEFAULT_MAX_WORKERS = int(os.getenv("BACKFILL_MAX_WORKERS", "4"))
+_DEFAULT_YF_CONCURRENT = int(os.getenv("YF_MAX_CONCURRENT", "2"))
 
 
 # ── Timestamp normalisation ───────────────────────────────────────────────────
@@ -96,6 +105,68 @@ def _to_db_frame(featured: pd.DataFrame, symbol: str, data_source: str) -> pd.Da
     return df
 
 
+# ── Progress tracking ─────────────────────────────────────────────────────────
+
+class BackfillProgress:
+    """Track backfill progress to enable resume after interruption."""
+
+    def __init__(self, path: Path = _PROGRESS_PATH):
+        self.path = path
+        self._completed: set[str] = set()
+        self._failed: dict[str, str] = {}
+        self._load()
+
+    def _load(self) -> None:
+        if not self.path.exists():
+            return
+        try:
+            with open(self.path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            self._completed = set(data.get("completed", []))
+            self._failed = data.get("failed", {})
+        except Exception as exc:
+            logger.warning("[kline_backfill] Failed to load progress: %s", exc)
+
+    def save(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with open(self.path, "w", encoding="utf-8") as f:
+                json.dump({
+                    "completed": sorted(self._completed),
+                    "failed": self._failed,
+                    "last_updated": datetime.now(timezone.utc).isoformat(),
+                }, f, indent=2)
+        except Exception as exc:
+            logger.warning("[kline_backfill] Failed to save progress: %s", exc)
+
+    def is_done(self, symbol: str) -> bool:
+        return symbol in self._completed
+
+    def mark_done(self, symbol: str) -> None:
+        self._completed.add(symbol)
+        self._failed.pop(symbol, None)
+
+    def mark_failed(self, symbol: str, reason: str) -> None:
+        self._failed[symbol] = reason
+
+    def reset(self, symbols: Optional[list[str]] = None) -> None:
+        if symbols is None:
+            self._completed.clear()
+            self._failed.clear()
+        else:
+            for s in symbols:
+                self._completed.discard(s)
+                self._failed.pop(s, None)
+        self.save()
+
+    @property
+    def stats(self) -> dict:
+        return {
+            "completed": len(self._completed),
+            "failed": len(self._failed),
+        }
+
+
 # ── Main class ────────────────────────────────────────────────────────────────
 
 class KlineBackfill:
@@ -113,6 +184,7 @@ class KlineBackfill:
         db_path: str | None = None,
         batch_size: int = _DEFAULT_BATCH_SIZE,
         cooldown_sec: float = _DEFAULT_COOLDOWN_SEC,
+        max_workers: int = _DEFAULT_MAX_WORKERS,
     ) -> None:
         # Ensure repo root is importable regardless of cwd
         repo = str(_REPO_ROOT)
@@ -126,6 +198,8 @@ class KlineBackfill:
         self._indicator_gen = TechnicalIndicatorGenerator()
         self._batch_size = batch_size
         self._cooldown_sec = cooldown_sec
+        self._max_workers = max_workers
+        self._progress = BackfillProgress()
 
     # ── Health check ──────────────────────────────────────────────────────────
 
@@ -136,18 +210,125 @@ class KlineBackfill:
         health = self.symbol_health(symbols)
         return [s for s in symbols if (health.get(s) or {}).get("count", 0) < MIN_BARS]
 
-    # ── Core fetch + save ─────────────────────────────────────────────────────
+    # ── Core fetch + save (single symbol) ─────────────────────────────────────
 
-    def _fetch_and_save(
+    def _fetch_one(
+        self,
+        symbol: str,
+        period: str,
+        data_source: str,
+    ) -> tuple[str, int, Optional[str]]:
+        """
+        Download, compute TA, and save a single symbol.
+        Returns (symbol, rows_saved, error_or_none).
+        """
+        from v3_pipeline.data.yf_provider import download_history
+
+        try:
+            hist_map = download_history([symbol], period=period, interval="1d")
+            hist = hist_map.get(symbol, pd.DataFrame())
+            if hist.empty:
+                return symbol, 0, "empty history"
+
+            ohlcv = _prepare_ohlcv(hist)
+            if ohlcv.empty:
+                return symbol, 0, "empty after prepare"
+
+            featured = self._indicator_gen.generate(ohlcv)
+            db_frame = _to_db_frame(featured, symbol, data_source)
+
+            self._db.save_data(db_frame, symbol=symbol)
+            return symbol, len(db_frame), None
+        except Exception as exc:
+            return symbol, 0, str(exc)
+
+    # ── Parallel batch processing ─────────────────────────────────────────────
+
+    def _fetch_and_save_parallel(
+        self,
+        symbols: list[str],
+        period: str,
+        data_source: str,
+        skip_completed: bool = True,
+    ) -> dict[str, int]:
+        """
+        Parallel fetch + save with ThreadPoolExecutor.
+        Respects max_workers and yfinance concurrency limits.
+        Returns {symbol: rows_saved}.
+        """
+        saved: dict[str, int] = {}
+        to_process = [
+            s for s in symbols
+            if not (skip_completed and self._progress.is_done(s))
+        ]
+
+        if not to_process:
+            logger.info("[kline_backfill] all %d symbols already completed", len(symbols))
+            return saved
+
+        logger.info(
+            "[kline_backfill] parallel %s: %d symbols (workers=%d, batch=%d)",
+            data_source, len(to_process), self._max_workers, self._batch_size,
+        )
+
+        total = len(to_process)
+        completed = 0
+        t0_all = time.time()
+
+        with ThreadPoolExecutor(max_workers=self._max_workers) as executor:
+            # Submit all futures
+            future_to_sym = {
+                executor.submit(self._fetch_one, sym, period, data_source): sym
+                for sym in to_process
+            }
+
+            for future in as_completed(future_to_sym):
+                sym = future_to_sym[future]
+                try:
+                    symbol, rows, err = future.result(timeout=120)
+                    if err:
+                        logger.warning("[kline_backfill][%s] failed: %s", symbol, err)
+                        self._progress.mark_failed(symbol, err)
+                        saved[symbol] = 0
+                    else:
+                        logger.info(
+                            "[kline_backfill][%s] %d rows → DB (%s)",
+                            symbol, rows, data_source,
+                        )
+                        self._progress.mark_done(symbol)
+                        saved[symbol] = rows
+                except Exception as exc:
+                    logger.warning("[kline_backfill][%s] future failed: %s", sym, exc)
+                    self._progress.mark_failed(sym, str(exc))
+                    saved[sym] = 0
+
+                completed += 1
+                if completed % 10 == 0 or completed == total:
+                    elapsed = time.time() - t0_all
+                    rate = elapsed / completed if completed > 0 else 0
+                    eta = rate * (total - completed) if rate > 0 else 0
+                    logger.info(
+                        "[kline_backfill] progress %d/%d (%.1f%%) elapsed=%.1fs eta=%.1fs",
+                        completed, total, 100 * completed / total, elapsed, eta,
+                    )
+                    self._progress.save()
+
+        self._progress.save()
+        logger.info(
+            "[kline_backfill] parallel %s done — %d symbols in %.1fs",
+            data_source, len(to_process), time.time() - t0_all,
+        )
+        return saved
+
+    # ── Legacy sequential batch (for small symbol sets) ───────────────────────
+
+    def _fetch_and_save_sequential(
         self,
         symbols: list[str],
         period: str,
         data_source: str,
     ) -> dict[str, int]:
-        """
-        For each batch: download → compute TA → save.
-        Returns {symbol: rows_saved}.
-        """
+        """Sequential batch for small symbol sets or when parallel is disabled."""
         from v3_pipeline.data.yf_provider import download_history
 
         saved: dict[str, int] = {}
@@ -199,6 +380,7 @@ class KlineBackfill:
         """
         Full 2-year backfill for symbols with <60 bars.
         Skips symbols that already have enough data.
+        Uses parallel processing for >20 symbols.
         """
         needs = self.symbols_needing_backfill(symbols)
         if not needs:
@@ -211,15 +393,24 @@ class KlineBackfill:
             "[kline_backfill] smart repair: %d/%d symbols need backfill",
             len(needs), len(symbols),
         )
-        return self._fetch_and_save(needs, FULL_PERIOD, "YF_HIST")
+
+        # Use parallel for large batches
+        if len(needs) > 20 and self._max_workers > 1:
+            return self._fetch_and_save_parallel(needs, FULL_PERIOD, "YF_HIST")
+        return self._fetch_and_save_sequential(needs, FULL_PERIOD, "YF_HIST")
 
     def run_incremental(self, symbols: list[str]) -> dict[str, int]:
         """Fetch last 5d of daily bars for all symbols (catches today's close)."""
         logger.info("[kline_backfill] incremental update: %d symbols", len(symbols))
-        return self._fetch_and_save(symbols, INCREMENTAL_PERIOD, "YF_LIVE")
+        # Incremental is fast; use sequential to avoid overloading yfinance
+        return self._fetch_and_save_sequential(symbols, INCREMENTAL_PERIOD, "YF_LIVE")
 
     def run_full_cycle(self, symbols: list[str]) -> tuple[dict[str, int], dict[str, int]]:
         """smart_repair then incremental — use this as the single idle entry point."""
         repair = self.run_smart_repair(symbols)
         incremental = self.run_incremental(symbols)
         return repair, incremental
+
+    def reset_progress(self, symbols: Optional[list[str]] = None) -> None:
+        """Reset backfill progress for symbols (or all)."""
+        self._progress.reset(symbols)

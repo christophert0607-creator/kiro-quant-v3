@@ -24,6 +24,53 @@ from v3_pipeline.risk.kelly_sizer import KellyPositionSizer
 from v3_pipeline.risk.manager import RiskController
 from v3_pipeline.data.db_persist import LiveDbPersist
 
+# [V3-EXPANDED-UNIVERSE] Lazy imports to avoid breaking legacy mode
+_EXPANDED_MODE = int(os.getenv("EXPANDED_UNIVERSE", "0")) >= 300
+if _EXPANDED_MODE:
+    try:
+        from v3_pipeline.config.universe import SymbolUniverse, get_universe
+    except Exception:
+        get_universe = None
+else:
+    get_universe = None
+
+
+class _LRUBufferCache:
+    """LRU cache for market buffers — memory-efficient for 300+ symbols."""
+    def __init__(self, max_size: int = 40):
+        self.max_size = max_size
+        self._cache: dict[str, pd.DataFrame] = {}
+        self._access_order: list[str] = []
+
+    def _touch(self, symbol: str) -> None:
+        if symbol in self._access_order:
+            self._access_order.remove(symbol)
+        self._access_order.append(symbol)
+
+    def get(self, symbol: str) -> pd.DataFrame:
+        self._touch(symbol)
+        return self._cache.get(symbol, pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume", "data_source"]))
+
+    def set(self, symbol: str, df: pd.DataFrame) -> None:
+        self._touch(symbol)
+        self._cache[symbol] = df
+        self._evict_if_needed()
+
+    def _evict_if_needed(self) -> None:
+        while len(self._cache) > self.max_size:
+            oldest = self._access_order.pop(0)
+            if oldest in self._cache:
+                del self._cache[oldest]
+
+    def keys(self):
+        return list(self._cache.keys())
+
+    def items(self):
+        return self._cache.items()
+
+    def __contains__(self, symbol: str) -> bool:
+        return symbol in self._cache
+
 
 def _get_log_dir() -> Path:
     """Return the log directory, honouring KIRO_LOG_DIR env var for test isolation."""
@@ -212,45 +259,77 @@ class LiveTradingLoop:
         self.logger = _build_stderr_logger(self.__class__.__name__)
         self.structured_logger = _build_structured_logger("kiro.decisions")
 
-        # [V3-Dynamic-Screener] Priority: dynamic_watchlist.json
+        # [V3-Dynamic-Screener] + [V3-EXPANDED-UNIVERSE] Tiered symbol loading
         watchlist_path = Path("dynamic_watchlist.json")
-        symbols = []
-        if watchlist_path.exists():
+        symbols: list[str] = []
+        self.universe_symbols: list[str] = []  # All symbols for data collection
+        self.trading_symbols: list[str] = []     # Tier 1: active trading only
+        _fallback = True
+
+        if _EXPANDED_MODE and get_universe is not None:
             try:
-                import json
-                with open(watchlist_path, "r") as f:
-                    wdata = json.load(f)
-                    if wdata.get("picks"):
-                        symbols = wdata["picks"]
-                        self.logger.info("[SCREENER] Today's top picks: %s", symbols)
+                universe = get_universe()
+                self.universe_symbols = universe.get_data_collection()
+                self.trading_symbols = universe.get_active_trading()
+                # Fallback: if no Tier 1, use top liquidity from Tier 2
+                if not self.trading_symbols and self.universe_symbols:
+                    self.trading_symbols = universe.by_liquidity(min_score=0.85)[:20]
+                symbols = self.trading_symbols
+                self.logger.info(
+                    "[UNIVERSE] Expanded mode: %d universe symbols, %d trading symbols",
+                    len(self.universe_symbols), len(symbols),
+                )
+                _fallback = False
             except Exception as e:
-                self.logger.warning("Failed to load dynamic watchlist: %s", e)
-        
-        if not symbols:
-            symbols = self.config.symbols_list or [self.config.symbol]
+                self.logger.warning("[UNIVERSE] Expanded mode failed, falling back: %s", e)
+
+        if _fallback:
+            if watchlist_path.exists():
+                try:
+                    import json
+                    with open(watchlist_path, "r") as f:
+                        wdata = json.load(f)
+                        if wdata.get("picks"):
+                            symbols = wdata["picks"]
+                            self.logger.info("[SCREENER] Today's top picks: %s", symbols)
+                except Exception as e:
+                    self.logger.warning("Failed to load dynamic watchlist: %s", e)
+            if not symbols:
+                symbols = self.config.symbols_list or [self.config.symbol]
+            self.trading_symbols = symbols
+            self.universe_symbols = symbols
+
         self.symbols = symbols
         # Per-market context: partitions symbols into HK/US and tracks per-market account state.
         # The flat position dicts below remain the operational state; market_contexts provides
         # explicit isolation for account routing and cross-market sync operations.
         self.market_contexts = build_market_contexts(self.symbols)
-        self.market_buffers: dict[str, pd.DataFrame] = {
-            s: pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume", "data_source"]) for s in self.symbols
-        }
-        self.position_qty_by_symbol: dict[str, int] = {s: 0 for s in self.symbols}
+
+        # [V3-EXPANDED-UNIVERSE] Use LRU cache for buffers when > 40 symbols
+        if _EXPANDED_MODE and len(self.universe_symbols) > 40:
+            self.market_buffers = _LRUBufferCache(max_size=40)  # type: ignore[assignment]
+            self.logger.info("[UNIVERSE] LRU buffer cache enabled (max=40) for %d symbols", len(self.universe_symbols))
+        else:
+            self.market_buffers: dict[str, pd.DataFrame] = {
+                s: pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume", "data_source"]) for s in self.symbols
+            }
+        # Ensure all universe symbols have position tracking (lightweight dicts)
+        _all_tracking = self.universe_symbols if _EXPANDED_MODE else self.symbols
+        self.position_qty_by_symbol: dict[str, int] = {s: 0 for s in _all_tracking}
         # v3 Plan B: track SHORT positions separately (positive = LONG qty, negative = SHORT qty)
-        self.short_position_qty_by_symbol: dict[str, int] = {s: 0 for s in self.symbols}
-        self.highest_price_since_entry_by_symbol: dict[str, float] = {s: 0.0 for s in self.symbols}
-        self.lowest_price_since_short_by_symbol: dict[str, float] = {s: 0.0 for s in self.symbols}  # v3: for SHORT trailing
-        self.bars_held_by_symbol: dict[str, int] = {s: 0 for s in self.symbols}
-        self.bars_held_short_by_symbol: dict[str, int] = {s: 0 for s in self.symbols}  # v3: SHORT bars held
-        self.cycles_since_buy_by_symbol: dict[str, int] = {s: 999999 for s in self.symbols}
-        self.cycles_since_short_by_symbol: dict[str, int] = {s: 999999 for s in self.symbols}  # v3
+        self.short_position_qty_by_symbol: dict[str, int] = {s: 0 for s in _all_tracking}
+        self.highest_price_since_entry_by_symbol: dict[str, float] = {s: 0.0 for s in _all_tracking}
+        self.lowest_price_since_short_by_symbol: dict[str, float] = {s: 0.0 for s in _all_tracking}  # v3: for SHORT trailing
+        self.bars_held_by_symbol: dict[str, int] = {s: 0 for s in _all_tracking}
+        self.bars_held_short_by_symbol: dict[str, int] = {s: 0 for s in _all_tracking}  # v3: SHORT bars held
+        self.cycles_since_buy_by_symbol: dict[str, int] = {s: 999999 for s in _all_tracking}
+        self.cycles_since_short_by_symbol: dict[str, int] = {s: 999999 for s in _all_tracking}  # v3
         # Sell confirmation streak (avoid whipsaw exits when sentiment is bullish)
-        self.sell_signal_streak_by_symbol: dict[str, int] = {s: 0 for s in self.symbols}
-        self.buy_cover_signal_streak_by_symbol: dict[str, int] = {s: 0 for s in self.symbols}  # v3: cover confirmation streak
-        self.entry_price_by_symbol: dict[str, float] = {s: 0.0 for s in self.symbols}
-        self.short_entry_price_by_symbol: dict[str, float] = {s: 0.0 for s in self.symbols}  # v3: SHORT entry price
-        self.entry_rsi_by_symbol: dict[str, float] = {s: 50.0 for s in self.symbols}  # v2: for RSI-gated TP
+        self.sell_signal_streak_by_symbol: dict[str, int] = {s: 0 for s in _all_tracking}
+        self.buy_cover_signal_streak_by_symbol: dict[str, int] = {s: 0 for s in _all_tracking}  # v3: cover confirmation streak
+        self.entry_price_by_symbol: dict[str, float] = {s: 0.0 for s in _all_tracking}
+        self.short_entry_price_by_symbol: dict[str, float] = {s: 0.0 for s in _all_tracking}  # v3: SHORT entry price
+        self.entry_rsi_by_symbol: dict[str, float] = {s: 50.0 for s in _all_tracking}  # v2: for RSI-gated TP
         self.last_price_by_symbol: dict[str, float] = {}
         self.profile_timings: list[dict] = []
         self.sentiment_score = 0.0
@@ -287,16 +366,43 @@ class LiveTradingLoop:
                 backoff_seconds=self.config.history_retry_backoff_seconds,
             ),
         )
+        # [V3-EXPANDED-UNIVERSE] Only create DataPreparers for trading symbols
+        _prep_symbols = self.trading_symbols if _EXPANDED_MODE else self.symbols
         self.data_preparers_by_symbol: dict[str, DataPreparer] = {
             s: DataPreparer(
                 lookback=self.model_manager.data_preparer.lookback,
                 target_col=self.model_manager.data_preparer.target_col,
             )
-            for s in self.symbols
+            for s in _prep_symbols
         }
 
         # -- DB persistence (PR #83) --
         self.db_persist = LiveDbPersist(db_path="kiro_quant.db")
+
+    def _get_buffer(self, symbol: str) -> pd.DataFrame:
+        """Get market buffer for symbol — works with dict or LRU cache."""
+        if isinstance(self.market_buffers, _LRUBufferCache):
+            return self.market_buffers.get(symbol)
+        return self.market_buffers.get(symbol, pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume", "data_source"]))
+
+    def _set_buffer(self, symbol: str, df: pd.DataFrame) -> None:
+        """Set market buffer for symbol — works with dict or LRU cache."""
+        if isinstance(self.market_buffers, _LRUBufferCache):
+            self.market_buffers.set(symbol, df)
+        else:
+            self.market_buffers[symbol] = df
+
+    def _buffer_items(self):
+        """Iterate over buffer items — works with dict or LRU cache."""
+        if isinstance(self.market_buffers, _LRUBufferCache):
+            return self.market_buffers.items()
+        return self.market_buffers.items()
+
+    def _buffer_contains(self, symbol: str) -> bool:
+        """Check if buffer contains symbol."""
+        if isinstance(self.market_buffers, _LRUBufferCache):
+            return symbol in self.market_buffers
+        return symbol in self.market_buffers
 
     def start(self) -> None:
         self.futu_connector.connect()
@@ -341,7 +447,7 @@ class LiveTradingLoop:
         primed = await self.history_primer.prime_symbols(self.symbols)
         for symbol, df in primed.items():
             if not df.empty:
-                self.market_buffers[symbol] = self._normalize_market_buffer(df)
+                self._set_buffer(symbol, self._normalize_market_buffer(df))
         self.logger.info("History priming completed for %d symbols", len(self.symbols))
 
         while True:
@@ -369,7 +475,12 @@ class LiveTradingLoop:
             try:
                 from v3_pipeline.features.screener import ScreenConfig, score_symbols
                 cfg = ScreenConfig.from_env()
-                ranked = score_symbols(self.market_buffers, {}, {s: 0.0 for s in self.symbols}, cfg)
+                # [V3-EXPANDED-UNIVERSE] score_symbols needs a dict; convert LRU if needed
+                if _EXPANDED_MODE and isinstance(self.market_buffers, _LRUBufferCache):
+                    buffer_dict_for_screener = dict(self._buffer_items())
+                else:
+                    buffer_dict_for_screener = self.market_buffers  # type: ignore[assignment]
+                ranked = score_symbols(buffer_dict_for_screener, {}, {s: 0.0 for s in self.symbols}, cfg)
                 # Keep top N + any we already hold (don't skip if in position)
                 held = {s for s, qty in self.position_qty_by_symbol.items() if qty > 0}
                 passed = {sym for sym, score in ranked[: cfg.top_n * 2]}
@@ -397,7 +508,7 @@ class LiveTradingLoop:
 
         # -- Persist market buffers to DB (PR #83) --
         try:
-            for sym, df in self.market_buffers.items():
+            for sym, df in self._buffer_items():
                 if not df.empty:
                     await self.db_persist.enqueue(sym, df)
         except Exception as exc:
@@ -513,7 +624,7 @@ class LiveTradingLoop:
             # Fall through to quote fetch below
         else:
             cached = None  # cache miss or stale
-        self.logger.info("[CYCLE_START] symbol=%s buffer_len=%d lookback=%d", symbol, len(self.market_buffers.get(symbol, pd.DataFrame())), lookback)
+        self.logger.info("[CYCLE_START] symbol=%s buffer_len=%d lookback=%d", symbol, len(self._get_buffer(symbol)), lookback)
 
         # ── Broker offline fallback: use data_manager when broker heartbeat failed ─
         if self.broker_offline_fallback_mode and self.data_manager is not None:
@@ -531,8 +642,8 @@ class LiveTradingLoop:
                 self.logger.warning("DataManager fallback failed[%s]: %s", symbol, exc)
                 return
             # Append to buffer and return; skip model predictions when broker is offline
-            existing = self.market_buffers.get(symbol, pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume", "data_source"]))
-            self.market_buffers[symbol] = pd.concat([existing, pd.DataFrame([quote])], ignore_index=True)
+            existing = self._get_buffer(symbol)
+            self._set_buffer(symbol, pd.concat([existing, pd.DataFrame([quote])], ignore_index=True))
             return
         else:
             # ── QuoteCache lookup (primary) ───────────────────────────────────────────
@@ -562,9 +673,9 @@ class LiveTradingLoop:
                     self.logger.warning("QuoteFetchFail[%s]: %s", symbol, exc)
                     return
 
-        buffer_df = pd.concat([self.market_buffers[symbol], pd.DataFrame([quote])], ignore_index=True)
+        buffer_df = pd.concat([self._get_buffer(symbol), pd.DataFrame([quote])], ignore_index=True)
         buffer_df = self._normalize_market_buffer(buffer_df)
-        self.market_buffers[symbol] = buffer_df
+        self._set_buffer(symbol, buffer_df)
 
         self.logger.info("Buffer[%s] size: %d source=%s", symbol, len(buffer_df), quote.get("data_source", "UNKNOWN"))
 
@@ -753,7 +864,7 @@ class LiveTradingLoop:
         self.bars_held_by_symbol[symbol] = self.bars_held_by_symbol.get(symbol, 0) + (1 if qty > 0 else 0)
         if qty > 0:
             self.cycles_since_buy_by_symbol[symbol] = self.cycles_since_buy_by_symbol.get(symbol, 0) + 1
-        volatility = self.market_buffers[symbol]["Close"].pct_change().rolling(20).std().iloc[-1]
+        volatility = self._get_buffer(symbol)["Close"].pct_change().rolling(20).std().iloc[-1]
         stop_pct = self.strategy_factory.trailing_stop_by_volatility(float(volatility) if pd.notna(volatility) else 0.0, self.bars_held_by_symbol[symbol])
 
         if qty > 0:
@@ -1085,7 +1196,7 @@ class LiveTradingLoop:
                     min_confidence=round(min_conf_short, 4),
                 )
             else:
-                returns = self.market_buffers[symbol]["Close"].pct_change().dropna()
+                returns = self._get_buffer(symbol)["Close"].pct_change().dropna()
                 mc = self.monte_carlo.stress_test(returns)
                 if mc.get("avg_win", 0.0) > 0 and mc.get("avg_loss", 0.0) > 0:
                     kelly = self._kelly_sizer.calculate_details(
@@ -1222,7 +1333,7 @@ class LiveTradingLoop:
             return # Wait for next cycle to confirm cover and enter LONG
 
         if allow_long and prediction > threshold_up and qty == 0:
-            returns = self.market_buffers[symbol]["Close"].pct_change().dropna()
+            returns = self._get_buffer(symbol)["Close"].pct_change().dropna()
             mc = self.monte_carlo.stress_test(returns)
             # Use Kelly when simulation produced both wins and losses; fall back to confidence otherwise
             if mc.get("avg_win", 0.0) > 0 and mc.get("avg_loss", 0.0) > 0:
@@ -1285,9 +1396,9 @@ class LiveTradingLoop:
                 if q <= 0:
                     continue
                 px = float(self.last_price_by_symbol.get(sym, 0.0) or 0.0)
-                if px <= 0 and sym in self.market_buffers and not self.market_buffers[sym].empty:
+                if px <= 0 and self._buffer_contains(sym) and not self._get_buffer(sym).empty:
                     try:
-                        px = float(self.market_buffers[sym].iloc[-1]["Close"])
+                        px = float(self._get_buffer(sym).iloc[-1]["Close"])
                     except Exception:
                         px = 0.0
                 val = float(q) * max(px, 0.0)
@@ -1341,7 +1452,7 @@ class LiveTradingLoop:
                     # Snapshot proxies from live account state
                     total_mv = sum(
                         float(self.position_qty_by_symbol.get(s, 0) or 0) *
-                        float(self.market_buffers.get(s, {}).get("Close", [float(self.account_value)])[-1] or self.account_value)
+                        float(self._get_buffer(s).get("Close", [float(self.account_value)])[-1] or self.account_value)
                         for s in self.symbols
                     )
                     snap_total = float(self.account_value)
@@ -1674,7 +1785,7 @@ class LiveTradingLoop:
 
         if getattr(self.config, "swing_strategy_enabled", True):
             if qty == 0 and allow_long and swing["buy_signal"]:
-                returns = self.market_buffers[symbol]["Close"].pct_change().dropna()
+                returns = self._get_buffer(symbol)["Close"].pct_change().dropna()
                 mc_swing = self.monte_carlo.stress_test(returns)
                 kelly_swing = self._kelly_sizer.calculate_details(
                     win_rate=mc_swing["win_rate"], avg_win=mc_swing["avg_win"], avg_loss=mc_swing["avg_loss"]
@@ -1710,7 +1821,7 @@ class LiveTradingLoop:
                 self.logger.warning("[DAILY_LOSS_GATE][%s] blocked BUY: daily loss limit reached", symbol)
                 return
 
-            returns = self.market_buffers[symbol]["Close"].pct_change().dropna()
+            returns = self._get_buffer(symbol)["Close"].pct_change().dropna()
             mc = self.monte_carlo.stress_test(returns)
             if mc.get("avg_win", 0.0) > 0 and mc.get("avg_loss", 0.0) > 0:
                 kelly2 = self._kelly_sizer.calculate_details(
@@ -1753,7 +1864,7 @@ class LiveTradingLoop:
     def _evaluate_swing_signal(
         self, symbol: str, current_price: float, latest_frame: Optional[pd.DataFrame]
     ) -> dict:
-        frame = latest_frame if latest_frame is not None and not latest_frame.empty else self.market_buffers.get(symbol, pd.DataFrame())
+        frame = latest_frame if latest_frame is not None and not latest_frame.empty else self._get_buffer(symbol)
         if frame.empty:
             return {
                 "buy_signal": False, "sell_signal": False, "rsi": 50.0,
@@ -2396,7 +2507,7 @@ class LiveTradingLoop:
     def _archive_market_data(self) -> None:
         out_dir = Path("v3_pipeline/logs/archive")
         out_dir.mkdir(parents=True, exist_ok=True)
-        for symbol, df in self.market_buffers.items():
+        for symbol, df in self._buffer_items():
             if df.empty:
                 continue
             df.to_parquet(out_dir / f"{symbol}_{datetime.utcnow().strftime('%Y%m%d')}.parquet", compression="snappy")
