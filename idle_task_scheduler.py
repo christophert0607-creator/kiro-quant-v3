@@ -156,6 +156,23 @@ def _emit_fd_health(logger: logging.Logger, mode: str = "check") -> None:
 
 # ── Task implementations ──────────────────────────────────────────────────────
 
+def _run_kline_refresh(symbols: list[str], logger: logging.Logger) -> tuple[int, int]:
+    """
+    Synchronous wrapper for KlineBackfill — intended to be called via asyncio.to_thread.
+    Returns (rows_repaired, rows_updated).
+    """
+    try:
+        from v3_pipeline.data.kline_backfill import KlineBackfill
+        kb = KlineBackfill()
+        repair = kb.run_smart_repair(symbols)
+        incremental = kb.run_incremental(symbols)
+        rows_repaired = sum(v for v in repair.values() if v > 0)
+        rows_updated = sum(v for v in incremental.values() if v > 0)
+        return rows_repaired, rows_updated
+    except Exception as exc:
+        logger.error("[db_refresh] KlineBackfill failed: %s", exc)
+        return 0, 0
+
 async def _run_historical_backfill(
     symbols: list[str],
     loop: "LiveTradingLoop",
@@ -435,6 +452,31 @@ class IdleTaskScheduler:
             if self._stop_event.is_set():
                 return
             _build_readiness_report(symbols, self.loop, self.logger)
+
+            # Task 4: DB K-line backfill + incremental update (kiro_quant.db)
+            if self._stop_event.is_set():
+                return
+            mins_left = self._minutes_until_next_open()
+            if mins_left <= self.cfg.stop_before_open_min:
+                self.logger.info(
+                    "[IdleTaskScheduler] Too close to open (%.0f min) — skipping DB refresh", mins_left
+                )
+            else:
+                t0 = time.time()
+                rows_repaired, rows_updated = await asyncio.to_thread(
+                    _run_kline_refresh, symbols, self.logger
+                )
+                self.logger.info(
+                    "[db_refresh] done in %.1fs — repaired=%d updated=%d",
+                    time.time() - t0, rows_repaired, rows_updated,
+                )
+                _emit(
+                    self.logger,
+                    "db_kline_refresh",
+                    rows_repaired=rows_repaired,
+                    rows_updated=rows_updated,
+                    duration_sec=round(time.time() - t0, 1),
+                )
 
         except asyncio.CancelledError:
             self.logger.info("[IdleTaskScheduler] cancelled")
