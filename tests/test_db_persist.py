@@ -237,3 +237,92 @@ class TestClose:
         asyncio.run(p.close())
         # Second close should be harmless
         asyncio.run(p.close())
+
+
+# -- Inode-change auto-reconnect (PR #85 follow-up) --
+
+
+class TestInodeReconnect:
+    def test_records_inode_on_init(self, tmp_db: Path):
+        """After _ensure_db the live conn's inode is captured."""
+        p = LiveDbPersist(str(tmp_db))
+        try:
+            import os
+            assert p._conn_inode == os.stat(str(tmp_db)).st_ino
+            assert p._reconnect_count == 0
+        finally:
+            asyncio.run(p.close())
+
+    def test_db_path_changed_detects_replacement(self, tmp_db: Path):
+        """If the file at db_path is replaced, _db_path_changed returns True."""
+        p = LiveDbPersist(str(tmp_db))
+        try:
+            # Simulate external replacement: delete original and create new file
+            tmp_db.unlink()
+            tmp_db.write_bytes(b"")  # Fresh inode at same path
+            assert p._db_path_changed() is True
+        finally:
+            asyncio.run(p.close())
+
+    def test_db_path_unchanged_when_file_untouched(self, tmp_db: Path):
+        p = LiveDbPersist(str(tmp_db))
+        try:
+            assert p._db_path_changed() is False
+        finally:
+            asyncio.run(p.close())
+
+    def test_db_path_changed_false_when_file_missing(self, tmp_db: Path):
+        """If file is deleted but not replaced, _db_path_changed is False (no current inode)."""
+        p = LiveDbPersist(str(tmp_db))
+        try:
+            tmp_db.unlink()
+            # No replacement yet → current_path_inode returns None → not "changed"
+            assert p._db_path_changed() is False
+        finally:
+            asyncio.run(p.close())
+
+    def test_reconnect_rebuilds_conn_with_new_inode(self, tmp_db: Path):
+        import os
+        p = LiveDbPersist(str(tmp_db))
+        try:
+            old_inode = p._conn_inode
+            # Simulate replacement
+            tmp_db.unlink()
+            tmp_db.write_bytes(b"")
+            reconnected = p._reconnect_if_path_changed()
+            assert reconnected is True
+            assert p._reconnect_count == 1
+            assert p._conn is not None
+            assert p._conn_inode == os.stat(str(tmp_db)).st_ino
+            assert p._conn_inode != old_inode
+        finally:
+            asyncio.run(p.close())
+
+    def test_batch_upsert_recovers_after_inode_swap(self, tmp_db: Path):
+        """Writes that would have gone to the orphan inode land in the new file after reconnect."""
+        cfg = PersistConfig(db_path=str(tmp_db), batch_size=10, flush_interval_sec=0.1)
+        p = LiveDbPersist(cfg=cfg)
+
+        async def _body():
+            await p.start()
+            await p.enqueue("AAPL", _make_df(n=2))
+            await asyncio.sleep(0.4)  # let first batch land in original file
+            # Simulate the bug: delete + replace kiro_quant.db while LiveDbPersist holds a conn
+            tmp_db.unlink()
+            tmp_db.write_bytes(b"")
+            await p.enqueue("AAPL", _make_df(n=3, symbol="AAPL"))
+            await asyncio.sleep(0.6)  # background writer should detect + reconnect
+            await p.close()
+
+        asyncio.run(_body())
+
+        # The new file should contain at least the post-swap rows
+        conn = sqlite3.connect(str(tmp_db))
+        try:
+            tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+            assert "market_data" in tables, f"market_data table missing; tables={tables}"
+            rows = conn.execute("SELECT count(*) FROM market_data").fetchone()[0]
+        finally:
+            conn.close()
+        assert rows >= 3, f"Expected ≥3 rows after reconnect (got {rows}); writes were lost to orphan inode"
+        assert p._reconnect_count >= 1, "Reconnect was never triggered"

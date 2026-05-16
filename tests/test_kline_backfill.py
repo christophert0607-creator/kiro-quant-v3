@@ -162,30 +162,32 @@ class TestKlineBackfill:
         result = kb.symbols_needing_backfill(["AAPL"])
         assert result == ["AAPL"]
 
-    @patch("v3_pipeline.data.kline_backfill.KlineBackfill._fetch_and_save")
-    def test_run_smart_repair_skips_if_sufficient(self, mock_fetch, tmp_path):
+    @patch("v3_pipeline.data.kline_backfill.KlineBackfill._fetch_and_save_parallel")
+    @patch("v3_pipeline.data.kline_backfill.KlineBackfill._fetch_and_save_sequential")
+    def test_run_smart_repair_skips_if_sufficient(self, mock_seq, mock_par, tmp_path):
         kb = self._make_kb(tmp_path, "AAPL", MIN_BARS)
         result = kb.run_smart_repair(["AAPL"])
-        mock_fetch.assert_not_called()
+        mock_par.assert_not_called()
+        mock_seq.assert_not_called()
         assert result == {}
 
-    @patch("v3_pipeline.data.kline_backfill.KlineBackfill._fetch_and_save", return_value={"MSFT": 500})
-    def test_run_smart_repair_calls_fetch_for_missing(self, mock_fetch, tmp_path):
+    @patch("v3_pipeline.data.kline_backfill.KlineBackfill._fetch_and_save_sequential", return_value={"MSFT": 500})
+    def test_run_smart_repair_calls_fetch_for_missing(self, mock_seq, tmp_path):
+        # 1 symbol → ≤20 threshold → routes to _sequential (parallel only for >20 symbols)
         kb = self._make_kb(tmp_path)
         result = kb.run_smart_repair(["MSFT"])
-        mock_fetch.assert_called_once()
-        _, call_kwargs = mock_fetch.call_args
-        # period should be FULL_PERIOD, data_source YF_HIST
-        args = mock_fetch.call_args[0]
+        mock_seq.assert_called_once()
+        args = mock_seq.call_args[0]
         assert args[1] == "2y"
         assert args[2] == "YF_HIST"
 
-    @patch("v3_pipeline.data.kline_backfill.KlineBackfill._fetch_and_save", return_value={"AAPL": 5})
-    def test_run_incremental_always_fetches(self, mock_fetch, tmp_path):
+    @patch("v3_pipeline.data.kline_backfill.KlineBackfill._fetch_and_save_sequential", return_value={"AAPL": 5})
+    def test_run_incremental_always_fetches(self, mock_seq, tmp_path):
+        # run_incremental always uses sequential path regardless of max_workers
         kb = self._make_kb(tmp_path, "AAPL", MIN_BARS)
         result = kb.run_incremental(["AAPL"])
-        mock_fetch.assert_called_once()
-        args = mock_fetch.call_args[0]
+        mock_seq.assert_called_once()
+        args = mock_seq.call_args[0]
         assert args[1] == "5d"
         assert args[2] == "YF_LIVE"
 
