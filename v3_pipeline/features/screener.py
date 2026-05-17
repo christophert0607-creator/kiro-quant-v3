@@ -345,16 +345,73 @@ class V3FunnelScreener:
         df = self.filter_by_growth(df)
         df = self.filter_by_valuation(df)
         df = self.filter_by_trend(df)
-        
+
+        picks = df['symbol'].tolist()
+        details = df.to_dict(orient="records")
+        failed = getattr(self, '_failed_symbols', [])
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # Preserve the tiered schema written by v3_pipeline/config/universe.py and
+        # asserted by tests/test_universe_expansion.py::test_dynamic_watchlist_format.
+        # Load whatever's already there, merge in today's picks (push them into
+        # tier1.symbols + the legacy top-level `picks` array), and keep version /
+        # tiers / metadata so PR #85's universe loader doesn't fall back to legacy.
+        existing: dict = {}
+        try:
+            if self.watchlist_path.exists():
+                with open(self.watchlist_path, "r", encoding="utf-8") as f:
+                    existing = json.load(f) or {}
+        except (OSError, json.JSONDecodeError):
+            existing = {}
+
+        tiers = existing.get("tiers")
+        if not isinstance(tiers, dict):
+            tiers = {
+                "tier1": {
+                    "description": "Active trading — screener picks, model evaluation, order execution",
+                    "max_size": 20,
+                    "symbols": [],
+                },
+                "tier2": {
+                    "description": "Full universe — data collection, backfill, indicator computation",
+                    "count": 0,
+                    "symbols": [],
+                },
+                "tier3": {
+                    "description": "Watch only — symbols pending promotion / under review",
+                    "symbols": [],
+                },
+            }
+
+        tier1 = tiers.setdefault("tier1", {"description": "Active trading", "max_size": 20, "symbols": []})
+        max_size = int(tier1.get("max_size", 20) or 20)
+        tier1["symbols"] = picks[:max_size]
+        tiers["tier1"] = tier1
+        tiers.setdefault("tier2", {"description": "Full universe", "count": 0, "symbols": []})
+        tiers.setdefault("tier3", {"description": "Watch only", "symbols": []})
+
+        metadata = existing.get("metadata")
+        if not isinstance(metadata, dict):
+            metadata = {}
+        metadata["last_screened_at"] = now
+        metadata["last_screener"] = "V3FunnelScreener"
+        metadata["picks_count"] = len(picks)
+        metadata["failed_count"] = len(failed)
+
         results = {
-            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "picks": df['symbol'].tolist(),
-            "details": df.to_dict(orient="records"),
-            "failed_symbols": getattr(self, '_failed_symbols', [])
+            "version": existing.get("version", "2.0"),
+            "date": now,
+            "expanded_universe": bool(existing.get("expanded_universe", False)),
+            "tiers": tiers,
+            "metadata": metadata,
+            # Legacy fields retained for backward compatibility with older callers
+            "picks": picks,
+            "details": details,
+            "failed_symbols": failed,
         }
-        
+
         with open(self.watchlist_path, "w") as f:
             json.dump(results, f, indent=4)
-        
-        print(f"[V3FunnelScreener] Screening complete. {len(results['picks'])} picks saved to {self.watchlist_path}")
-        return results['picks']
+
+        print(f"[V3FunnelScreener] Screening complete. {len(picks)} picks saved to {self.watchlist_path}")
+        return picks
