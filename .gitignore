@@ -51,3 +51,6 @@ trades.jsonl
 
 # Root-level model output (training artifacts separate from v3_pipeline/models/)
 /models/
+
+# Legacy scripts (moved from root, kept for reference)
+legacy_archive/v3_scripts/ # not tracked
