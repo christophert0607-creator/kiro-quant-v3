@@ -1,7 +1,7 @@
 {
-  "date": "2026-05-14",
+  "date": "2026-05-17",
   "daily_pnl": 0.0,
-  "daily_trades": 1,
+  "daily_trades": 2,
   "consecutive_errors": 0,
   "circuit_broken": false,
   "circuit_break_time": null,
@@ -126,6 +126,20 @@
       "qty": 2,
       "price": 223.74000549316406,
       "reason": "stop_loss_0.0200"
+    },
+    "HK.0700.HK": {
+      "time": 1778989056.7116802,
+      "signal": "BUY",
+      "qty": 100,
+      "price": 60.0,
+      "reason": "test"
+    },
+    "US.TSLA": {
+      "time": 1778989056.713639,
+      "signal": "BUY",
+      "qty": 10,
+      "price": 200.0,
+      "reason": "test"
     }
   },
   "positions": {
@@ -144,7 +158,9 @@
     "US.SMCI": 89,
     "US.NFLX": 63,
     "US.AMAT": 0,
-    "US.ARM": 0
+    "US.ARM": 0,
+    "HK.0700.HK": 100,
+    "US.TSLA": 10
   },
   "total_invested": 0.0,
   "mode": "HK_lite",
@@ -167,7 +183,9 @@
     "US.SMCI": 0,
     "US.NFLX": 0,
     "US.AMAT": 0,
-    "US.ARM": 0
+    "US.ARM": 0,
+    "HK.0700.HK": 0,
+    "US.TSLA": 0
   },
   "account_routing": {
     "account_routing": {
