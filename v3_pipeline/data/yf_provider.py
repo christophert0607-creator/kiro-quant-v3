@@ -92,6 +92,48 @@ def _is_fd_safe() -> tuple[bool, dict]:
 
 # ── Internal helpers ───────────────────────────────────────────────────────────
 
+# Tokens that quote providers occasionally return in place of a numeric price,
+# especially during US after-hours / halt windows. Anything matching these
+# (case-insensitive, whitespace-trimmed) is treated as missing data and forces
+# the provider to return None so downstream code can fall back instead of
+# crashing on `float("N/A")`.
+_NON_NUMERIC_PRICE_TOKENS = frozenset({"", "N/A", "NA", "NAN", "NONE", "NULL", "—", "-", "--", "?"})
+
+
+def _coerce_price(value, *, field: str, symbol: str) -> Optional[float]:
+    """Convert ``value`` to a float or return None if it is a sentinel/non-numeric.
+
+    Logs at WARNING when a non-numeric token is rejected so operators see why
+    a bar was dropped. Returns None when the value is missing or unparseable.
+    """
+    if value is None:
+        return None
+    # pandas/numpy NaN
+    try:
+        import math
+        if isinstance(value, float) and math.isnan(value):
+            return None
+    except Exception:
+        pass
+    if isinstance(value, (int, float)):
+        return float(value)
+    s = str(value).strip()
+    if s.upper() in _NON_NUMERIC_PRICE_TOKENS:
+        logger.warning(
+            "[yf_provider] %s non-numeric %s=%r — treating as missing data",
+            symbol, field, value,
+        )
+        return None
+    try:
+        return float(s)
+    except (TypeError, ValueError):
+        logger.warning(
+            "[yf_provider] %s unparseable %s=%r — treating as missing data",
+            symbol, field, value,
+        )
+        return None
+
+
 def _close_ticker_session(ticker) -> None:
     """Close the underlying requests session of a yfinance Ticker.
 
@@ -175,14 +217,24 @@ def get_latest_quote(symbol: str) -> Optional[dict]:
                 logger.warning("[yf_provider] empty history for %s", symbol)
                 return None
             row = hist.iloc[-1]
-            close = float(row.get("Close", 0.0))
+            # Sanitise: providers occasionally return "N/A" or "—" for after-hours
+            # bars; let _coerce_price reject those so callers fall back cleanly
+            # instead of raising `ValueError: could not convert string to float`
+            # in the order-builder.
+            close = _coerce_price(row.get("Close"), field="Close", symbol=symbol)
+            if close is None:
+                return None
+            open_v = _coerce_price(row.get("Open"), field="Open", symbol=symbol)
+            high_v = _coerce_price(row.get("High"), field="High", symbol=symbol)
+            low_v = _coerce_price(row.get("Low"), field="Low", symbol=symbol)
+            volume = _coerce_price(row.get("Volume"), field="Volume", symbol=symbol)
             result = {
                 "Date": pd.Timestamp.now(),
-                "Open": float(row.get("Open", close)),
-                "High": float(row.get("High", close)),
-                "Low": float(row.get("Low", close)),
+                "Open": open_v if open_v is not None else close,
+                "High": high_v if high_v is not None else close,
+                "Low": low_v if low_v is not None else close,
                 "Close": close,
-                "Volume": float(row.get("Volume", 0.0)),
+                "Volume": volume if volume is not None else 0.0,
                 "data_source": "YF_LIVE",
             }
             return result
