@@ -78,26 +78,62 @@ def test_connect_auto_unlocks_in_real_mode(monkeypatch):
     assert connector.trade_ctx.unlock_calls == ["secret"]
 
 
-def test_discover_accounts_fallback_without_trd_env_support():
+def test_discover_accounts_uses_bare_get_acc_list():
+    """get_acc_list() takes no kwargs in any current SDK version. discover_accounts
+    must call it without trd_env or acc_id, otherwise the call raises TypeError and
+    discovered_accounts comes back empty (production bug, observed 2026-05-17)."""
     cfg = FutuConfig(trd_env="REAL", trade_password="secret")
     connector = FutuConnector(config=cfg)
     connector.ft = DummyFT
 
-    class LegacyTradeCtx(DummyTradeContext):
+    seen_kwargs: list[dict] = []
+
+    class StrictTradeCtx:
+        _acc_df = pd.DataFrame([{"acc_id": 123456}])
+
         def get_acc_list(self, **kwargs):
+            seen_kwargs.append(dict(kwargs))
+            # Real Futu SDK rejects ANY kwargs here
+            if kwargs:
+                raise TypeError(
+                    f"get_acc_list() got an unexpected keyword argument {next(iter(kwargs))!r}"
+                )
             return 0, self._acc_df
 
-    connector.trade_ctx = LegacyTradeCtx()
-
-    def fail_safe_trade_call(name, **kwargs):
-        raise TypeError("get_acc_list() got an unexpected keyword argument 'trd_env'")
-
-    connector._safe_trade_call = fail_safe_trade_call  # type: ignore[method-assign]
+    connector.trade_ctx = StrictTradeCtx()
 
     accounts = connector.discover_accounts()
 
+    assert seen_kwargs == [{}], f"discover_accounts must call get_acc_list() with no kwargs; got {seen_kwargs}"
     assert not accounts.empty
     assert int(accounts.iloc[0]["acc_id"]) == 123456
+
+
+def test_discover_accounts_returns_empty_on_total_failure():
+    """If get_acc_list itself raises (network, unauth, etc.), discover_accounts swallows
+    the error and returns an empty frame instead of crashing the launcher."""
+    cfg = FutuConfig(trd_env="SIMULATE", trade_password="secret")
+    connector = FutuConnector(config=cfg)
+    connector.ft = DummyFT
+
+    class DeadCtx:
+        def get_acc_list(self):
+            raise RuntimeError("trade ctx not connected")
+
+    connector.trade_ctx = DeadCtx()
+
+    accounts = connector.discover_accounts()
+    assert accounts.empty
+
+
+def test_discover_accounts_skips_when_not_connected():
+    cfg = FutuConfig(trd_env="SIMULATE")
+    connector = FutuConnector(config=cfg)
+    connector.ft = DummyFT
+    connector.trade_ctx = None
+
+    accounts = connector.discover_accounts()
+    assert accounts.empty
 
 
 def test_connect_does_not_unlock_in_simulate_mode(monkeypatch):
