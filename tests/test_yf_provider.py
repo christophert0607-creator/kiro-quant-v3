@@ -470,6 +470,98 @@ class TestResetYfCacheFds:
         assert len(reset_calls) == 5
 
 
+# ── N/A / sentinel price sanitisation (E18 — US after-hours) ─────────────────
+
+class TestNonNumericPriceSanitisation:
+    """Sentinel quote payloads ("N/A", "—", "") must surface as None, not raise."""
+
+    def _na_history_df(self, close="N/A"):
+        return pd.DataFrame({
+            "Open": [100.0], "High": [101.0], "Low": [99.0],
+            "Close": [close], "Volume": [1000.0],
+        })
+
+    def test_close_na_string_returns_none(self):
+        from v3_pipeline.data import yf_provider
+
+        with patch.object(yf_provider, "_get_fd_stats", return_value=(100, 1024)):
+            with patch("yfinance.Ticker") as mock_ticker:
+                mock_ticker.return_value.history.return_value = self._na_history_df("N/A")
+                result = yf_provider.get_latest_quote("AAPL")
+        assert result is None, "N/A close must not become a quote"
+
+    def test_close_em_dash_returns_none(self):
+        from v3_pipeline.data import yf_provider
+
+        with patch.object(yf_provider, "_get_fd_stats", return_value=(100, 1024)):
+            with patch("yfinance.Ticker") as mock_ticker:
+                mock_ticker.return_value.history.return_value = self._na_history_df("—")
+                result = yf_provider.get_latest_quote("AAPL")
+        assert result is None
+
+    def test_close_nan_returns_none(self):
+        from v3_pipeline.data import yf_provider
+
+        with patch.object(yf_provider, "_get_fd_stats", return_value=(100, 1024)):
+            with patch("yfinance.Ticker") as mock_ticker:
+                mock_ticker.return_value.history.return_value = self._na_history_df(float("nan"))
+                result = yf_provider.get_latest_quote("AAPL")
+        assert result is None
+
+    def test_close_empty_string_returns_none(self):
+        from v3_pipeline.data import yf_provider
+
+        with patch.object(yf_provider, "_get_fd_stats", return_value=(100, 1024)):
+            with patch("yfinance.Ticker") as mock_ticker:
+                mock_ticker.return_value.history.return_value = self._na_history_df("")
+                result = yf_provider.get_latest_quote("AAPL")
+        assert result is None
+
+    def test_numeric_string_still_parses(self):
+        from v3_pipeline.data import yf_provider
+
+        df = pd.DataFrame({
+            "Open": ["100.5"], "High": ["101.5"], "Low": ["99.5"],
+            "Close": ["100.75"], "Volume": ["50000"],
+        })
+        with patch.object(yf_provider, "_get_fd_stats", return_value=(100, 1024)):
+            with patch("yfinance.Ticker") as mock_ticker:
+                mock_ticker.return_value.history.return_value = df
+                result = yf_provider.get_latest_quote("AAPL")
+        assert result is not None
+        assert result["Close"] == 100.75
+        assert result["Open"] == 100.5
+
+    def test_partial_na_falls_back_to_close(self):
+        from v3_pipeline.data import yf_provider
+
+        df = pd.DataFrame({
+            "Open": ["N/A"], "High": ["N/A"], "Low": ["N/A"],
+            "Close": [100.5], "Volume": [1000.0],
+        })
+        with patch.object(yf_provider, "_get_fd_stats", return_value=(100, 1024)):
+            with patch("yfinance.Ticker") as mock_ticker:
+                mock_ticker.return_value.history.return_value = df
+                result = yf_provider.get_latest_quote("AAPL")
+        assert result is not None
+        assert result["Close"] == 100.5
+        assert result["Open"] == 100.5
+        assert result["High"] == 100.5
+        assert result["Low"] == 100.5
+
+    def test_coerce_price_helper_directly(self):
+        from v3_pipeline.data.yf_provider import _coerce_price
+        assert _coerce_price(100.5, field="x", symbol="T") == 100.5
+        assert _coerce_price("100.5", field="x", symbol="T") == 100.5
+        assert _coerce_price("N/A", field="x", symbol="T") is None
+        assert _coerce_price("n/a", field="x", symbol="T") is None
+        assert _coerce_price("  N/A  ", field="x", symbol="T") is None
+        assert _coerce_price(None, field="x", symbol="T") is None
+        assert _coerce_price(float("nan"), field="x", symbol="T") is None
+        assert _coerce_price("—", field="x", symbol="T") is None
+        assert _coerce_price("garbage", field="x", symbol="T") is None
+
+
 # ── 10 consecutive IDLE backfill rounds — FD stability ───────────────────────
 
 class TestIdleBackfillFdStability:
