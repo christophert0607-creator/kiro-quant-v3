@@ -28,6 +28,12 @@ logger = logging.getLogger("kiro.yf_provider")
 _MAX_CONCURRENT = int(os.getenv("YF_MAX_CONCURRENT", "1"))
 _semaphore = threading.Semaphore(_MAX_CONCURRENT)
 _FD_GUARD_THRESHOLD = float(os.getenv("YF_FD_GUARD_THRESHOLD", "0.80"))
+# Cap per-batch FD growth in download_history. Default 5 → reset the yfinance
+# Peewee SQLite singletons every N symbols inside the loop instead of only at
+# batch end. Without this cap, a 300-symbol IDLE round can balloon FD count
+# even with PR #80's per-batch reset because yfinance reopens its tz/cookie
+# cache db on every Ticker.history() call.
+_RESET_EVERY = max(1, int(os.getenv("YF_RESET_EVERY", "5")))
 
 
 # ── FD utilities ──────────────────────────────────────────────────────────────
@@ -218,7 +224,7 @@ def download_history(
     with _semaphore:
         try:
             import yfinance as yf
-            for sym in symbols:
+            for idx, sym in enumerate(symbols, start=1):
                 ticker = None
                 try:
                     ticker = yf.Ticker(sym)
@@ -230,10 +236,15 @@ def download_history(
                 finally:
                     if ticker is not None:
                         _close_ticker_session(ticker)
+                    # Aggressive reset every N symbols inside the loop to bound
+                    # tkr-tz.db FD growth under PR #85's 300+ symbol universe.
+                    if idx % _RESET_EVERY == 0:
+                        _reset_yf_cache_fds()
         except Exception as exc:
             logger.warning("[yf_provider] download_history error: %s", exc)
             for s in symbols:
                 results.setdefault(s, pd.DataFrame())
         finally:
+            # Final reset to catch the tail of the loop (when len(symbols) % _RESET_EVERY != 0)
             _reset_yf_cache_fds()
     return results

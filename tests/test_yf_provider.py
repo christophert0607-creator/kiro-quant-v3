@@ -397,7 +397,7 @@ class TestResetYfCacheFds:
         assert len(reset_calls) == 1
 
     def test_called_in_download_history_finally(self):
-        """_reset_yf_cache_fds is invoked once after every download_history call."""
+        """_reset_yf_cache_fds is invoked at least once per download_history call (batch tail)."""
         from v3_pipeline.data import yf_provider
 
         reset_calls = []
@@ -413,7 +413,61 @@ class TestResetYfCacheFds:
                     mock_ticker.return_value.history.return_value = _fake_history_df()
                     yf_provider.download_history(["AAPL", "MSFT"])
 
-        assert len(reset_calls) == 1  # once per batch, not per symbol
+        # 2 symbols + _RESET_EVERY default 5 → only the tail-finally reset fires
+        assert len(reset_calls) == 1
+
+    def test_reset_fires_every_N_symbols_in_download_history(self):
+        """With _RESET_EVERY=2, a 7-symbol batch must reset 3× in-loop + 1× tail = 4."""
+        from v3_pipeline.data import yf_provider
+
+        reset_calls = []
+        original = yf_provider._reset_yf_cache_fds
+
+        def _spy():
+            reset_calls.append(1)
+            original()
+
+        with patch.object(yf_provider, "_RESET_EVERY", 2):
+            with patch.object(yf_provider, "_reset_yf_cache_fds", side_effect=_spy):
+                with patch.object(yf_provider, "_get_fd_stats", return_value=(100, 1024)):
+                    with patch("yfinance.Ticker") as mock_ticker:
+                        mock_ticker.return_value.history.return_value = _fake_history_df()
+                        yf_provider.download_history([f"S{i}" for i in range(7)])
+
+        # 7 symbols / RESET_EVERY=2 → in-loop resets at idx 2,4,6 = 3 calls
+        # plus the finally-tail reset → 4 total
+        assert len(reset_calls) == 4, f"expected 4 resets (3 in-loop + 1 tail), got {len(reset_calls)}"
+
+    def test_reset_does_not_skip_when_exception_in_loop(self):
+        """Even if some symbols raise, in-loop reset still triggers (finally guard)."""
+        from v3_pipeline.data import yf_provider
+
+        reset_calls = []
+        original = yf_provider._reset_yf_cache_fds
+
+        def _spy():
+            reset_calls.append(1)
+            original()
+
+        call_count = {"n": 0}
+
+        def _make_ticker(*a, **kw):
+            call_count["n"] += 1
+            t = MagicMock()
+            if call_count["n"] % 3 == 0:  # every 3rd symbol raises during history()
+                t.history.side_effect = RuntimeError("yf timeout")
+            else:
+                t.history.return_value = _fake_history_df()
+            return t
+
+        with patch.object(yf_provider, "_RESET_EVERY", 1):
+            with patch.object(yf_provider, "_reset_yf_cache_fds", side_effect=_spy):
+                with patch.object(yf_provider, "_get_fd_stats", return_value=(100, 1024)):
+                    with patch("yfinance.Ticker", side_effect=_make_ticker):
+                        yf_provider.download_history(["A", "B", "C", "D"])
+
+        # RESET_EVERY=1 → reset every symbol = 4 in-loop + 1 tail = 5
+        assert len(reset_calls) == 5
 
 
 # ── 10 consecutive IDLE backfill rounds — FD stability ───────────────────────
