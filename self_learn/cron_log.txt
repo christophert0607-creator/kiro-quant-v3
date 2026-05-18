@@ -3394,3 +3394,381 @@ FROM predictions) AS anon_1]
 RETRAIN_CHECK: {"error": "(sqlite3.OperationalError) no such table: predictions\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT predictions.id AS predictions_id, predictions.symbol AS predictions_symbol, predictions.predicted_price AS predictions_predicted_price, predictions.confidence AS predictions_confidence, predictions.feature_vector AS predictions_feature_vector, predictions.model_version_id AS predictions_model_version_id, predictions.created_at AS predictions_created_at \nFROM predictions) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"}
 ---
 Done at Mon May 18 00:00:07 CST 2026
+=== [2026-05-18 04:00:06] Self-Learn Cron ===
+STATS: Traceback (most recent call last):
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such table: predictions
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+  File "/home/tsukii0607/.openclaw/workspace-quant/kiro-quant-v3/self_learn/models.py", line 361, in get_stats
+    total_predictions = session.query(Prediction).count()
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 3146, in count
+    self._legacy_from_self(col).enable_eagerloads(False).scalar()
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2835, in scalar
+    ret = self.one()
+          ^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2808, in one
+    return self._iter().one()  # type: ignore
+           ^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: predictions
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT predictions.id AS predictions_id, predictions.symbol AS predictions_symbol, predictions.predicted_price AS predictions_predicted_price, predictions.confidence AS predictions_confidence, predictions.feature_vector AS predictions_feature_vector, predictions.model_version_id AS predictions_model_version_id, predictions.created_at AS predictions_created_at 
+FROM predictions) AS anon_1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+RETRAIN_CHECK: {"error": "(sqlite3.OperationalError) no such table: predictions\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT predictions.id AS predictions_id, predictions.symbol AS predictions_symbol, predictions.predicted_price AS predictions_predicted_price, predictions.confidence AS predictions_confidence, predictions.feature_vector AS predictions_feature_vector, predictions.model_version_id AS predictions_model_version_id, predictions.created_at AS predictions_created_at \nFROM predictions) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"}
+---
+Done at Mon May 18 04:00:08 CST 2026
+=== [2026-05-18 08:00:04] Self-Learn Cron ===
+STATS: Traceback (most recent call last):
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such table: predictions
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+  File "/home/tsukii0607/.openclaw/workspace-quant/kiro-quant-v3/self_learn/models.py", line 361, in get_stats
+    total_predictions = session.query(Prediction).count()
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 3146, in count
+    self._legacy_from_self(col).enable_eagerloads(False).scalar()
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2835, in scalar
+    ret = self.one()
+          ^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2808, in one
+    return self._iter().one()  # type: ignore
+           ^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: predictions
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT predictions.id AS predictions_id, predictions.symbol AS predictions_symbol, predictions.predicted_price AS predictions_predicted_price, predictions.confidence AS predictions_confidence, predictions.feature_vector AS predictions_feature_vector, predictions.model_version_id AS predictions_model_version_id, predictions.created_at AS predictions_created_at 
+FROM predictions) AS anon_1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+RETRAIN_CHECK: {"error": "(sqlite3.OperationalError) no such table: predictions\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT predictions.id AS predictions_id, predictions.symbol AS predictions_symbol, predictions.predicted_price AS predictions_predicted_price, predictions.confidence AS predictions_confidence, predictions.feature_vector AS predictions_feature_vector, predictions.model_version_id AS predictions_model_version_id, predictions.created_at AS predictions_created_at \nFROM predictions) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"}
+---
+Done at Mon May 18 08:00:07 CST 2026
+=== [2026-05-18 12:00:08] Self-Learn Cron ===
+STATS: Traceback (most recent call last):
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such table: predictions
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+  File "/home/tsukii0607/.openclaw/workspace-quant/kiro-quant-v3/self_learn/models.py", line 361, in get_stats
+    total_predictions = session.query(Prediction).count()
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 3146, in count
+    self._legacy_from_self(col).enable_eagerloads(False).scalar()
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2835, in scalar
+    ret = self.one()
+          ^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2808, in one
+    return self._iter().one()  # type: ignore
+           ^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: predictions
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT predictions.id AS predictions_id, predictions.symbol AS predictions_symbol, predictions.predicted_price AS predictions_predicted_price, predictions.confidence AS predictions_confidence, predictions.feature_vector AS predictions_feature_vector, predictions.model_version_id AS predictions_model_version_id, predictions.created_at AS predictions_created_at 
+FROM predictions) AS anon_1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+RETRAIN_CHECK: {"error": "(sqlite3.OperationalError) no such table: predictions\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT predictions.id AS predictions_id, predictions.symbol AS predictions_symbol, predictions.predicted_price AS predictions_predicted_price, predictions.confidence AS predictions_confidence, predictions.feature_vector AS predictions_feature_vector, predictions.model_version_id AS predictions_model_version_id, predictions.created_at AS predictions_created_at \nFROM predictions) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"}
+---
+Done at Mon May 18 12:00:11 CST 2026
+=== [2026-05-18 16:00:08] Self-Learn Cron ===
+STATS: Traceback (most recent call last):
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such table: predictions
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+  File "/home/tsukii0607/.openclaw/workspace-quant/kiro-quant-v3/self_learn/models.py", line 361, in get_stats
+    total_predictions = session.query(Prediction).count()
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 3146, in count
+    self._legacy_from_self(col).enable_eagerloads(False).scalar()
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2835, in scalar
+    ret = self.one()
+          ^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2808, in one
+    return self._iter().one()  # type: ignore
+           ^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: predictions
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT predictions.id AS predictions_id, predictions.symbol AS predictions_symbol, predictions.predicted_price AS predictions_predicted_price, predictions.confidence AS predictions_confidence, predictions.feature_vector AS predictions_feature_vector, predictions.model_version_id AS predictions_model_version_id, predictions.created_at AS predictions_created_at 
+FROM predictions) AS anon_1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+RETRAIN_CHECK: {"error": "(sqlite3.OperationalError) no such table: predictions\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT predictions.id AS predictions_id, predictions.symbol AS predictions_symbol, predictions.predicted_price AS predictions_predicted_price, predictions.confidence AS predictions_confidence, predictions.feature_vector AS predictions_feature_vector, predictions.model_version_id AS predictions_model_version_id, predictions.created_at AS predictions_created_at \nFROM predictions) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"}
+---
+Done at Mon May 18 16:00:10 CST 2026
+=== [2026-05-18 20:00:01] Self-Learn Cron ===
+STATS: Traceback (most recent call last):
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such table: predictions
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+  File "/home/tsukii0607/.openclaw/workspace-quant/kiro-quant-v3/self_learn/models.py", line 361, in get_stats
+    total_predictions = session.query(Prediction).count()
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 3146, in count
+    self._legacy_from_self(col).enable_eagerloads(False).scalar()
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2835, in scalar
+    ret = self.one()
+          ^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2808, in one
+    return self._iter().one()  # type: ignore
+           ^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: predictions
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT predictions.id AS predictions_id, predictions.symbol AS predictions_symbol, predictions.predicted_price AS predictions_predicted_price, predictions.confidence AS predictions_confidence, predictions.feature_vector AS predictions_feature_vector, predictions.model_version_id AS predictions_model_version_id, predictions.created_at AS predictions_created_at 
+FROM predictions) AS anon_1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+RETRAIN_CHECK: {"error": "(sqlite3.OperationalError) no such table: predictions\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT predictions.id AS predictions_id, predictions.symbol AS predictions_symbol, predictions.predicted_price AS predictions_predicted_price, predictions.confidence AS predictions_confidence, predictions.feature_vector AS predictions_feature_vector, predictions.model_version_id AS predictions_model_version_id, predictions.created_at AS predictions_created_at \nFROM predictions) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"}
+---
+Done at Mon May 18 20:00:04 CST 2026
+=== [2026-05-19 00:00:04] Self-Learn Cron ===
+STATS: Traceback (most recent call last):
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such column: outcomes.prediction_error
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+  File "/home/tsukii0607/.openclaw/workspace-quant/kiro-quant-v3/self_learn/models.py", line 365, in get_stats
+    total_outcomes = session.query(Outcome).count()
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 3146, in count
+    self._legacy_from_self(col).enable_eagerloads(False).scalar()
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2835, in scalar
+    ret = self.one()
+          ^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2808, in one
+    return self._iter().one()  # type: ignore
+           ^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such column: outcomes.prediction_error
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT outcomes.signal_id AS outcomes_signal_id, outcomes.exit_price AS outcomes_exit_price, outcomes.pnl AS outcomes_pnl, outcomes.pnl_pct AS outcomes_pnl_pct, outcomes.hold_minutes AS outcomes_hold_minutes, outcomes.prediction_error AS outcomes_prediction_error, outcomes.closed_at AS outcomes_closed_at 
+FROM outcomes) AS anon_1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+RETRAIN_CHECK: {"error": "(sqlite3.OperationalError) no such column: outcomes.prediction_error\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT outcomes.signal_id AS outcomes_signal_id, outcomes.exit_price AS outcomes_exit_price, outcomes.pnl AS outcomes_pnl, outcomes.pnl_pct AS outcomes_pnl_pct, outcomes.hold_minutes AS outcomes_hold_minutes, outcomes.prediction_error AS outcomes_prediction_error, outcomes.closed_at AS outcomes_closed_at \nFROM outcomes) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"}
+---
+Done at Tue May 19 00:00:07 CST 2026

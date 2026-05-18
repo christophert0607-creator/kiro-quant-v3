@@ -63,9 +63,9 @@
       "KO"
     ],
     "prediction_thresholds": {
-      "0700.HK": 0.005395,
-      "9988.HK": 0.005395,
-      "3690.HK": 0.005395
+      "0700.HK": 0.0055,
+      "9988.HK": 0.0055,
+      "3690.HK": 0.0055
     },
     "buy_cooldown_cycles": 1,
     "swing_buy_confirmation_count": 1,
@@ -78,8 +78,8 @@
     "max_hold_bars": 30,
     "max_positions": 15,
     "market_mode": "AUTO",
-    "rsi_oversold": 44,
-    "rsi_overbought": 77,
+    "rsi_oversold": 34.0,
+    "rsi_overbought": 83.0,
     "macd_signal": 0.005,
     "xgb_confidence": 0.1,
     "min_hold_minutes": 45,
@@ -136,7 +136,7 @@
     "max_idle_hours_per_day": 6,
     "stop_before_open_min": 30
   },
-  "posture": "neutral",
-  "posture_timestamp": "2026-05-07T08:35:58.959976+00:00",
-  "posture_rationale": "2800.HK mom: +0.000000 (>=0), 3033.HK mom: -0.000997 (<0) -> neutral"
+  "posture": "risk_on",
+  "posture_timestamp": "2026-05-18T16:30:00+08:00",
+  "posture_rationale": "risk_on_both_2800_3033_positive_momentum_20260518_1630"
 }
