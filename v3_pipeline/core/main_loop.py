@@ -1732,17 +1732,32 @@ class LiveTradingLoop:
                 entry_price = current_price
                 self.entry_price_by_symbol[symbol] = entry_price
 
-            stop_loss_pct = max(0.0, float(getattr(self.config, "stop_loss_pct", 0.02)))
-            if stop_loss_pct > 0:
-                stop_loss_price = entry_price * (1 - stop_loss_pct)
-                if current_price <= stop_loss_price:
-                    self._execute(symbol, "SELL", qty, current_price, f"stop_loss_{stop_loss_pct:.4f}")
-                    return
+            # ATR-based dynamic stop-loss/take-profit (Section 9.4)
+            atr = None
+            if latest_frame is not None and not latest_frame.empty and "ATR_14" in latest_frame.columns:
+                atr_val = float(latest_frame.iloc[-1].get("ATR_14", 0.0) or 0.0)
+                if atr_val > 0:
+                    atr = atr_val
 
-            quick_tp_pct = max(0.0, float(getattr(self.config, "quick_take_profit_pct", 0.01)))
-            take_profit_price = entry_price * (1 + quick_tp_pct)
+            if atr is not None:
+                stop_loss_price = entry_price - max(atr * 1.5, entry_price * 0.015)
+                take_profit_price = entry_price + max(atr * 2.5, entry_price * 0.03)
+                sl_label = f"atr_stop_loss_atr={atr:.4f}"
+                tp_label = f"atr_take_profit_atr={atr:.4f}"
+            else:
+                stop_loss_pct = max(0.0, float(getattr(self.config, "stop_loss_pct", 0.02)))
+                quick_tp_pct = max(0.0, float(getattr(self.config, "quick_take_profit_pct", 0.01)))
+                stop_loss_price = entry_price * (1 - stop_loss_pct) if stop_loss_pct > 0 else 0.0
+                take_profit_price = entry_price * (1 + quick_tp_pct)
+                sl_label = f"stop_loss_{stop_loss_pct:.4f}"
+                tp_label = f"quick_take_profit_{quick_tp_pct:.4f}"
+
+            if stop_loss_price > 0 and current_price <= stop_loss_price:
+                self._execute(symbol, "SELL", qty, current_price, sl_label)
+                return
+
             if current_price >= take_profit_price:
-                self._execute(symbol, "SELL", qty, current_price, f"quick_take_profit_{quick_tp_pct:.4f}")
+                self._execute(symbol, "SELL", qty, current_price, tp_label)
                 return
 
             max_hold_bars = max(1, int(getattr(self.config, "max_hold_bars", 5)))
