@@ -797,6 +797,22 @@ class LiveTradingLoop:
         )
         profile = self.strategy_factory.choose_profile(vix_value, self.sentiment_score, oil_price)
 
+        # P5: Async-refresh LLM risk multiplier when cache is stale (§9.7)
+        try:
+            from v3_pipeline.risk.llm_risk_manager import get_cached_risk_multiplier, refresh_risk_multiplier, _cache_expires as _llm_expires
+            import time as _t
+            if _t.time() >= _llm_expires:
+                _llm_ctx = {
+                    "vix": round(vix_value, 2),
+                    "oil_price": round(oil_price, 2),
+                    "regime": profile.name,
+                    "drawdown_pct": round(max(0.0, (1.0 - self.account_value / max(self.equity_peak, 1.0)) * 100), 2),
+                    "open_positions": sum(1 for q in self.position_qty_by_symbol.values() if q > 0),
+                }
+                asyncio.create_task(asyncio.to_thread(refresh_risk_multiplier, _llm_ctx))
+        except Exception:
+            pass
+
         self._detect_critical_move(symbol, current_price)
 
         pattern_label: str = "Unknown"
@@ -1509,6 +1525,16 @@ class LiveTradingLoop:
                         self._append_decision_trace({**trace_base, "action": "META_ALLOWED", "meta_p": float(p), "meta_thr": thr})
             except Exception as _exc:
                 self.logger.warning("meta_gate error: %s", _exc)
+
+            # P5: Apply LLM risk multiplier to allocation (§9.7)
+            try:
+                from v3_pipeline.risk.llm_risk_manager import get_cached_risk_multiplier
+                _llm_mult = get_cached_risk_multiplier()
+                if _llm_mult != 1.0:
+                    alloc = float(alloc) * _llm_mult
+                    self.logger.debug("[LLM_RISK][%s] alloc × %.2f → %.2f", symbol, _llm_mult, alloc)
+            except Exception:
+                pass
 
             buy_qty = max(0, int(alloc / max(current_price, 1e-9)))
             # HARD CAP: never allocate more than max_position_value ($30 loss / 1.5% SL = $2000)

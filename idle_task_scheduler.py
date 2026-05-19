@@ -216,6 +216,60 @@ async def _run_historical_backfill(
     return processed
 
 
+def _run_causal_screening(
+    loop: "LiveTradingLoop",
+    logger: logging.Logger,
+) -> None:
+    """Run IV-based causal factor screening on the backfilled universe (§9.8).
+
+    Picks the symbol with the most data, screens all 22 technical indicators
+    against the Fed Funds Rate proxy (^IRX), and saves results to
+    data/causal_approved_factors.json.  Skips gracefully on any error.
+    """
+    try:
+        from v3_pipeline.features.causal_filter import screen_factors, save_results
+        import pandas as pd
+
+        # Pick the symbol with the most bars as representative universe
+        best_sym, best_df = None, None
+        for sym, df in loop.market_buffers.items():
+            if df is not None and not df.empty and "Close" in df.columns:
+                if best_df is None or len(df) > len(best_df):
+                    best_sym, best_df = sym, df
+
+        if best_df is None or len(best_df) < 30:
+            logger.info("[causal_screen] insufficient data — skipping")
+            return
+
+        # Build factor DataFrame from generated features
+        featured = loop.feature_generator.generate(best_df)
+        factor_cols = [c for c in featured.columns if c not in {"Date", "Open", "High", "Low", "Close", "Volume"}]
+        if not factor_cols:
+            logger.info("[causal_screen] no factor columns found — skipping")
+            return
+
+        results = screen_factors(featured[factor_cols], featured["Close"])
+        save_results(results)
+
+        approved = [k for k, v in results.items() if v.get("is_causal", True)]
+        spurious = [k for k, v in results.items() if not v.get("is_causal", True)]
+        _emit(
+            logger,
+            "causal_screening",
+            symbol=best_sym,
+            total_factors=len(results),
+            approved=len(approved),
+            spurious=len(spurious),
+            spurious_names=spurious,
+        )
+        logger.info(
+            "[causal_screen] %d/%d factors approved; spurious: %s",
+            len(approved), len(results), spurious or "none",
+        )
+    except Exception as exc:
+        logger.warning("[causal_screen] failed: %s", exc)
+
+
 def _run_mds_filter(
     symbols: list[str],
     loop: "LiveTradingLoop",
@@ -507,6 +561,12 @@ class IdleTaskScheduler:
             if self._stop_event.is_set():
                 return
             _build_readiness_report(symbols, self.loop, self.logger)
+
+            # Task 3.5: Causal factor screening — offline IV test (§9.8)
+            if not self._stop_event.is_set():
+                t0 = time.time()
+                await asyncio.to_thread(_run_causal_screening, self.loop, self.logger)
+                self.logger.info("[causal_screen] done in %.1fs", time.time() - t0)
 
             # Task 4: DB K-line backfill + incremental update (kiro_quant.db)
             if self._stop_event.is_set():
