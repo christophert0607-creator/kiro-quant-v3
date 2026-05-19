@@ -46,6 +46,7 @@
 | 回歸測試（隔離） | ✅ **622 passed, 1 skipped** | `test_pattern_trainer_components.py` 與全量 collection 衝突，單獨跑 passthrough |
 | 回歸測試（全量 collection） | ⚠️ `test_pattern_trainer_components.py` collection error | 單獨跑：2 passed；與其他測試混跑時 import 順序衝突 |
 | yfinance FD | ✅ 已修復 | PR #87 + #90 已生效 |
+| Self-Learn DB | ✅ 已修復 | `trading_bot.db` schema 重建，predictions 表正常寫入 |
 
 ---
 
@@ -60,7 +61,7 @@
 | #89 | `fix/quote-na-sanitisation` | 2026-05-17 | `_coerce_price()` 拒 N/A/—/NaN/空串，防止 ValueError 洩漏至 order builder |
 | #88 | `fix/get-acc-list-no-kwargs` | 2026-05-17 | `discover_accounts()` 改用無 kwargs 的 `get_acc_list()` |
 | #87 | `fix/db-manager-close-leak` | 2026-05-16 | DatabaseManager FD 洩漏：改用 `close()` 替代 GC 回收 |
-| #86 | `fix/livedbpersist-inode-reconnect` | 2026-05-16 | LiveDbPersist Auto-sync 後 inode 變更自動重連 |
+| #86 | `feat/livedbpersist-inode-reconnect` | 2026-05-16 | LiveDbPersist Auto-sync 後 inode 變更自動重連 |
 | #85 | `feat/expand-universe-300` | 2026-05-16 | 擴展至 300+ 標的，三層 tier 管理 |
 | #84 | `feat/db-persist-live-data` | 2026-05-16 | async SQLite 即時資料持久化（LiveDbPersist） |
 | #83 | `feat/idle-kline-db-backfill` | 2026-05-16 | 閒置時 kline 資料回填 |
@@ -148,6 +149,134 @@
 | 社區 | 124 |
 
 Top God Nodes 排名不變，請勿破壞 `FutuConnector` ↔ `LiveTradingLoop` 橋接邏輯。
+
+---
+
+## 9. 研究指導方針（2026-04-17 ～ 2026-05-19 每月研究總結）
+
+> 本節收錄33日量化 ML/AI 研究的核心發現，作為日後功能開發與策略改進的優先級指引。
+
+### 9.1 市場 Regime 速查表
+
+| VIX 區間 | Regime | 策略傾向 |
+|----------|--------|---------|
+| VIX < 17 | 明確 Risk-On | Momentum 積極，Mean-Reversion 降低 |
+| 17 ≤ VIX < 18.5 | Risk-On | Momentum 可測試，Mean-Reversion 恢復 |
+| 18.5 ≤ VIX < 20 | 中性偏謹慎 | 觀望，Momentum 降低權重 |
+| VIX ≥ 20 | Risk-Off | 全線防守，GRPO 倉位降至最低 |
+| 油價 ≥ $100 | 通脹恐慌 | 所有策略降級，持有現金 |
+
+**⚠️ 關鍵閾值：VIX 18.5 = 策略分水嶺；油價 $100 = 通脹恐慌觸發**
+
+### 9.2 Self-Learn GRPO Reward Signal 設計原則（最重要）
+
+**問題發現（04-20 research）：**
+> 「二元方向準確率（方向對了=1）→ Kiro V3 80% 準確率但勝率 37% 的根本原因」
+
+**原則：**
+```
+❌ 錯誤：方向準確率（direction_accuracy ∈ {0, 1}）
+✅ 正確：真實 P&L 回報（realized_pnl ∈ ℝ）
+
+具體做法：
+- 每筆 CLOSED 交易計算：exit_price - entry_price（絕對值）
+- 寫入 self_learn.trading_bot.db outcomes.pnl
+- GRPO reward = normalize(pnl_pct) 而非 direction match
+```
+
+**驗證：** 方向準確率 80% ≠ 勝率 80%，因為止蝕/止賺設置不成比例。
+
+### 9.3 策略架構疊加順序（由底層到頂層）
+
+| 層 | 組件 | 優先級 | 備註 |
+|----|------|--------|------|
+| 執行層 | 8x8x139 Momentum + Mean-Reversion | 🔴 P0 | 現有核心引擎，保持高速執行 |
+| 篩選層 | MDS（Metric Dependence Screening）| 🟠 P1 | 前置降噪，用風險曲線函數預篩候選資產 |
+| 因子層 | GNN Factor Discovery + 因果推斷篩選 | 🟡 P2 | 發現隱藏結構，剔除偽因果因子 |
+| Regime 層 | Temporal GNN + LLM Risk Manager | 🟢 P3 | 前瞻檢測市場狀態切換 |
+| 增強層 | Contrastive Learning 表示學習 | 🔵 P4 | 小盤股 / 高雜訊市場增强 |
+
+**⚠️ 底層未穩定前不要上層：** 8x8x139 引擎未優化止蝕邏輯前，不要引入 GNN Regime 層。
+
+### 9.4 止蝕/止賺設計原則
+
+**問題發現（04-17 research）：**
+> 「quick_take_profit=2% 可能太早結束正確交易」
+
+**原則：**
+```
+❌ 固定百分比止蝕（如 2%）
+✅ 動態 ATR-based 止蝕
+
+公式：
+stop_loss = entry_price - max(ATR_14 * 1.5, entry_price * 0.015)
+take_profit = entry_price + max(ATR_14 * 2.5, entry_price * 0.03)
+
+好處：
+- 高波動期自動擴大止蝕範圍（避免正常噪音觸發）
+- 低波動期自動收緊（保留更多利潤）
+```
+
+### 9.5 MDS 前置過濾集成指引
+
+**何時使用 MDS（05-06 research）：**
+- 候選資產池 > 50 隻股票時
+- Regime = Risk-Off（加強風險曲線篩選）
+- 小盤股 / 低流動性市場（HK 小型股）
+
+**集成方式：**
+```
+Input: 全市場候選
+  ↓ Stage 1: MDS Filter
+  - 提取每日收益率（標量）+ 日內風險曲線（函數）
+  - 計算 Fréchet 變分分數
+  - Output: Top 10-20% 精選子集
+  ↓ Stage 2: 現有 Kiro Pipeline
+  - Momentum / Mean-Reversion / XGBoost
+  ↓ Output: 最終倉位配置
+```
+
+### 9.6 多 Agent 決策架構方向
+
+**學習來源（04-30 TradingGroup / 05-15 分層多Agent）：**
+
+| 層 | 職責 | Kiro 現有對應 |
+|----|------|-------------|
+| 微觀（日內）| 訂單執行、價差捕捉 | execution_engine.py |
+| 中觀（日級）| 信號生成、因子組合 | 8x8x139, ModelManager |
+| 宏觀（Regime）| 市場狀態評估、策略切換 | **目前缺失** → 待建立 |
+
+**⚠️ 注意：** Regime 層不是簡單的參數切換，而是獨立的 Agent 評估過程。
+
+### 9.7 LLM Risk Manager 集成注意
+
+**原則（05-14 research）：**
+- LLM Risk Manager 是「 reasoning layer」，不是替換風控引擎
+- 它的輸出用於調整 `RiskController` 的 position_size 參數
+- 不應直接發送訂單（保持低延遲執行）
+- 需要自然語言 audit trail（日後合規用途）
+
+### 9.8 因果推斷實作方向
+
+**何時使用（05-18 research）：**
+- 在 8x8x139 候選因子生成後
+- 過濾步驟：`因子候選 → 因果檢驗 → 通過 / 剔除`
+- IV 選擇：Fed Funds Rate（不受市場情緒影響但影響流動性）
+
+**不建議：** 在 Regime 緊急切換時使用因果推斷（太慢），只用於因子發現階段。
+
+---
+
+## 10. 未來功能優先級
+
+| 優先級 | 項目 | 預期收益 | 實現方向 |
+|--------|------|---------|---------|
+| 🔴 P0 | GRPO reward → P&L-based | 提升勝率（方向準確率→真實盈虧） | 修改 `self_learn/feedback.py` hook_on_prediction |
+| 🟠 P1 | ATR-based 動態止蝕 | 減少過早止蝕，提升勝率 | 修改 `risk_guard_v36.py` stop_loss 公式 |
+| 🟠 P2 | Regime Detection 獨立模組 | 策略切換更精準 | 新增 `regime_detector.py`，接入 VIX + 原油 + HSI |
+| 🟡 P3 | MDS 前置過濾 | 降低估計誤差（特別是 HK 小型股）| 修改 `idle_task_scheduler.py` 加入 MDS 層 |
+| 🟢 P4 | 因果推斷篩選層 | 剔除偽動量因子 | 新增 `causal_filter.py`，用 IV 驗證候選因子 |
+| 🔵 P5 | LLM Risk Reasoning Layer | 動態倉位調整 audit trail | 新增 `llm_risk_manager.py`，調用 MiniMax API |
 
 ---
 
