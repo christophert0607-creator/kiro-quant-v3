@@ -2,9 +2,9 @@
 
 This project has a graphify knowledge graph at graphify-out/.
 
-### Knowledge Graph Snapshot (2026-05-18)
+### Knowledge Graph Snapshot (2026-05-19)
 - **Status**: HEALTHY (Deep Rebuilt)
-- **Stats**: 3243 nodes · 6073 edges · 123 communities
+- **Stats**: 3247 nodes · 6077 edges · 124 communities
 - **God Nodes**: 1. `FutuConnector` - 179 edges,2. `LiveTradingLoop` - 132 edges,3. `FutuConfig` - 101 edges,4. `TechnicalIndicatorGenerator` - 87 edges,5. `LiveConfig` - 80 edges,
 
 Rules:

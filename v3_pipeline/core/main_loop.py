@@ -1942,6 +1942,90 @@ class LiveTradingLoop:
             self.logger.warning("Heartbeat check failed: %s", exc)
             self.broker_offline_fallback_mode = True
 
+    def _broker_code_to_symbol(self, code: str) -> str | None:
+        """Convert a broker code (US.TSLA / HK.03690) to the engine symbol form."""
+        code = str(code or "").strip()
+        if not code:
+            return None
+        if code.startswith("US."):
+            return code[3:]
+        if code.startswith("HK."):
+            raw = code[3:]
+            # Futu uses five-digit HK codes (HK.03690) while config uses 3690.HK.
+            if raw.isdigit():
+                raw = raw.lstrip("0") or "0"
+            return f"{raw}.HK"
+        return code
+
+    def _match_broker_code_to_symbol(self, code: str) -> str | None:
+        """Return the tracked engine symbol matching a broker code, if any."""
+        normalized = self._broker_code_to_symbol(code)
+        if normalized in self.position_qty_by_symbol or normalized in self.short_position_qty_by_symbol:
+            return normalized
+        for sym in self.symbols:
+            try:
+                broker_code, _ = self.futu_connector.resolve_symbol(sym)
+            except Exception:
+                continue
+            if broker_code == code:
+                return sym
+            # Be tolerant of HK zero-padding mismatches in tests/legacy config.
+            if self._broker_code_to_symbol(broker_code) == normalized:
+                return sym
+        return None
+
+    def _broker_positions_to_state_maps(self, positions: pd.DataFrame) -> tuple[dict[str, int], dict[str, int]]:
+        """Build state.json position maps directly from a successful broker query.
+
+        The returned keys use broker codes exactly as the broker reports them, so
+        symbols outside the current trading universe (e.g. ETF hedges) are not lost.
+        Zero-qty rows are omitted; stale state.json entries disappear on save.
+        """
+        long_positions: dict[str, int] = {}
+        short_positions: dict[str, int] = {}
+        for _, row in positions.iterrows():
+            code = str(row.get("code", "")).strip()
+            if not code:
+                continue
+            try:
+                qty = int(float(row.get("qty", 0) or 0))
+            except Exception:
+                continue
+            if qty == 0:
+                continue
+            side = str(row.get("position_side", "LONG")).upper()
+            if side == "SHORT" or qty < 0:
+                short_positions[code] = abs(qty)
+            else:
+                long_positions[code] = qty
+        return long_positions, short_positions
+
+    def _persist_broker_positions_to_state(
+        self,
+        positions: dict[str, int],
+        short_positions: dict[str, int],
+    ) -> None:
+        """Persist broker-derived positions into state.json while preserving audit fields."""
+        try:
+            import state_store as _ss
+            state = _ss.load()
+            state["date"] = datetime.now(timezone.utc).date().isoformat()
+            state["positions"] = dict(positions)
+            state["short_positions"] = dict(short_positions)
+            if hasattr(self.futu_connector, "account_mapping_snapshot"):
+                try:
+                    state["account_routing"] = self.futu_connector.account_mapping_snapshot()
+                except Exception:
+                    pass
+            _ss.save(state)
+            self._emit_structured(
+                "broker_state_persist",
+                positions=dict(positions),
+                short_positions=dict(short_positions),
+            )
+        except Exception as exc:
+            self.logger.warning("Failed to persist broker positions to state.json: %s", exc)
+
     def _sync_broker_state(self) -> None:
         import os as _os
         import json as _json
@@ -1972,32 +2056,36 @@ class LiveTradingLoop:
 
         # ── Always sync from Futu broker (source of truth for ALL modes) ─────────────
         # This includes SIM mode: Futu's SIM account IS the source of truth for positions.
-        # state.json is used ONLY as fallback if broker returns empty.
+        # state.json is used ONLY as fallback if broker position query fails.
+        broker_positions_for_state: dict[str, int] | None = None
+        broker_short_positions_for_state: dict[str, int] | None = None
         try:
             # Use all-markets sync when available so HK + US positions are both captured
             if hasattr(self.futu_connector, "get_sync_positions_all_markets"):
                 positions = self.futu_connector.get_sync_positions_all_markets()
             else:
                 positions = self.futu_connector.get_sync_positions()
-            # Reset all to zero before syncing
+
+            if positions is None or "code" not in positions.columns or "qty" not in positions.columns:
+                raise RuntimeError("broker positions missing required code/qty columns")
+
+            broker_positions_for_state, broker_short_positions_for_state = self._broker_positions_to_state_maps(positions)
+
+            # Reset all tracked symbols to zero before syncing. This clears stale local
+            # memory whenever the broker query succeeds, even if a previous state.json
+            # contained positions that no longer exist at the broker.
             for symbol in self.symbols:
                 self.position_qty_by_symbol[symbol] = 0
                 self.short_position_qty_by_symbol[symbol] = 0
 
-            if not positions.empty and "code" in positions.columns:
+            if not positions.empty:
                 for _, row in positions.iterrows():
                     code = str(row.get("code", ""))
-                    # Match to our symbol list
-                    matched_symbol = None
-                    for sym in self.symbols:
-                        broker_code, _ = self.futu_connector.resolve_symbol(sym)
-                        if broker_code == code:
-                            matched_symbol = sym
-                            break
+                    matched_symbol = self._match_broker_code_to_symbol(code)
                     if matched_symbol is None:
                         continue
 
-                    qty = int(float(row.get("qty", 0)))
+                    qty = int(float(row.get("qty", 0) or 0))
                     side = str(row.get("position_side", "LONG")).upper()
 
                     if qty == 0:
@@ -2015,15 +2103,22 @@ class LiveTradingLoop:
                             )
                             continue
 
-                    if side == "LONG":
-                        self.position_qty_by_symbol[matched_symbol] = max(0, qty)
-                        self.logger.info("Position sync [BROKER][LONG]: %s = %d", matched_symbol, qty)
-                    elif side == "SHORT":
+                    if side == "SHORT" or qty < 0:
                         self.short_position_qty_by_symbol[matched_symbol] = max(0, abs(qty))
                         self.logger.info("Position sync [BROKER][SHORT]: %s = %d", matched_symbol, abs(qty))
+                    else:
+                        self.position_qty_by_symbol[matched_symbol] = max(0, qty)
+                        self.logger.info("Position sync [BROKER][LONG]: %s = %d", matched_symbol, qty)
             else:
-                self.logger.warning("Broker returned empty positions DataFrame")
+                self.logger.info("Broker returned empty positions DataFrame; clearing broker-derived state positions")
+
+            self._persist_broker_positions_to_state(
+                broker_positions_for_state,
+                broker_short_positions_for_state,
+            )
         except Exception as exc:
+            broker_positions_for_state = None
+            broker_short_positions_for_state = None
             self.logger.warning("Broker position sync failed: %s — falling back to state.json", exc)
             try:
                 import state_store as _ss

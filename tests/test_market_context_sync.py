@@ -229,3 +229,54 @@ def test_execute_us_order_attempt_event_has_us_market():
     assert len(order_events) == 1
     assert order_events[0]["market"] == "US"
     assert order_events[0]["account_id"] == 18526451
+
+
+class _BrokerStateConnector(_FakeConnector):
+    trade_ctxs = {"US": object(), "HK": object()}
+
+    def get_sync_assets_all_markets(self):
+        return {"total_assets": 100_000.0}
+
+    def get_sync_positions_all_markets(self):
+        return pd.DataFrame(
+            [
+                {"code": "US.TIP", "qty": 212, "position_side": "LONG"},
+                {"code": "US.QQQ", "qty": 282, "position_side": "LONG"},
+                {"code": "US.TSLA", "qty": 0, "position_side": "LONG"},
+                {"code": "HK.03690", "qty": 100, "position_side": "LONG"},
+            ]
+        )
+
+    def account_mapping_snapshot(self):
+        return {"account_routing": {"US": {"resolved_acc_id": 18526451}}}
+
+
+
+def test_broker_sync_persists_broker_positions_and_removes_stale_state():
+    from pathlib import Path
+    connector = _BrokerStateConnector()
+    with patch.object(Path, "exists", return_value=False):
+        loop = _make_loop(["TSLA", "QQQ", "3690.HK"], connector=connector)
+    stale_state = {
+        "date": "2026-05-19",
+        "daily_trades": 7,
+        "positions": {"US.TSLA": 10, "US.NFLX": 63, "HK.0700.HK": 100},
+        "short_positions": {"US.MSTR": 5},
+        "last_orders": {"US.TSLA": {"signal": "BUY", "qty": 10}},
+    }
+    saved = []
+
+    with patch("state_store.load", return_value=dict(stale_state)):
+        with patch("state_store.save", side_effect=lambda state: saved.append(state)):
+            with patch.object(loop, "_emit_structured"):
+                loop._sync_broker_state()
+
+    assert saved, "broker sync should persist the broker-derived state"
+    new_state = saved[-1]
+    assert new_state["positions"] == {"US.TIP": 212, "US.QQQ": 282, "HK.03690": 100}
+    assert new_state["short_positions"] == {}
+    assert new_state["last_orders"] == stale_state["last_orders"]
+    assert new_state["daily_trades"] == stale_state["daily_trades"]
+    assert loop.position_qty_by_symbol["QQQ"] == 282
+    assert loop.position_qty_by_symbol["TSLA"] == 0
+    assert loop.position_qty_by_symbol["3690.HK"] == 100

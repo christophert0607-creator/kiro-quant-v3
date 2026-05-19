@@ -3772,3 +3772,149 @@ FROM outcomes) AS anon_1]
 RETRAIN_CHECK: {"error": "(sqlite3.OperationalError) no such column: outcomes.prediction_error\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT outcomes.signal_id AS outcomes_signal_id, outcomes.exit_price AS outcomes_exit_price, outcomes.pnl AS outcomes_pnl, outcomes.pnl_pct AS outcomes_pnl_pct, outcomes.hold_minutes AS outcomes_hold_minutes, outcomes.prediction_error AS outcomes_prediction_error, outcomes.closed_at AS outcomes_closed_at \nFROM outcomes) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"}
 ---
 Done at Tue May 19 00:00:07 CST 2026
+=== [2026-05-19 04:00:03] Self-Learn Cron ===
+STATS: Traceback (most recent call last):
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such column: outcomes.prediction_error
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+  File "/home/tsukii0607/.openclaw/workspace-quant/kiro-quant-v3/self_learn/models.py", line 365, in get_stats
+    total_outcomes = session.query(Outcome).count()
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 3146, in count
+    self._legacy_from_self(col).enable_eagerloads(False).scalar()
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2835, in scalar
+    ret = self.one()
+          ^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2808, in one
+    return self._iter().one()  # type: ignore
+           ^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such column: outcomes.prediction_error
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT outcomes.signal_id AS outcomes_signal_id, outcomes.exit_price AS outcomes_exit_price, outcomes.pnl AS outcomes_pnl, outcomes.pnl_pct AS outcomes_pnl_pct, outcomes.hold_minutes AS outcomes_hold_minutes, outcomes.prediction_error AS outcomes_prediction_error, outcomes.closed_at AS outcomes_closed_at 
+FROM outcomes) AS anon_1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+RETRAIN_CHECK: {"error": "(sqlite3.OperationalError) no such column: outcomes.prediction_error\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT outcomes.signal_id AS outcomes_signal_id, outcomes.exit_price AS outcomes_exit_price, outcomes.pnl AS outcomes_pnl, outcomes.pnl_pct AS outcomes_pnl_pct, outcomes.hold_minutes AS outcomes_hold_minutes, outcomes.prediction_error AS outcomes_prediction_error, outcomes.closed_at AS outcomes_closed_at \nFROM outcomes) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"}
+---
+Done at Tue May 19 04:00:05 CST 2026
+=== [2026-05-19 08:00:05] Self-Learn Cron ===
+STATS: Traceback (most recent call last):
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such column: outcomes.prediction_error
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+  File "/home/tsukii0607/.openclaw/workspace-quant/kiro-quant-v3/self_learn/models.py", line 365, in get_stats
+    total_outcomes = session.query(Outcome).count()
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 3146, in count
+    self._legacy_from_self(col).enable_eagerloads(False).scalar()
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2835, in scalar
+    ret = self.one()
+          ^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2808, in one
+    return self._iter().one()  # type: ignore
+           ^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/tsukii0607/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such column: outcomes.prediction_error
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT outcomes.signal_id AS outcomes_signal_id, outcomes.exit_price AS outcomes_exit_price, outcomes.pnl AS outcomes_pnl, outcomes.pnl_pct AS outcomes_pnl_pct, outcomes.hold_minutes AS outcomes_hold_minutes, outcomes.prediction_error AS outcomes_prediction_error, outcomes.closed_at AS outcomes_closed_at 
+FROM outcomes) AS anon_1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+RETRAIN_CHECK: {"error": "(sqlite3.OperationalError) no such column: outcomes.prediction_error\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT outcomes.signal_id AS outcomes_signal_id, outcomes.exit_price AS outcomes_exit_price, outcomes.pnl AS outcomes_pnl, outcomes.pnl_pct AS outcomes_pnl_pct, outcomes.hold_minutes AS outcomes_hold_minutes, outcomes.prediction_error AS outcomes_prediction_error, outcomes.closed_at AS outcomes_closed_at \nFROM outcomes) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"}
+---
+Done at Tue May 19 08:00:08 CST 2026
+=== [2026-05-19 12:00:07] Self-Learn Cron ===
+STATS: {"total_predictions": 12218, "total_signals": 3, "open_signals": 3, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}
+RETRAIN_CHECK: {"stats": {"total_predictions": 12218, "total_signals": 3, "open_signals": 3, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}, "should_retrain": false, "retrain_done": false}
+---
+Done at Tue May 19 12:00:10 CST 2026
+=== [2026-05-19 16:00:04] Self-Learn Cron ===
+STATS: {"total_predictions": 14070, "total_signals": 5, "open_signals": 5, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}
+RETRAIN_CHECK: {"stats": {"total_predictions": 14070, "total_signals": 5, "open_signals": 5, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}, "should_retrain": false, "retrain_done": false}
+---
+Done at Tue May 19 16:00:07 CST 2026
+=== [2026-05-19 20:00:01] Self-Learn Cron ===
+STATS: {"total_predictions": 14070, "total_signals": 5, "open_signals": 5, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}
+RETRAIN_CHECK: {"stats": {"total_predictions": 14070, "total_signals": 5, "open_signals": 5, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}, "should_retrain": false, "retrain_done": false}
+---
+Done at Tue May 19 20:00:04 CST 2026
+=== [2026-05-20 00:00:04] Self-Learn Cron ===
+STATS: {"total_predictions": 19870, "total_signals": 5, "open_signals": 5, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}
+RETRAIN_CHECK: {"stats": {"total_predictions": 19870, "total_signals": 5, "open_signals": 5, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}, "should_retrain": false, "retrain_done": false}
+---
+Done at Wed May 20 00:00:07 CST 2026
