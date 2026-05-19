@@ -216,6 +216,53 @@ async def _run_historical_backfill(
     return processed
 
 
+def _run_mds_filter(
+    symbols: list[str],
+    loop: "LiveTradingLoop",
+    logger: logging.Logger,
+) -> list[str]:
+    """Compute MDS scores and return filtered symbol list (§9.5).
+
+    Only runs when pool > 50 symbols. Keeps the top 20% most consistent
+    intraday patterns (lowest Fréchet variation score), floored at 10 symbols.
+    Returns original list unchanged when pool is small or data is missing.
+    """
+    if len(symbols) <= 50:
+        return symbols
+
+    try:
+        from v3_pipeline.data.mds_filter import score_symbols, filter_universe, save_scores
+        buffers = {s: loop.market_buffers[s] for s in symbols if s in loop.market_buffers}
+        if not buffers:
+            return symbols
+
+        scores = score_symbols(buffers)
+        filtered = filter_universe(scores)
+
+        # Preserve symbols with no buffer data (no kline yet) in full run
+        no_data = [s for s in symbols if s not in buffers]
+        result = filtered + no_data
+
+        save_scores(scores)
+        _emit(
+            logger,
+            "mds_filter",
+            input_symbols=len(symbols),
+            scored=len(scores),
+            filtered=len(filtered),
+            no_data=len(no_data),
+            output_symbols=len(result),
+        )
+        logger.info(
+            "[mds_filter] %d → %d symbols (scored=%d, no_data=%d)",
+            len(symbols), len(result), len(filtered), len(no_data),
+        )
+        return result
+    except Exception as exc:
+        logger.warning("[mds_filter] failed, using full symbol list: %s", exc)
+        return symbols
+
+
 async def _run_indicator_warmup(
     symbols: list[str],
     loop: "LiveTradingLoop",
@@ -432,7 +479,15 @@ class IdleTaskScheduler:
             self.logger.info("[backfill] done: %d symbols in %.1fs", n, time.time() - t0)
             _emit_fd_health(self.logger, "post_backfill")
 
-            # Task 2: Indicator warmup
+            # Task 1.5: MDS pre-filter — only when pool > 50 symbols (§9.5)
+            if len(symbols) > 50:
+                t0 = time.time()
+                symbols = await asyncio.to_thread(
+                    _run_mds_filter, symbols, self.loop, self.logger
+                )
+                self.logger.info("[mds_filter] done in %.1fs → %d symbols", time.time() - t0, len(symbols))
+
+            # Task 2: Indicator warmup (on MDS-filtered symbol set)
             if self._stop_event.is_set():
                 return
             mins_left = self._minutes_until_next_open()
