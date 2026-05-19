@@ -791,8 +791,11 @@ class LiveTradingLoop:
         # Store for signal hook
         self._pred_id_by_symbol[symbol] = _pred_id_for_signal
 
-        vix_value = await asyncio.to_thread(self._get_vix)
-        profile = self.strategy_factory.choose_profile(vix_value, self.sentiment_score)
+        vix_value, oil_price = await asyncio.gather(
+            asyncio.to_thread(self._get_vix),
+            asyncio.to_thread(self._get_oil_price),
+        )
+        profile = self.strategy_factory.choose_profile(vix_value, self.sentiment_score, oil_price)
 
         self._detect_critical_move(symbol, current_price)
 
@@ -1653,6 +1656,19 @@ class LiveTradingLoop:
         except Exception:
             pass
         return 18.0  # Safe default
+
+    def _get_oil_price(self) -> float:
+        # WTI crude futures (§9.1: oil ≥ $100 triggers inflation panic)
+        try:
+            import yfinance as yf
+            ticker = yf.Ticker("CL=F")
+            hist = ticker.fast_info
+            price = getattr(hist, 'last_price', None) or getattr(hist, 'lastPrice', None)
+            if price and price > 0:
+                return float(price)
+        except Exception:
+            pass
+        return 85.0  # Safe default (below $100 panic threshold)
 
     def _detect_critical_move(self, symbol: str, current_price: float) -> None:
         last = self.last_price_by_symbol.get(symbol)
