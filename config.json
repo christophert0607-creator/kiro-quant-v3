@@ -63,11 +63,11 @@
       "KO"
     ],
     "prediction_thresholds": {
-      "0700.HK": 0.004,
-      "9988.HK": 0.004,
-      "3690.HK": 0.004
+      "0700.HK": 0.0052,
+      "9988.HK": 0.0052,
+      "3690.HK": 0.0052
     },
-    "buy_cooldown_cycles": 0,
+    "buy_cooldown_cycles": 1,
     "swing_buy_confirmation_count": 1,
     "swing_block_on_model_sell": false,
     "polling_seconds": 60,
@@ -79,7 +79,7 @@
     "max_positions": 15,
     "market_mode": "AUTO",
     "rsi_oversold": 36,
-    "rsi_overbought": 82,
+    "rsi_overbought": 84,
     "macd_signal": 0.005,
     "xgb_confidence": 0.1,
     "min_hold_minutes": 45,
@@ -112,7 +112,10 @@
     "short_stop_loss": 0.015,
     "short_take_profit": 0.02,
     "short_trailing_stop_trigger": 0.015,
-    "short_trailing_stop_lock": 0
+    "short_trailing_stop_lock": 0,
+    "hk_bypass_kelly_zero_edge": true,
+    "max_orders_per_cycle": 3,
+    "order_throttle_seconds": 30.0
   },
   "futu": {
     "target_acc_id": 18526451,
@@ -137,6 +140,6 @@
     "stop_before_open_min": 30
   },
   "posture": "risk_on",
-  "posture_timestamp": "2026-05-19T08:31:27.591951+00:00",
-  "posture_rationale": "2800.HK momentum +0.001542, 3033.HK momentum +0.005917 → risk_on (both positive)"
+  "posture_timestamp": "2026-05-20T16:30:27+08:00",
+  "posture_rationale": "2800.HK mom: +0.000775, 3033.HK mom: +0.000840 -> risk_on"
 }

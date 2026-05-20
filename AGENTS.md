@@ -2,10 +2,10 @@
 
 This project has a graphify knowledge graph at graphify-out/.
 
-### Knowledge Graph Snapshot (2026-05-19)
+### Knowledge Graph Snapshot (2026-05-20)
 - **Status**: HEALTHY (Deep Rebuilt)
-- **Stats**: 3247 nodes · 6077 edges · 124 communities
-- **God Nodes**: 1. `FutuConnector` - 179 edges,2. `LiveTradingLoop` - 132 edges,3. `FutuConfig` - 101 edges,4. `TechnicalIndicatorGenerator` - 87 edges,5. `LiveConfig` - 80 edges,
+- **Stats**: 3303 nodes · 6238 edges · 129 communities
+- **God Nodes**: 1. `FutuConnector` - 183 edges,2. `LiveTradingLoop` - 143 edges,3. `FutuConfig` - 101 edges,4. `TechnicalIndicatorGenerator` - 91 edges,5. `LiveConfig` - 81 edges,
 
 Rules:
 - Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure

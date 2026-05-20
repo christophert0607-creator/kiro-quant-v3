@@ -3918,3 +3918,33 @@ STATS: {"total_predictions": 19870, "total_signals": 5, "open_signals": 5, "clos
 RETRAIN_CHECK: {"stats": {"total_predictions": 19870, "total_signals": 5, "open_signals": 5, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}, "should_retrain": false, "retrain_done": false}
 ---
 Done at Wed May 20 00:00:07 CST 2026
+=== [2026-05-20 04:00:04] Self-Learn Cron ===
+STATS: {"total_predictions": 29170, "total_signals": 5, "open_signals": 5, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}
+RETRAIN_CHECK: {"stats": {"total_predictions": 29170, "total_signals": 5, "open_signals": 5, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}, "should_retrain": false, "retrain_done": false}
+---
+Done at Wed May 20 04:00:08 CST 2026
+=== [2026-05-20 08:00:09] Self-Learn Cron ===
+STATS: {"total_predictions": 29170, "total_signals": 5, "open_signals": 5, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}
+RETRAIN_CHECK: {"stats": {"total_predictions": 29170, "total_signals": 5, "open_signals": 5, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}, "should_retrain": false, "retrain_done": false}
+---
+Done at Wed May 20 08:00:11 CST 2026
+=== [2026-05-20 12:00:04] Self-Learn Cron ===
+STATS: {"total_predictions": 30656, "total_signals": 5, "open_signals": 5, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}
+RETRAIN_CHECK: {"stats": {"total_predictions": 30656, "total_signals": 5, "open_signals": 5, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}, "should_retrain": false, "retrain_done": false}
+---
+Done at Wed May 20 12:00:10 CST 2026
+=== [2026-05-20 16:00:09] Self-Learn Cron ===
+STATS: {"total_predictions": 32447, "total_signals": 5, "open_signals": 5, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}
+RETRAIN_CHECK: {"stats": {"total_predictions": 32447, "total_signals": 5, "open_signals": 5, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}, "should_retrain": false, "retrain_done": false}
+---
+Done at Wed May 20 16:00:11 CST 2026
+=== [2026-05-20 20:00:01] Self-Learn Cron ===
+STATS: {"total_predictions": 32466, "total_signals": 5, "open_signals": 5, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}
+RETRAIN_CHECK: {"stats": {"total_predictions": 32466, "total_signals": 5, "open_signals": 5, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}, "should_retrain": false, "retrain_done": false}
+---
+Done at Wed May 20 20:00:04 CST 2026
+=== [2026-05-21 00:00:03] Self-Learn Cron ===
+STATS: {"total_predictions": 38166, "total_signals": 1965, "open_signals": 1965, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}
+RETRAIN_CHECK: {"stats": {"total_predictions": 38166, "total_signals": 1965, "open_signals": 1965, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}, "should_retrain": false, "retrain_done": false}
+---
+Done at Thu May 21 00:00:05 CST 2026

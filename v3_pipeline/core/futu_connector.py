@@ -2,6 +2,7 @@ import asyncio
 import enum
 import json
 import logging
+import math
 import os
 import random
 import sys
@@ -212,6 +213,29 @@ class FutuConnector:
             self._cached_hit_count[symbol] = 0
             return None
         return cached
+
+    def _coerce_positive_float(self, value: Any) -> Optional[float]:
+        """Return a finite positive float, or None for broker/data sentinels.
+
+        Futu/Yahoo occasionally return strings such as 'N/A', '--', or empty
+        values during pre/after-market.  Those must never be passed straight to
+        float() on the order path because they mask a market-data issue as a
+        broker rejection.
+        """
+        if value is None:
+            return None
+        if isinstance(value, str):
+            text = value.strip()
+            if not text or text.upper() in {"N/A", "NA", "NULL", "NONE", "--", "-"}:
+                return None
+            value = text.replace(",", "")
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(number) or number <= 0:
+            return None
+        return number
 
     def _normalize_quote(self, close: float, open_p: float, high_p: float, low_p: float, volume: float, source: str) -> dict:
         return {
@@ -836,8 +860,12 @@ class FutuConnector:
             f"Quote query failed for {broker_code}. Providers exhausted: {'; '.join(provider_errors)}"
         )
 
-    def get_order_reference_price(self, symbol: str, side: str, fallback_price: float = 0.0) -> float:
-        """Get realistic LIMIT reference price: BUY->ask, SELL->bid."""
+    def get_order_reference_price(self, symbol: str, side: str, fallback_price: float | str = 0.0) -> float:
+        """Get realistic LIMIT reference price: BUY->ask, SELL->bid.
+
+        Returns 0.0 when neither order book, latest quote, nor fallback contain a
+        finite positive price.  Callers can then skip the order safely.
+        """
         code, _ = self.resolve_symbol(symbol)
         side_upper = side.upper()
 
@@ -845,22 +873,25 @@ class FutuConnector:
             try:
                 ret, data = self.quote_ctx.get_order_book(code, num=1)
                 if ret == self.ft.RET_OK and isinstance(data, dict):
-                    if side_upper == "BUY":
-                        asks = data.get("Ask", [])
-                        if asks:
-                            return float(asks[0][0])
-                    else:
-                        bids = data.get("Bid", [])
-                        if bids:
-                            return float(bids[0][0])
+                    levels = data.get("Ask", []) if side_upper == "BUY" else data.get("Bid", [])
+                    if levels:
+                        order_book_price = self._coerce_positive_float(levels[0][0])
+                        if order_book_price is not None:
+                            return order_book_price
+                        self.logger.warning("Order book reference for %s is not numeric: %r", code, levels[0][0])
             except Exception as exc:
                 self.logger.warning("Order book reference failed for %s: %s", code, exc)
 
         try:
             quote = self.get_latest_quote(symbol)
-            return float(quote.get("Close", fallback_price))
-        except Exception:
-            return float(fallback_price)
+            quote_price = self._coerce_positive_float(quote.get("Close", fallback_price))
+            if quote_price is not None:
+                return quote_price
+        except Exception as exc:
+            self.logger.warning("Latest quote reference failed for %s: %s", symbol, exc)
+
+        fallback = self._coerce_positive_float(fallback_price)
+        return fallback if fallback is not None else 0.0
 
     def get_sync_assets(self) -> dict:
         if self._futu_degraded:
@@ -1102,14 +1133,17 @@ class FutuConnector:
             raise RuntimeError("account_disabled: current account is disabled/restricted for order placement")
 
         if side_upper == "BUY":
-            est_cost = float(max(est_price, 0.0)) * int(qty)
+            est_cost = (self._coerce_positive_float(est_price) or 0.0) * int(qty)
             
             # ── Buying Power Guard (smart preflight) ──
-            # Use max_buying_power if available, fall back to cash / available_funds
-            cash = float(row.get("cash", 0.0) or 0.0)
-            available_funds = float(row.get("available_funds", 0.0) or 0.0)
-            power = float(row.get("power", 0.0) or 0.0)
-            max_buying_power = float(row.get("max_buying_power", 0.0) or 0.0)
+            # Use max_buying_power if available, fall back to cash / available_funds.
+            # Futu can return sentinel strings (for example 'N/A') for some buying
+            # power fields outside regular market hours; treat those as unavailable
+            # instead of crashing the live order path.
+            cash = self._coerce_positive_float(row.get("cash", 0.0)) or 0.0
+            available_funds = self._coerce_positive_float(row.get("available_funds", 0.0)) or 0.0
+            power = self._coerce_positive_float(row.get("power", 0.0)) or 0.0
+            max_buying_power = self._coerce_positive_float(row.get("max_buying_power", 0.0)) or 0.0
             
             # Use the most permissive available metric
             effective_bp = max(cash, available_funds, power, max_buying_power)
@@ -1143,7 +1177,7 @@ class FutuConnector:
         decimals = 3 if symbol.endswith(".HK") or self.config.market_prefix == "HK" else 2
         return round(price, decimals)
 
-    def place_order(self, symbol: str, qty: int, side: str, price: Optional[float] = None) -> object:
+    def place_order(self, symbol: str, qty: int, side: str, price: Optional[float | str] = None) -> object:
         if self.ft is None:
             raise RuntimeError("FutuConnector not connected")
         if qty <= 0:
@@ -1172,7 +1206,14 @@ class FutuConnector:
                 f"account_route_error: no account configured for market {market} (symbol={symbol})"
             )
 
-        raw_price = float(price) if price is not None else self.get_order_reference_price(symbol, side, fallback_price=0.0)
+        raw_price = self._coerce_positive_float(price)
+        if raw_price is None:
+            raw_price = self.get_order_reference_price(symbol, side, fallback_price=0.0)
+        if raw_price is None or raw_price <= 0:
+            raise RuntimeError(
+                f"invalid_order_price: no finite positive reference price for {symbol} {side}; "
+                f"raw_price={price!r}"
+            )
         limit_price = self._round_price(raw_price, symbol)
         if limit_price != raw_price:
             self.logger.debug("Price rounded for %s: %.6f -> %.4f", symbol, raw_price, limit_price)

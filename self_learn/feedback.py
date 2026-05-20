@@ -58,6 +58,7 @@ def on_trade_closed(
     pnl: float,
     pnl_pct: float,
     hold_minutes: int,
+    prediction_error: float | None = None,
 ) -> dict:
     """Called when a position is closed. Writes outcome to DB."""
     _record_outcome(
@@ -66,6 +67,7 @@ def on_trade_closed(
         pnl=pnl,
         pnl_pct=pnl_pct,
         hold_minutes=hold_minutes,
+        prediction_error=prediction_error,
     )
     # Write latest outcome for quick review
     latest = {

@@ -1,18 +1,18 @@
 {
     "version": "2.0",
-    "date": "2026-05-19 08:01:10",
+    "date": "2026-05-20 08:00:43",
     "expanded_universe": false,
     "tiers": {
         "tier1": {
             "description": "Active trading \u2014 screener picks, model evaluation, order execution",
             "max_size": 20,
             "symbols": [
-                "NVDA",
                 "GOOGL",
                 "MSFT",
-                "AVGO",
+                "NVDA",
                 "AMD",
-                "TSM"
+                "TSM",
+                "AVGO"
             ]
         },
         "tier2": {
@@ -37,73 +37,73 @@
             "max_pe": 50.0,
             "min_eps_growth": 0.15
         },
-        "last_screened_at": "2026-05-19 08:01:10",
+        "last_screened_at": "2026-05-20 08:00:43",
         "last_screener": "V3FunnelScreener",
         "picks_count": 6,
         "failed_count": 0
     },
     "picks": [
-        "NVDA",
         "GOOGL",
         "MSFT",
-        "AVGO",
+        "NVDA",
         "AMD",
-        "TSM"
+        "TSM",
+        "AVGO"
     ],
     "details": [
         {
-            "symbol": "NVDA",
-            "pe": 19.450876,
-            "eps_growth": 0.945,
-            "rev_growth": 0.732,
-            "peg": 0.72,
-            "price": 222.32,
-            "ma50": 193.0712
-        },
-        {
             "symbol": "GOOGL",
-            "pe": 27.467329,
+            "pe": 26.825176,
             "eps_growth": 0.812,
             "rev_growth": 0.218,
             "peg": 1.56,
-            "price": 396.94,
-            "ma50": 332.7408
+            "price": 387.66,
+            "ma50": 334.7092
         },
         {
             "symbol": "MSFT",
-            "pe": 21.864609,
+            "pe": 21.548674,
             "eps_growth": 0.231,
             "rev_growth": 0.183,
-            "peg": 1.3,
-            "price": 423.54,
-            "ma50": 399.0648
+            "peg": 1.31,
+            "price": 417.42,
+            "ma50": 399.3564
         },
         {
-            "symbol": "AVGO",
-            "pe": 23.045279,
-            "eps_growth": 0.335,
-            "rev_growth": 0.295,
-            "peg": 0.93,
-            "price": 420.71,
-            "ma50": 369.4028
+            "symbol": "NVDA",
+            "pe": 18.975262,
+            "eps_growth": 0.945,
+            "rev_growth": 0.732,
+            "peg": 0.71,
+            "price": 220.61,
+            "ma50": 193.9612
         },
         {
             "symbol": "AMD",
-            "pe": 32.498867,
+            "pe": 31.963123,
             "eps_growth": 0.951,
             "rev_growth": 0.378,
-            "peg": 1.02,
-            "price": 420.99,
-            "ma50": 279.2126
+            "peg": 1.01,
+            "price": 414.05,
+            "ma50": 283.7838
         },
         {
             "symbol": "TSM",
-            "pe": 20.287724,
+            "pe": 20.116587,
             "eps_growth": 0.583,
             "rev_growth": 0.351,
-            "peg": 1.26,
-            "price": 395.95,
-            "ma50": 367.5926
+            "peg": 1.23,
+            "price": 392.61,
+            "ma50": 368.7338
+        },
+        {
+            "symbol": "AVGO",
+            "pe": 22.512234,
+            "eps_growth": 0.335,
+            "rev_growth": 0.295,
+            "peg": 0.92,
+            "price": 411.07,
+            "ma50": 371.2074
         }
     ],
     "failed_symbols": []
