@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import pandas as pd
 
@@ -153,6 +153,8 @@ class LiveConfig:
     max_symbol_concurrency: int = 111
     max_orders_per_cycle: int = 3
     order_throttle_seconds: float = 30.0
+    swing_buy_min_confidence: float = 0.45
+    model_buy_min_confidence: float = 0.55
     crit_move_threshold: float = 0.035
     quote_timeout_seconds: float = 10.0
     buy_cooldown_cycles: int = 3
@@ -360,6 +362,9 @@ class LiveTradingLoop:
         self._last_sell_time_by_symbol: dict[str, datetime] = {}  # 2026-04-24: prevent re-sync race
         self._orders_placed_this_cycle: int = 0
         self._last_order_monotonic: float | None = None
+        self._collect_buy_candidates: bool = False
+        self._buy_candidates: list[dict[str, Any]] = []
+        self._buy_candidate_seq: int = 0
         self.account_value = 100000.0
         self.strategy_factory = StrategyFactory()
         self.alpha_engine = KiroAlphaEngine(AlphaConfig())
@@ -439,6 +444,8 @@ class LiveTradingLoop:
     def _reset_order_rate_limit_cycle(self) -> None:
         """Reset per-cycle order counter at the start of each trading cycle."""
         self._orders_placed_this_cycle = 0
+        self._buy_candidates = []
+        self._buy_candidate_seq = 0
 
     def _order_rate_limit_guard(self, symbol: str, side: str, reason: str) -> tuple[bool, float]:
         """Return whether an order may be submitted under per-cycle and time guards."""
@@ -473,6 +480,101 @@ class LiveTradingLoop:
     def _record_order_rate_limit_accept(self, now: float) -> None:
         self._orders_placed_this_cycle += 1
         self._last_order_monotonic = now
+
+    def _signal_density_gate_allows(self, symbol: str, signal_kind: str, confidence: float) -> bool:
+        if signal_kind == "swing":
+            threshold = float(getattr(self.config, "swing_buy_min_confidence", 0.45))
+        elif signal_kind == "model":
+            threshold = float(getattr(self.config, "model_buy_min_confidence", 0.55))
+        else:
+            raise ValueError(f"unknown signal_kind={signal_kind!r}")
+        if float(confidence) >= threshold:
+            return True
+        self.logger.info(
+            "[SIGNAL_DENSITY_GATE][%s] suppressed %s BUY: conf=%.3f threshold=%.3f",
+            symbol,
+            signal_kind,
+            float(confidence),
+            threshold,
+        )
+        return False
+
+    def _signal_type_weight(self, signal_type: str) -> float:
+        return {
+            "both": 1.0,
+            "model_only": 0.7,
+            "swing_only": 0.4,
+        }.get(signal_type, 0.0)
+
+    def _buy_candidate_score(self, confidence: float, predicted_move_pct: float, signal_type: str) -> float:
+        return (
+            float(confidence) * 0.45
+            + float(predicted_move_pct) * 0.35
+            + self._signal_type_weight(signal_type) * 0.20
+        )
+
+    def _submit_buy_candidate(
+        self,
+        symbol: str,
+        qty: int,
+        price: float,
+        reason: str,
+        confidence: float,
+        predicted_move_pct: float,
+        signal_type: str,
+        indicators: dict | None = None,
+        prediction: float | None = None,
+    ) -> None:
+        if qty <= 0:
+            return
+        if not self._collect_buy_candidates:
+            self._execute(symbol, "BUY", qty, price, reason, indicators, prediction)
+            self._record_long_signal(symbol, price, qty, prediction)
+            return
+
+        self._buy_candidate_seq += 1
+        score = self._buy_candidate_score(confidence, predicted_move_pct, signal_type)
+        self._buy_candidates.append({
+            "symbol": symbol,
+            "qty": int(qty),
+            "price": float(price),
+            "reason": reason,
+            "confidence": float(confidence),
+            "predicted_move_pct": float(predicted_move_pct),
+            "signal_type": signal_type,
+            "score": score,
+            "seq": self._buy_candidate_seq,
+            "indicators": indicators,
+            "prediction": prediction,
+        })
+
+    def _flush_buy_candidates(self) -> None:
+        if not self._buy_candidates:
+            return
+        max_per_cycle = int(getattr(self.config, "max_orders_per_cycle", 0) or 0)
+        limit = max_per_cycle if max_per_cycle > 0 else len(self._buy_candidates)
+        ranked = sorted(
+            self._buy_candidates,
+            key=lambda c: (float(c["score"]), float(c["confidence"]), -int(c["seq"])),
+            reverse=True,
+        )
+        for candidate in ranked[:limit]:
+            self._execute(
+                candidate["symbol"],
+                "BUY",
+                candidate["qty"],
+                candidate["price"],
+                candidate["reason"],
+                candidate.get("indicators"),
+                candidate.get("prediction"),
+            )
+            self._record_long_signal(
+                candidate["symbol"],
+                candidate["price"],
+                candidate["qty"],
+                candidate.get("prediction"),
+            )
+        self._buy_candidates = []
 
     def _should_terminate_session(self) -> bool:
         from datetime import datetime, time as dt_time
@@ -515,6 +617,7 @@ class LiveTradingLoop:
         # All missing/stale quotes are fetched ONCE at cycle start.
         # Individual symbol cycles then hit cache (fast, zero network I/O).
         await self._prefetch_quotes()
+        self._collect_buy_candidates = True
 
         # ── Technical Screener: rank and filter symbols ─────────────────────
         if os.getenv("ENABLE_SCREENER", "0") == "1":
@@ -550,7 +653,11 @@ class LiveTradingLoop:
             async with semaphore:
                 await self._run_symbol_cycle(symbol)
 
-        await asyncio.gather(*(guarded(symbol) for symbol in self.symbols))
+        try:
+            await asyncio.gather(*(guarded(symbol) for symbol in self.symbols))
+        finally:
+            self._collect_buy_candidates = False
+        self._flush_buy_candidates()
 
         # -- Persist market buffers to DB (PR #83) --
         try:
@@ -1819,9 +1926,15 @@ class LiveTradingLoop:
         threshold_up = current_price * (1 + symbol_threshold)
         threshold_down = current_price * (1 - symbol_threshold)
         predicted_move = (prediction - current_price) / max(current_price, 1e-9)
+        predicted_move_pct = predicted_move * 100.0
         model_buy_signal = predicted_move > symbol_threshold
         model_sell_signal = predicted_move < -symbol_threshold
         swing = self._evaluate_swing_signal(symbol, current_price, latest_frame)
+        swing_buy_signal = bool(swing["buy_signal"])
+        if swing_buy_signal and not self._signal_density_gate_allows(symbol, "swing", confidence):
+            swing_buy_signal = False
+        if model_buy_signal and not self._signal_density_gate_allows(symbol, "model", confidence):
+            model_buy_signal = False
 
         if getattr(self.config, "log_trade_decisions", True):
             self.logger.info(
@@ -1832,7 +1945,7 @@ class LiveTradingLoop:
             if getattr(self.config, "diagnostics_verbose", True):
                 self.logger.info(
                     "DIAG_GATE[%s] allow_long=%s qty=%d swing_buy=%s swing_sell=%s model_buy=%s model_sell=%s bypass_ror=%s",
-                    symbol, allow_long, qty, swing["buy_signal"], swing["sell_signal"],
+                    symbol, allow_long, qty, swing_buy_signal, swing["sell_signal"],
                     model_buy_signal, model_sell_signal, getattr(self.config, "bypass_ror_gate", False),
                 )
 
@@ -1844,7 +1957,7 @@ class LiveTradingLoop:
             return
 
         if getattr(self.config, "swing_strategy_enabled", True):
-            if qty == 0 and allow_long and swing["buy_signal"]:
+            if qty == 0 and allow_long and swing_buy_signal and not model_buy_signal:
                 returns = self._get_buffer(symbol)["Close"].pct_change().dropna()
                 mc_swing = self.monte_carlo.stress_test(returns)
                 kelly_swing = self._kelly_sizer.calculate_details(
@@ -1859,14 +1972,23 @@ class LiveTradingLoop:
                 alloc = min(self.account_value * swing_risk_pct, self.account_value * cap_fraction)
                 buy_qty = max(0, int(alloc / max(current_price, 1e-9)))
                 if buy_qty > 0:
-                    self._execute(symbol, "BUY", buy_qty, current_price, f"swing_signal_conf={confidence:.3f}")
-                    self._record_long_signal(symbol, current_price, buy_qty, prediction)
+                    self._submit_buy_candidate(
+                        symbol,
+                        buy_qty,
+                        current_price,
+                        f"swing_signal_conf={confidence:.3f}",
+                        confidence,
+                        predicted_move_pct,
+                        "swing_only",
+                        prediction=prediction,
+                    )
                     return
             elif qty > 0 and swing["sell_signal"]:
                 self._execute(symbol, "SELL", qty, current_price, "swing_signal")
                 return
 
         if allow_long and model_buy_signal and qty == 0:
+            signal_type = "both" if swing_buy_signal else "model_only"
             # position cap gate
             max_pos = getattr(self.config, "max_positions", getattr(self.config, "max_portfolio_positions", 999))
             open_positions = sum(1 for s, q in self.position_qty_by_symbol.items() if q > 0)
@@ -1925,8 +2047,17 @@ class LiveTradingLoop:
             alloc = min(self.account_value * risk_pct, self.account_value * cap_fraction)
             buy_qty = max(0, int(alloc / max(current_price, 1e-9)))
             if buy_qty > 0:
-                self._execute(symbol, "BUY", buy_qty, current_price, f"model_signal_conf={confidence:.3f}")
-                self._record_long_signal(symbol, current_price, buy_qty, prediction)
+                reason_prefix = "combined_signal" if signal_type == "both" else "model_signal"
+                self._submit_buy_candidate(
+                    symbol,
+                    buy_qty,
+                    current_price,
+                    f"{reason_prefix}_conf={confidence:.3f}",
+                    confidence,
+                    predicted_move_pct,
+                    signal_type,
+                    prediction=prediction,
+                )
         elif model_sell_signal and qty > 0:
             if self.cycles_since_buy_by_symbol.get(symbol, 0) >= self.config.buy_cooldown_cycles:
                 self._execute(symbol, "SELL", qty, current_price, "model_signal")
