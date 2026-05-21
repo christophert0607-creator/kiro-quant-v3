@@ -23,6 +23,14 @@ class DummyTradeContext:
         self.place_order_calls.append(kwargs)
         return 0, pd.DataFrame([{"order_id": "T123"}])
 
+    def accinfo_query(self, **kwargs):
+        return 0, pd.DataFrame([{
+            "cash": 5000.0,
+            "available_funds": "N/A",
+            "power": "N/A",
+            "max_buying_power": "N/A",
+        }])
+
 
 class DummyQuoteContext:
     pass
@@ -201,18 +209,39 @@ def test_validate_trading_ready_ignores_na_account_metrics_when_cash_is_valid(mo
     connector = FutuConnector(config=cfg)
     connector.ft = DummyFT
     connector.trade_ctx = DummyTradeContext()
-    monkeypatch.setattr(
-        connector,
-        "_safe_trade_call",
-        lambda *args, **kwargs: pd.DataFrame([{
-            "cash": 5000.0,
-            "available_funds": "N/A",
-            "power": "N/A",
-            "max_buying_power": "N/A",
-        }]),
-    )
 
     connector.validate_trading_ready(symbol="XOM", qty=10, side="BUY", est_price=100.0)
+
+
+def test_validate_trading_ready_uses_per_market_acc_id_and_never_crosses_hk_to_us():
+    cfg = FutuConfig(trd_env="SIMULATE")
+    connector = FutuConnector(config=cfg)
+    connector.ft = DummyFT
+    hk_ctx = DummyTradeContext()
+    us_ctx = DummyTradeContext()
+    hk_calls = []
+    us_calls = []
+
+    def hk_accinfo_query(**kwargs):
+        hk_calls.append(kwargs)
+        return 0, pd.DataFrame([{"cash": 50000.0}])
+
+    def us_accinfo_query(**kwargs):
+        us_calls.append(kwargs)
+        return 0, pd.DataFrame([{"cash": 50000.0}])
+
+    hk_ctx.accinfo_query = hk_accinfo_query
+    us_ctx.accinfo_query = us_accinfo_query
+    connector.trade_ctx = us_ctx
+    connector.trade_ctxs = {"HK": hk_ctx, "US": us_ctx}
+    connector.config_market_accounts = {"HK": 14239754, "US": 18526451}
+
+    connector.validate_trading_ready(symbol="0700.HK", qty=100, side="BUY", est_price=300.0)
+    connector.validate_trading_ready(symbol="XOM", qty=10, side="BUY", est_price=100.0)
+
+    assert hk_calls == [{"acc_id": 14239754, "trd_env": "SIMULATE"}]
+    assert us_calls == [{"acc_id": 18526451, "trd_env": "SIMULATE"}]
+    assert all(call.get("acc_id") != 18526451 for call in hk_calls)
 
 
 def test_get_order_reference_price_ignores_na_order_book_and_uses_latest_quote():

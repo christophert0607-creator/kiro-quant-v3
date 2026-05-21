@@ -1,0 +1,2 @@
+
+[2026-05-21 06:00] daily-v3-backtest: FAILED - yfinance timeout (2836 signals for 2026-05-20)

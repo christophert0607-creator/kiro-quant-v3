@@ -1,0 +1,107 @@
+{
+  "project": "Meta-Labeling System",
+  "workspace": "/home/tsukii0607/.openclaw/workspace-quant/kiro-quant-v3",
+  "status": "active",
+  "created": "2026-05-19",
+  "next_task": "meta_012b",
+  "blocks": [
+    "meta_012b_blocked_by_no_outcomes: Cannot integrate live overrides until we have ≥100 closed trade outcomes in live DB (RETRAIN_MIN_OUTCOMES=100 from config.py)"
+  ],
+  "completed_tasks": [
+    "meta_001_schema_sync",
+    "meta_002a_signal_chain_diagnosis",
+    "meta_002b_log_search_confirms_hook_calls",
+    "meta_002c_verify_hook_on_signal_works",
+    "meta_003_on_trade_closed_signature_fix",
+    "meta_004_meta_labeler_design",
+    "meta_005_meta_labeler_unit_tests",
+    "meta_006_meta_labeler_integration_test",
+    "meta_007_evaluate_open_signals_script",
+    "meta_011_prep_check_training_readiness",
+    "meta_012a_decision_matrix_doc"
+  ],
+  "findings": {
+    "meta_007": {
+      "script_created": "self_learn/scripts/evaluate_open_signals.py",
+      "db_state": "Predictions=47,566, Signals=2,841 (all OPEN), Outcomes=0",
+      "result": "All 100 sampled signals return NO_DATA — no closed trade history available",
+      "key_insight": "2841 signals have NULL prediction_id (not linked to predictions) — likely legacy test data",
+      "train_readiness": "ready=False — need ≥20 closed outcomes before meta-model training",
+      "py_compile": "OK, runs correctly"
+    },
+    "meta_011_prep": {
+      "script_created": "self_learn/scripts/check_training_readiness.py",
+      "purpose": "Readiness check for meta-labeling training pipeline — reads DB, no live trading impact",
+      "checks": ["closed_signals >= 100", "outcomes >= 100", "symbols_with_history >= 3"],
+      "current_state": {
+        "closed_signals": 0,
+        "total_outcomes": 0,
+        "symbols_with_history": 0
+      },
+      "result": "NOT READY — blocked by: closed_signals < 100, outcomes < 100, symbols_with_history < 3",
+      "threshold_source": "RETRAIN_MIN_OUTCOMES=100 from self_learn/config.py",
+      "py_compile": "OK",
+      "note": "meta_011 is training pipeline implementation; readiness check is a pre-requisite diagnostic script"
+    },
+    "meta_002a": {
+      "predictions_table": "12,218 records, all have valid UUID ids",
+      "signals_table": "4 records (3 old test + 1 new linked)",
+      "main_loop_hook_calls": "hook_on_signal called correctly with prediction_id from _pred_id_by_symbol.get(symbol)",
+      "pred_id_stored_at": "L792: self._pred_id_by_symbol[symbol] = _pred_id_for_signal",
+      "pred_id_retrieved_at": "L1534: prediction_id=self._pred_id_by_symbol.get(symbol)",
+      "root_cause": "Silent exception in hook_on_prediction OR LiveTradingLoop not generating BUY signals in current session"
+    },
+    "meta_002b": {
+      "log_file": "v3_live.log",
+      "search_result": "No [SELFLEARN] or pred_id= logs found",
+      "conclusion": "LiveTradingLoop running but only in IDLE_COLLECT mode — no BUY signals generated in current session"
+    },
+    "meta_002c": {
+      "script_created": "self_learn/scripts/diagnose_self_learn_hooks.py",
+      "DB_confirms": "prediction_error column exists in outcomes table",
+      "root_cause": "hook_on_signal CAN write prediction_id correctly — confirmed by direct test call",
+      "hook_verification": "Standalone test: hook_on_prediction + hook_on_signal both succeed and DB shows linked signal"
+    },
+    "meta_003": {
+      "on_trade_closed_signature": "Fixed: added prediction_error parameter to match main_loop.py call site",
+      "main_loop_call_sites": "L2369 (BUY close) and L2528 (SHORT close) both pass prediction_error",
+      "call_site_signature_match": "main_loop.py passes (signal_id, exit_price, pnl, pnl_pct, hold_minutes, prediction_error) — now compatible"
+    },
+    "meta_004": {
+      "meta_labeler_created": "self_learn/meta_labeler.py — 270 lines, full decision engine",
+      "architecture": "CONFIRM/REJECT/REVERSE/NO_DATA decision system based on per-symbol MAE + directional accuracy",
+      "thresholds_env_vars": "META_DIR_ACC_CONFIRM=0.55, META_DIR_ACC_REVERSE=0.40, META_MAE_CONFIRM=5.0, META_CONFIDENCE_OVERRIDE=0.80",
+      "no_outcomes_yet": "DB has 0 closed trades (outcomes=0) — meta_labeler correctly returns NO_DATA for all calls",
+      "verification": "py_compile OK, import OK, NO_DATA returned correctly for symbol with no history"
+    },
+    "meta_005": {
+      "test_file": "tests/test_meta_labeler.py — 10 tests, all passing",
+      "coverage": "NO_DATA (2), CONFIRM (2), REJECT (1), REVERSE (2), confidence_override (1), get_meta_stats (2)",
+      "pytest_result": "10 passed in 1.03s — py_compile OK, no live trading involved",
+      "blocker_identified": "meta_006 needs live BUY signals + closed outcomes to validate full hook chain"
+    },
+    "meta_006": {
+      "test_file": "tests/test_meta_labeler_integration.py — 5 integration tests, all passing",
+      "tests": ["on_trade_closed writes outcome", "get_prediction_accuracy updates", "MetaLabeler decisions vary with data", "High confidence override", "get_meta_stats readiness"],
+      "result": "5/5 passed in ~2s — py_compile OK on all files",
+      "validation": "Full hook_on_trade_closed + meta_labeler chain confirmed working with synthetic data",
+      "key_finding": "get_prediction_accuracy correctly computes MAE and directional accuracy from outcomes table joined via Signal→Prediction",
+      "dir_acc_logic": "pred_direction vs actual_direction — pred above entry = bullish, pred below entry = bearish",
+      "blocker_update": "meta_006 complete — meta_011 still blocked by no live closed outcomes (≥20 needed)"
+    },
+    "meta_012a": {
+      "file_created": "dev/meta_labeling/META_012_DECISION_MATRIX.md",
+      "purpose": "Decision matrix documentation for meta_012 live integration",
+      "content": "Threshold constants, decision logic flow, trigger conditions, integration hook points",
+      "key_sections": [
+        "Decision Matrix table (CONFIRM/REJECT/REVERSE/NO_DATA)",
+        "Override behavior (confidence override, reversal confidence scaling)",
+        "Live integration hook points (main_loop.py code examples)",
+        "Backtesting requirement before live override",
+        "Blocker resolution path (4 steps to live integration)"
+      ],
+      "py_compile": "OK (meta_labeler.py unchanged)",
+      "readiness": "Decision matrix complete — waiting for ≥100 outcomes to proceed to meta_012b (live integration)"
+    }
+  }
+}
