@@ -155,6 +155,7 @@ class LiveConfig:
     order_throttle_seconds: float = 30.0
     swing_buy_min_confidence: float = 0.45
     model_buy_min_confidence: float = 0.55
+    swing_buy_reversal_override: bool = False
     crit_move_threshold: float = 0.035
     quote_timeout_seconds: float = 10.0
     buy_cooldown_cycles: int = 3
@@ -364,7 +365,9 @@ class LiveTradingLoop:
         self._last_order_monotonic: float | None = None
         self._collect_buy_candidates: bool = False
         self._buy_candidates: list[dict[str, Any]] = []
+        self._deferred_buy_candidates: list[dict[str, Any]] = []
         self._buy_candidate_seq: int = 0
+        self._exit_order_executed_this_cycle: bool = False
         self.account_value = 100000.0
         self.strategy_factory = StrategyFactory()
         self.alpha_engine = KiroAlphaEngine(AlphaConfig())
@@ -444,8 +447,10 @@ class LiveTradingLoop:
     def _reset_order_rate_limit_cycle(self) -> None:
         """Reset per-cycle order counter at the start of each trading cycle."""
         self._orders_placed_this_cycle = 0
-        self._buy_candidates = []
-        self._buy_candidate_seq = 0
+        self._buy_candidates = list(self._deferred_buy_candidates)
+        self._deferred_buy_candidates = []
+        self._buy_candidate_seq = len(self._buy_candidates)
+        self._exit_order_executed_this_cycle = False
 
     def _order_rate_limit_guard(self, symbol: str, side: str, reason: str) -> tuple[bool, float]:
         """Return whether an order may be submitted under per-cycle and time guards."""
@@ -548,8 +553,42 @@ class LiveTradingLoop:
             "prediction": prediction,
         })
 
+    def _defer_buy_candidates(self, reason: str, **log_fields: Any) -> None:
+        deferred_count = len(self._buy_candidates)
+        if deferred_count <= 0:
+            return
+        self._deferred_buy_candidates.extend(self._buy_candidates)
+        self._buy_candidates = []
+        if reason == "order_throttle":
+            self.logger.warning(
+                "[BUY_QUEUE_DEFERRED] deferred=%d reason=order_throttle seconds_since_last=%.1f threshold=%.1f",
+                deferred_count,
+                float(log_fields.get("seconds_since_last", 0.0)),
+                float(log_fields.get("threshold", 0.0)),
+            )
+        else:
+            self.logger.warning("[BUY_QUEUE_DEFERRED] deferred=%d reason=%s", deferred_count, reason)
+
+    def _buy_queue_throttle_status(self) -> tuple[bool, float, float]:
+        throttle_seconds = float(getattr(self.config, "order_throttle_seconds", 0.0) or 0.0)
+        if throttle_seconds <= 0 or self._last_order_monotonic is None:
+            return False, 0.0, throttle_seconds
+        seconds_since_last = time.monotonic() - self._last_order_monotonic
+        return seconds_since_last < throttle_seconds, seconds_since_last, throttle_seconds
+
     def _flush_buy_candidates(self) -> None:
         if not self._buy_candidates:
+            return
+        if self._exit_order_executed_this_cycle:
+            self._defer_buy_candidates("sell_executed_this_cycle")
+            return
+        throttle_active, seconds_since_last, threshold = self._buy_queue_throttle_status()
+        if throttle_active:
+            self._defer_buy_candidates(
+                "order_throttle",
+                seconds_since_last=seconds_since_last,
+                threshold=threshold,
+            )
             return
         max_per_cycle = int(getattr(self.config, "max_orders_per_cycle", 0) or 0)
         limit = max_per_cycle if max_per_cycle > 0 else len(self._buy_candidates)
@@ -1935,6 +1974,17 @@ class LiveTradingLoop:
             swing_buy_signal = False
         if model_buy_signal and not self._signal_density_gate_allows(symbol, "model", confidence):
             model_buy_signal = False
+        if (
+            swing_buy_signal
+            and model_sell_signal
+            and not model_buy_signal
+            and not bool(getattr(self.config, "swing_buy_reversal_override", False))
+        ):
+            self.logger.info(
+                "[SIGNAL_DENSITY_GATE][%s] suppressed swing BUY: model_sell=True model_buy=False",
+                symbol,
+            )
+            swing_buy_signal = False
 
         if getattr(self.config, "log_trade_decisions", True):
             self.logger.info(
@@ -2475,6 +2525,8 @@ class LiveTradingLoop:
             return
 
         self._record_order_rate_limit_accept(rate_limit_now)
+        if side == "SELL":
+            self._exit_order_executed_this_cycle = True
 
         # Position was accepted (PAPER fill or LIVE broker accepted) — update secondary state
         if side == "BUY":
@@ -2702,6 +2754,7 @@ class LiveTradingLoop:
             self.logger.info("PAPER_SHORT_COVER %s qty=%d limit=%.4f type=NORMAL", symbol, qty, fill_price)
         else:
             self.futu_connector.place_order(symbol, qty, "BUY", fill_price)
+        self._exit_order_executed_this_cycle = True
 
         self.logger.info("EXEC_SHORT_COVER %s qty=%d fill=%.4f reason=%s", symbol, qty, fill_price, reason)
 

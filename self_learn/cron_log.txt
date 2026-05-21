@@ -3948,3 +3948,8 @@ STATS: {"total_predictions": 38166, "total_signals": 1965, "open_signals": 1965,
 RETRAIN_CHECK: {"stats": {"total_predictions": 38166, "total_signals": 1965, "open_signals": 1965, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}, "should_retrain": false, "retrain_done": false}
 ---
 Done at Thu May 21 00:00:05 CST 2026
+=== [2026-05-22 00:00:04] Self-Learn Cron ===
+STATS: {"total_predictions": 57790, "total_signals": 5066, "open_signals": 5066, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}
+RETRAIN_CHECK: {"stats": {"total_predictions": 57790, "total_signals": 5066, "open_signals": 5066, "closed_signals": 0, "total_outcomes": 0, "total_pnl": 0.0, "avg_pnl_pct": 0.0, "current_model_version": null}, "should_retrain": false, "retrain_done": false}
+---
+Done at Fri May 22 00:00:07 CST 2026

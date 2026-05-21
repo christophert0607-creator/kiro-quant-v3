@@ -1,7 +1,7 @@
 {
   "date": "2026-05-21",
   "daily_pnl": 0.0,
-  "daily_trades": 47,
+  "daily_trades": 1,
   "consecutive_errors": 0,
   "circuit_broken": false,
   "circuit_break_time": null,
@@ -107,11 +107,11 @@
       "reason": "swing_signal"
     },
     "US.NFLX": {
-      "time": 1779371894.9208548,
-      "signal": "SELL",
-      "qty": 25,
-      "price": 87.81500244140625,
-      "reason": "max_hold_5_bars"
+      "time": 1779382513.1334603,
+      "signal": "BUY",
+      "qty": 28,
+      "price": 89.56539916992188,
+      "reason": "combined_signal_conf=1.000"
     },
     "US.AMAT": {
       "time": 1779197525.7984748,
@@ -156,7 +156,7 @@
       "reason": "swing_signal"
     },
     "HK.3690.HK": {
-      "time": 1779373869.0381172,
+      "time": 1779374559.8111446,
       "signal": "SELL",
       "qty": 100,
       "price": 83.0,
@@ -170,11 +170,11 @@
       "reason": "model_signal"
     },
     "US.ADBE": {
-      "time": 1779373688.3374853,
+      "time": 1779384742.2149525,
       "signal": "BUY",
-      "qty": 18,
-      "price": 245.41000366210938,
-      "reason": "swing_signal_conf=1.000"
+      "qty": 3,
+      "price": 244.97500610351562,
+      "reason": "combined_signal_conf=1.000"
     },
     "US.IBM": {
       "time": 1779290898.208277,
@@ -262,12 +262,12 @@
     }
   },
   "positions": {
-    "US.COST": 0,
     "US.TIP": 212,
     "US.HYG": 465,
     "US.VTI": 118,
     "US.QQQ": 282,
-    "HK.03690": 100
+    "HK.03690": 100,
+    "US.ADBE": 3
   },
   "total_invested": 0.0,
   "mode": "HK_lite",
@@ -275,7 +275,7 @@
   "last_review": "2026-03-18T19:22:00Z",
   "review_notes": "Hourly self-review 2026-03-18 19:22 UTC: System healthy. HK lite profile running with no errors. Logs show clean execution - multiple trade cycles processed. 9 trades executed this hour: mixed BUY (6) and SELL (3). Model predictions negative (-0.38% to -6.47%). Position cap at 10/10 - full. PnL: daily=$0, cumulative=-$3,219.28. Code review: syntax OK, no bare except, async/await implemented, Kelly sizer integrated, transaction cost calculator present. TA-Lib still using pandas fallback. No code changes applied this hour.",
   "short_positions": {
-    "US.COST": 0
+    "US.ADBE": 0
   },
   "account_routing": {
     "account_routing": {

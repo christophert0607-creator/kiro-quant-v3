@@ -191,6 +191,7 @@ def _base_live_config(config_path: str = "config.json") -> LiveConfig:
         order_throttle_seconds=float(v3_live.get("order_throttle_seconds", 30.0)),
         swing_buy_min_confidence=float(v3_live.get("swing_buy_min_confidence", 0.45)),
         model_buy_min_confidence=float(v3_live.get("model_buy_min_confidence", 0.55)),
+        swing_buy_reversal_override=bool(v3_live.get("swing_buy_reversal_override", False)),
         buy_cooldown_cycles=int(v3_live.get("buy_cooldown_cycles", 3)),
         bucket_fractions=bucket_fractions,
         bucket_by_symbol=bucket_by_symbol,
