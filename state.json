@@ -1,7 +1,7 @@
 {
-  "date": "2026-05-21",
+  "date": "2026-05-22",
   "daily_pnl": 0.0,
-  "daily_trades": 1,
+  "daily_trades": 0,
   "consecutive_errors": 0,
   "circuit_broken": false,
   "circuit_break_time": null,
@@ -23,11 +23,11 @@
       "reason": "model_signal"
     },
     "US.NVDA": {
-      "time": 1778087165.919831,
-      "signal": "SELL",
-      "qty": 9,
-      "price": 204.88009643554688,
-      "reason": "model_signal_confirmed"
+      "time": 1779460574.7378743,
+      "signal": "BUY",
+      "qty": 1,
+      "price": 216.32479858398438,
+      "reason": "model_signal_conf=1.000"
     },
     "US.JPM": {
       "time": 1778769531.6291525,
@@ -58,11 +58,11 @@
       "reason": "model_signal"
     },
     "US.INTC": {
-      "time": 1779373298.2588139,
+      "time": 1779460732.5118935,
       "signal": "BUY",
-      "qty": 58,
-      "price": 113.48999786376953,
-      "reason": "swing_signal_conf=1.000"
+      "qty": 762,
+      "price": 121.77010345458984,
+      "reason": "model_signal_conf=0.988"
     },
     "US.MSTR": {
       "time": 1779111213.4075623,
@@ -93,11 +93,11 @@
       "reason": "model_signal"
     },
     "US.AMZN": {
-      "time": 1779373220.431979,
-      "signal": "BUY",
-      "qty": 78,
-      "price": 263.2550048828125,
-      "reason": "swing_signal_conf=1.000"
+      "time": 1779456792.919028,
+      "signal": "SELL",
+      "qty": 877,
+      "price": 269.3399963378906,
+      "reason": "model_signal"
     },
     "US.SMCI": {
       "time": 1779294351.8376892,
@@ -107,18 +107,18 @@
       "reason": "swing_signal"
     },
     "US.NFLX": {
-      "time": 1779382513.1334603,
-      "signal": "BUY",
+      "time": 1779457186.8317525,
+      "signal": "SELL",
       "qty": 28,
-      "price": 89.56539916992188,
-      "reason": "combined_signal_conf=1.000"
+      "price": 89.32499694824219,
+      "reason": "max_hold_5_bars"
     },
     "US.AMAT": {
-      "time": 1779197525.7984748,
+      "time": 1779462777.853575,
       "signal": "SELL",
-      "qty": 3,
-      "price": 406.7200012207031,
-      "reason": "max_hold_5_bars"
+      "qty": 6,
+      "price": 433.7149963378906,
+      "reason": "swing_signal"
     },
     "US.ARM": {
       "time": 1779111134.6542468,
@@ -163,18 +163,18 @@
       "reason": "model_signal"
     },
     "US.CRM": {
-      "time": 1779372826.5650258,
-      "signal": "SELL",
-      "qty": 110,
-      "price": 174.72500610351562,
-      "reason": "model_signal"
+      "time": 1779460026.5351882,
+      "signal": "BUY",
+      "qty": 4,
+      "price": 177.91000366210938,
+      "reason": "model_signal_conf=0.644"
     },
     "US.ADBE": {
-      "time": 1779384742.2149525,
-      "signal": "BUY",
-      "qty": 3,
-      "price": 244.97500610351562,
-      "reason": "combined_signal_conf=1.000"
+      "time": 1779456872.9208386,
+      "signal": "SELL",
+      "qty": 423,
+      "price": 247.2949981689453,
+      "reason": "swing_signal"
     },
     "US.IBM": {
       "time": 1779290898.208277,
@@ -184,11 +184,11 @@
       "reason": "model_signal"
     },
     "US.ACN": {
-      "time": 1779373062.4933205,
-      "signal": "BUY",
+      "time": 1779457030.0446198,
+      "signal": "SELL",
       "qty": 326,
-      "price": 176.2050018310547,
-      "reason": "swing_signal_conf=1.000"
+      "price": 179.9499969482422,
+      "reason": "max_hold_5_bars"
     },
     "US.UBER": {
       "time": 1779290820.8650517,
@@ -212,11 +212,11 @@
       "reason": "model_signal"
     },
     "US.XOM": {
-      "time": 1779372282.1955757,
-      "signal": "SELL",
-      "qty": 3259,
-      "price": 156.98500061035156,
-      "reason": "max_hold_5_bars"
+      "time": 1779459230.3039057,
+      "signal": "BUY",
+      "qty": 65,
+      "price": 155.0,
+      "reason": "combined_signal_conf=0.686"
     },
     "US.CVX": {
       "time": 1779293284.2249756,
@@ -233,10 +233,10 @@
       "reason": "model_signal"
     },
     "US.MSFT": {
-      "time": 1779291520.6968143,
+      "time": 1779458992.2408795,
       "signal": "SELL",
-      "qty": 246,
-      "price": 416.54998779296875,
+      "qty": 117,
+      "price": 418.75,
       "reason": "model_signal"
     },
     "US.AVGO": {
@@ -247,17 +247,45 @@
       "reason": "model_signal"
     },
     "US.CSCO": {
-      "time": 1779373375.9847324,
-      "signal": "BUY",
+      "time": 1779457108.9689372,
+      "signal": "SELL",
       "qty": 13,
-      "price": 115.71499633789062,
-      "reason": "model_signal_conf=0.553"
+      "price": 119.59500122070312,
+      "reason": "max_hold_5_bars"
     },
     "US.COST": {
       "time": 1779374055.6367443,
       "signal": "SELL",
       "qty": 1,
       "price": 1050.9599609375,
+      "reason": "model_signal"
+    },
+    "US.ZS": {
+      "time": 1779460652.6736696,
+      "signal": "BUY",
+      "qty": 880,
+      "price": 176.08999633789062,
+      "reason": "model_signal_conf=0.824"
+    },
+    "US.UNH": {
+      "time": 1779457892.6306665,
+      "signal": "SELL",
+      "qty": 11,
+      "price": 385.8299865722656,
+      "reason": "model_signal"
+    },
+    "US.CRWD": {
+      "time": 1779459388.7041962,
+      "signal": "SELL",
+      "qty": 349,
+      "price": 667.3499755859375,
+      "reason": "model_signal"
+    },
+    "US.GOOGL": {
+      "time": 1779467680.4008446,
+      "signal": "SELL",
+      "qty": 17,
+      "price": 385.3999938964844,
       "reason": "model_signal"
     }
   },
@@ -266,17 +294,14 @@
     "US.HYG": 465,
     "US.VTI": 118,
     "US.QQQ": 282,
-    "HK.03690": 100,
-    "US.ADBE": 3
+    "HK.03690": 100
   },
   "total_invested": 0.0,
   "mode": "HK_lite",
   "runtime_profile": "lite",
   "last_review": "2026-03-18T19:22:00Z",
   "review_notes": "Hourly self-review 2026-03-18 19:22 UTC: System healthy. HK lite profile running with no errors. Logs show clean execution - multiple trade cycles processed. 9 trades executed this hour: mixed BUY (6) and SELL (3). Model predictions negative (-0.38% to -6.47%). Position cap at 10/10 - full. PnL: daily=$0, cumulative=-$3,219.28. Code review: syntax OK, no bare except, async/await implemented, Kelly sizer integrated, transaction cost calculator present. TA-Lib still using pandas fallback. No code changes applied this hour.",
-  "short_positions": {
-    "US.ADBE": 0
-  },
+  "short_positions": {},
   "account_routing": {
     "account_routing": {
       "HK": {
