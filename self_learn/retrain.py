@@ -2,7 +2,7 @@
 Stage 3: XGBoost Batch Retrain for Self-Learning Trading System.
 
 Builds training data from predictions + outcomes + signals,
-trains an XGBoost regressor to predict normalized P&L reward,
+trains an XGBoost classifier to predict trade profitability,
 and saves a hot-swappable model.
 """
 
@@ -16,7 +16,7 @@ from typing import Optional
 
 import numpy as np
 import xgboost as xgb
-from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import accuracy_score, classification_report
 
 from self_learn.models import (
     session_scope,
@@ -32,12 +32,12 @@ from self_learn.models import (
 
 # ─── Data Joining ──────────────────────────────────────────────────────────────
 
-def build_training_data(max_samples: int = 500) -> tuple[list[np.ndarray], list[float]]:
+def build_training_data(max_samples: int = 500) -> tuple[list[np.ndarray], list[int]]:
     """Build (X, y) training data from predictions + signals + outcomes.
 
     Returns:
         X: list of feature vectors
-        y: list of normalized P&L rewards in [-1.0, 1.0] (saturates at ±5% pnl_pct)
+        y: list of labels (1=profitable, 0=loss)
     """
     with session_scope() as session:
         # Get all closed signals with their outcomes
@@ -52,7 +52,7 @@ def build_training_data(max_samples: int = 500) -> tuple[list[np.ndarray], list[
         )
 
     X_list: list[np.ndarray] = []
-    y_list: list[float] = []
+    y_list: list[int] = []
 
     for signal, outcome, prediction in rows:
         # Try to build rich features from stored indicators dict
@@ -72,9 +72,8 @@ def build_training_data(max_samples: int = 500) -> tuple[list[np.ndarray], list[
                 0.5,                                          # hour=midday
             ], dtype=np.float32)
 
-        # Reward: normalize pnl_pct to [-1, 1]; saturates at ±5% (research 9.2)
-        raw_pnl_pct = outcome.pnl_pct or 0.0
-        label = max(-1.0, min(1.0, raw_pnl_pct / 5.0))
+        # Label: 1 if profitable, 0 if loss
+        label = 1 if (outcome.pnl or 0) > 0 else 0
 
         X_list.append(vec)
         y_list.append(label)
@@ -155,37 +154,45 @@ def _build_feature_vector(prediction: Prediction, signal: Signal, outcome: Outco
 
 # ─── Training ─────────────────────────────────────────────────────────────────
 
-def train_xgboost_model(X: list[np.ndarray], y: list[float]) -> tuple[xgb.XGBRegressor, dict]:
-    """Train XGBoost regressor on feature vectors to predict normalized P&L reward.
+def train_xgboost_model(X: list[np.ndarray], y: list[int]) -> tuple[xgb.XGBClassifier, dict]:
+    """Train XGBoost classifier on feature vectors.
 
     Returns:
-        model: trained XGBRegressor
-        metrics: dict with mae, accuracy (proxy: 1-mae), positive_rate, sample_count
+        model: trained XGBClassifier
+        metrics: dict with accuracy, win_rate, sample_count
     """
     if len(X) < 10:
         raise ValueError(f"Not enough training samples: {len(X)}")
 
     X_arr = np.array(X)
-    y_arr = np.array(y, dtype=np.float32)
+    y_arr = np.array(y)
 
-    # Chronological train/test split (last 20% as holdout)
+    # Stratified train/test split (last 20% as holdout)
     split = int(len(X_arr) * 0.8)
     X_train, X_test = X_arr[:split], X_arr[split:]
     y_train, y_test = y_arr[:split], y_arr[split:]
 
-    model = xgb.XGBRegressor(
-        n_estimators=150,
+    # 2026-04-12 Fix: Early stopping + regularization to prevent overfitting
+    # 2026-04-14 Fix: Add scale_pos_weight to handle 80/20 class imbalance.
+    #   minority (profitable, label=1) gets higher weight so the model pays attention.
+    n_neg = sum(1 for v in y if v == 0)
+    n_pos = sum(1 for v in y if v == 1)
+    scale_pos_weight = max(n_neg / max(n_pos, 1), 1.0)  # avoid div-by-zero
+
+    model = xgb.XGBClassifier(
+        n_estimators=150,           # Reduced from 500 — early stopping will find optimal <= 150
         max_depth=3,
-        learning_rate=0.03,
+        learning_rate=0.03,        # Reduced from 0.05 — slower convergence, better generalization
         subsample=0.8,
         colsample_bytree=0.8,
-        reg_alpha=0.5,
-        reg_lambda=2.0,
-        min_child_weight=5,
-        eval_metric="mae",
+        reg_alpha=0.5,             # Increased from 0.1 — stronger L1 to prune noise features
+        reg_lambda=2.0,            # Increased from 1.0 — stronger L2 to prevent overfitting
+        min_child_weight=5,        # Increased from 3 — require more samples per leaf
+        scale_pos_weight=scale_pos_weight,  # weight minority class (profitable trades)
+        eval_metric="logloss",     # Primary metric for early stopping
         random_state=42,
         n_jobs=-1,
-        early_stopping_rounds=15,
+        early_stopping_rounds=15,  # Stop if no improvement for 15 consecutive rounds
     )
 
     model.fit(
@@ -194,19 +201,20 @@ def train_xgboost_model(X: list[np.ndarray], y: list[float]) -> tuple[xgb.XGBReg
         verbose=False,
     )
 
+    # Evaluate on HOLD-OUT test set only (not training data)
     y_pred = model.predict(X_test)
-    mae = mean_absolute_error(y_test, y_pred)
+    accuracy = accuracy_score(y_test, y_pred)
 
-    # positive_rate: fraction of trades with reward > 0 (proxy for win rate)
-    positive_rate = float(sum(1 for v in y if v > 0)) / max(len(y), 1)
+    # True win rate from test set (proportion of positive class in test)
+    win_rate = float(sum(y_test)) / max(len(y_test), 1)
 
-    best_iter = getattr(model, "best_iteration", None)
-    actual_iters = best_iter or model.n_estimators
+    # Best iteration from early stopping
+    best_iter = getattr(model, 'best_iteration', None)
+    actual_iters = getattr(model, 'best_iteration', None) or model.n_estimators
 
     metrics = {
-        "mae": round(float(mae), 6),
-        "accuracy": round(max(0.0, 1.0 - float(mae)), 4),  # proxy for compatibility
-        "positive_rate": round(positive_rate, 4),
+        "accuracy": round(float(accuracy), 4),
+        "win_rate": round(float(win_rate), 4),
         "train_size": len(X_train),
         "test_size": len(X_test),
         "total_samples": len(X_arr),
@@ -220,7 +228,7 @@ def train_xgboost_model(X: list[np.ndarray], y: list[float]) -> tuple[xgb.XGBReg
 # ─── Model Persistence ──────────────────────────────────────────────────────────
 
 def save_trained_model(
-    model: xgb.XGBRegressor,
+    model: xgb.XGBClassifier,
     metrics: dict,
     model_dir: Path,
 ) -> tuple[str, Path]:
@@ -265,7 +273,7 @@ def get_latest_model_path() -> Optional[Path]:
     return None
 
 
-def load_latest_model() -> Optional[xgb.XGBRegressor]:
+def load_latest_model() -> Optional[xgb.XGBClassifier]:
     """Hot-swap load the most recent trained model."""
     path = get_latest_model_path()
     if path is None:
@@ -278,18 +286,18 @@ def load_latest_model() -> Optional[xgb.XGBRegressor]:
         return None
 
 
-def predict_profitable(model: xgb.XGBRegressor, features: np.ndarray) -> float:
-    """Use trained model to score expected P&L reward as a confidence signal.
+def predict_profitable(model: xgb.XGBClassifier, features: np.ndarray) -> float:
+    """Use trained model to score profitability probability.
 
     Args:
-        model: trained XGBRegressor
+        model: trained XGBClassifier
         features: feature vector (same shape as training)
 
     Returns:
-        confidence in [0.0, 1.0] — mapped from normalized P&L reward [-1, 1]
+        probability of being profitable (0.0 - 1.0)
     """
-    pred = model.predict(features.reshape(1, -1))
-    return float((pred[0] + 1.0) / 2.0)
+    proba = model.predict_proba(features.reshape(1, -1))
+    return float(proba[0][1])
 
 
 # ─── Main Retrain Pipeline ─────────────────────────────────────────────────────
@@ -320,9 +328,8 @@ def retrain_pipeline() -> dict:
             "metrics": metrics,
             "sample_breakdown": {
                 "total": len(y),
-                "positive": sum(1 for v in y if v > 0),
-                "negative": sum(1 for v in y if v <= 0),
-                "mean_reward": round(float(np.mean(y)), 4) if y else 0.0,
+                "profitable": sum(y),
+                "loss": len(y) - sum(y),
             },
         }
         log_file = model_dir / "training_log.jsonl"

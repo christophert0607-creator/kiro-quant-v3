@@ -73,6 +73,18 @@ class _FakeConnector:
     def _resolved_trd_env(self): return "SIMULATE"
 
 
+class _ZeroPaddedHKPositionConnector(_FakeConnector):
+    """Broker reports HK.03690 while engine trades 3690.HK."""
+
+    def resolve_symbol(self, symbol):
+        # Deliberately mirror the current connector's HK format, which differs
+        # from the broker position row returned by FutuOpenD.
+        return f"HK.{symbol}", "HK"
+
+    def get_sync_positions_all_markets(self):
+        return pd.DataFrame([{"code": "HK.03690", "qty": 100, "can_sell_qty": 100}])
+
+
 class _FakeModelManager:
     data_preparer = SimpleNamespace(
         lookback=2, target_col="Close", is_fitted=True, feature_columns=None,
@@ -92,7 +104,7 @@ class _FakeRisk:
     def estimate_cvar_95(self, *a, **kw): return -0.05
 
 
-def _make_loop(auto_trade=True, paper_trading=False, connector=None) -> LiveTradingLoop:
+def _make_loop(auto_trade=True, paper_trading=False, connector=None, **config_overrides) -> LiveTradingLoop:
     cfg = LiveConfig(
         symbol="TSLA",
         symbols_list=["TSLA"],
@@ -102,6 +114,7 @@ def _make_loop(auto_trade=True, paper_trading=False, connector=None) -> LiveTrad
         paper_trading=paper_trading,
         log_trade_decisions=True,
         polling_seconds=1,
+        **config_overrides,
     )
     loop = LiveTradingLoop(
         model_manager=_FakeModelManager(),
@@ -206,6 +219,60 @@ def test_paper_trading_sell_does_not_call_place_order():
 
     assert connector.place_order_calls == [], "PAPER mode must never call place_order()"
     assert loop.position_qty_by_symbol["TSLA"] == 0
+
+
+def test_live_sell_precheck_matches_zero_padded_hk_broker_position():
+    connector = _ZeroPaddedHKPositionConnector()
+    loop = _make_loop(auto_trade=True, paper_trading=False, connector=connector)
+    loop.position_qty_by_symbol["3690.HK"] = 100
+
+    loop._execute("3690.HK", "SELL", qty=100, price=83.0, reason="model_signal")
+
+    assert connector.place_order_calls == [("3690.HK", 100, "SELL", 83.0)]
+    assert loop.position_qty_by_symbol["3690.HK"] == 0
+
+
+def test_live_order_rate_limit_caps_orders_per_cycle():
+    connector = _FakeConnector()
+    loop = _make_loop(
+        auto_trade=True,
+        paper_trading=False,
+        connector=connector,
+        max_orders_per_cycle=1,
+        order_throttle_seconds=0,
+    )
+    loop.position_qty_by_symbol["TSLA"] = 0
+
+    loop._execute("TSLA", "BUY", qty=10, price=100.0, reason="first")
+    loop._execute("TSLA", "BUY", qty=10, price=101.0, reason="second")
+
+    assert connector.place_order_calls == [("TSLA", 10, "BUY", 100.0)]
+    assert loop.position_qty_by_symbol["TSLA"] == 10
+
+
+def test_live_order_rate_limit_throttles_within_30_seconds(monkeypatch):
+    connector = _FakeConnector()
+    loop = _make_loop(
+        auto_trade=True,
+        paper_trading=False,
+        connector=connector,
+        max_orders_per_cycle=10,
+        order_throttle_seconds=30,
+    )
+    loop.position_qty_by_symbol["TSLA"] = 0
+
+    now = iter([1_000.0, 1_010.0, 1_031.0])
+    monkeypatch.setattr("v3_pipeline.core.main_loop.time.monotonic", lambda: next(now))
+
+    loop._execute("TSLA", "BUY", qty=10, price=100.0, reason="first")
+    loop._execute("TSLA", "BUY", qty=10, price=101.0, reason="throttled")
+    loop._execute("TSLA", "BUY", qty=10, price=102.0, reason="after_window")
+
+    assert connector.place_order_calls == [
+        ("TSLA", 10, "BUY", 100.0),
+        ("TSLA", 10, "BUY", 102.0),
+    ]
+    assert loop.position_qty_by_symbol["TSLA"] == 20
 
 
 # ── Test: broker is called BEFORE position is mutated (ordering) ─────────────

@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS outcomes (
     pnl REAL,
     pnl_pct REAL,
     hold_minutes INTEGER,
+    prediction_error REAL,
     closed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

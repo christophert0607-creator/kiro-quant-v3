@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 import pandas as pd
 
@@ -151,11 +151,6 @@ class LiveConfig:
     history_retry_count: int = 3
     history_retry_backoff_seconds: float = 1.5
     max_symbol_concurrency: int = 111
-    max_orders_per_cycle: int = 3
-    order_throttle_seconds: float = 30.0
-    swing_buy_min_confidence: float = 0.45
-    model_buy_min_confidence: float = 0.55
-    swing_buy_reversal_override: bool = False
     crit_move_threshold: float = 0.035
     quote_timeout_seconds: float = 10.0
     buy_cooldown_cycles: int = 3
@@ -222,9 +217,6 @@ class LiveConfig:
     swing_sr_window: int = 20
     swing_sr_tolerance: float = 0.003
     bypass_ror_gate: bool = False
-    # Phase 1 HK hotfix: raw-return Kelly zero_edge blocks HK cold-start entries.
-    # Keep behind a flag so it can be disabled once conditional-outcome Kelly lands.
-    hk_bypass_kelly_zero_edge: bool = True
     diagnostics_verbose: bool = True
     quick_take_profit_pct: float = 0.01
     stop_loss_pct: float = 0.02
@@ -361,13 +353,6 @@ class LiveTradingLoop:
         self._short_entry_time_by_symbol: dict[str, datetime] = {}  # v3
         self._short_entry_pred_price_by_symbol: dict[str, float] = {}  # 2026-04-23
         self._last_sell_time_by_symbol: dict[str, datetime] = {}  # 2026-04-24: prevent re-sync race
-        self._orders_placed_this_cycle: int = 0
-        self._last_order_monotonic: float | None = None
-        self._collect_buy_candidates: bool = False
-        self._buy_candidates: list[dict[str, Any]] = []
-        self._deferred_buy_candidates: list[dict[str, Any]] = []
-        self._buy_candidate_seq: int = 0
-        self._exit_order_executed_this_cycle: bool = False
         self.account_value = 100000.0
         self.strategy_factory = StrategyFactory()
         self.alpha_engine = KiroAlphaEngine(AlphaConfig())
@@ -444,177 +429,6 @@ class LiveTradingLoop:
                 self.day_start_key,
             )
 
-    def _reset_order_rate_limit_cycle(self) -> None:
-        """Reset per-cycle order counter at the start of each trading cycle."""
-        self._orders_placed_this_cycle = 0
-        self._buy_candidates = list(self._deferred_buy_candidates)
-        self._deferred_buy_candidates = []
-        self._buy_candidate_seq = len(self._buy_candidates)
-        self._exit_order_executed_this_cycle = False
-
-    def _order_rate_limit_guard(self, symbol: str, side: str, reason: str) -> tuple[bool, float]:
-        """Return whether an order may be submitted under per-cycle and time guards."""
-        now = time.monotonic()
-        max_per_cycle = int(getattr(self.config, "max_orders_per_cycle", 0) or 0)
-        if max_per_cycle > 0 and self._orders_placed_this_cycle >= max_per_cycle:
-            self.logger.warning(
-                "[ORDER_RATE_LIMIT][%s] %s blocked: max_orders_per_cycle=%d reached reason=%s",
-                symbol,
-                side,
-                max_per_cycle,
-                reason,
-            )
-            return False, now
-
-        throttle_seconds = float(getattr(self.config, "order_throttle_seconds", 0.0) or 0.0)
-        if throttle_seconds > 0 and self._last_order_monotonic is not None:
-            elapsed = now - self._last_order_monotonic
-            if elapsed < throttle_seconds:
-                self.logger.warning(
-                    "[ORDER_RATE_LIMIT][%s] %s blocked: %.1fs since last order < %.1fs reason=%s",
-                    symbol,
-                    side,
-                    elapsed,
-                    throttle_seconds,
-                    reason,
-                )
-                return False, now
-
-        return True, now
-
-    def _record_order_rate_limit_accept(self, now: float) -> None:
-        self._orders_placed_this_cycle += 1
-        self._last_order_monotonic = now
-
-    def _signal_density_gate_allows(self, symbol: str, signal_kind: str, confidence: float) -> bool:
-        if signal_kind == "swing":
-            threshold = float(getattr(self.config, "swing_buy_min_confidence", 0.45))
-        elif signal_kind == "model":
-            threshold = float(getattr(self.config, "model_buy_min_confidence", 0.55))
-        else:
-            raise ValueError(f"unknown signal_kind={signal_kind!r}")
-        if float(confidence) >= threshold:
-            return True
-        self.logger.info(
-            "[SIGNAL_DENSITY_GATE][%s] suppressed %s BUY: conf=%.3f threshold=%.3f",
-            symbol,
-            signal_kind,
-            float(confidence),
-            threshold,
-        )
-        return False
-
-    def _signal_type_weight(self, signal_type: str) -> float:
-        return {
-            "both": 1.0,
-            "model_only": 0.7,
-            "swing_only": 0.4,
-        }.get(signal_type, 0.0)
-
-    def _buy_candidate_score(self, confidence: float, predicted_move_pct: float, signal_type: str) -> float:
-        return (
-            float(confidence) * 0.45
-            + float(predicted_move_pct) * 0.35
-            + self._signal_type_weight(signal_type) * 0.20
-        )
-
-    def _submit_buy_candidate(
-        self,
-        symbol: str,
-        qty: int,
-        price: float,
-        reason: str,
-        confidence: float,
-        predicted_move_pct: float,
-        signal_type: str,
-        indicators: dict | None = None,
-        prediction: float | None = None,
-    ) -> None:
-        if qty <= 0:
-            return
-        if not self._collect_buy_candidates:
-            self._execute(symbol, "BUY", qty, price, reason, indicators, prediction)
-            self._record_long_signal(symbol, price, qty, prediction)
-            return
-
-        self._buy_candidate_seq += 1
-        score = self._buy_candidate_score(confidence, predicted_move_pct, signal_type)
-        self._buy_candidates.append({
-            "symbol": symbol,
-            "qty": int(qty),
-            "price": float(price),
-            "reason": reason,
-            "confidence": float(confidence),
-            "predicted_move_pct": float(predicted_move_pct),
-            "signal_type": signal_type,
-            "score": score,
-            "seq": self._buy_candidate_seq,
-            "indicators": indicators,
-            "prediction": prediction,
-        })
-
-    def _defer_buy_candidates(self, reason: str, **log_fields: Any) -> None:
-        deferred_count = len(self._buy_candidates)
-        if deferred_count <= 0:
-            return
-        self._deferred_buy_candidates.extend(self._buy_candidates)
-        self._buy_candidates = []
-        if reason == "order_throttle":
-            self.logger.warning(
-                "[BUY_QUEUE_DEFERRED] deferred=%d reason=order_throttle seconds_since_last=%.1f threshold=%.1f",
-                deferred_count,
-                float(log_fields.get("seconds_since_last", 0.0)),
-                float(log_fields.get("threshold", 0.0)),
-            )
-        else:
-            self.logger.warning("[BUY_QUEUE_DEFERRED] deferred=%d reason=%s", deferred_count, reason)
-
-    def _buy_queue_throttle_status(self) -> tuple[bool, float, float]:
-        throttle_seconds = float(getattr(self.config, "order_throttle_seconds", 0.0) or 0.0)
-        if throttle_seconds <= 0 or self._last_order_monotonic is None:
-            return False, 0.0, throttle_seconds
-        seconds_since_last = time.monotonic() - self._last_order_monotonic
-        return seconds_since_last < throttle_seconds, seconds_since_last, throttle_seconds
-
-    def _flush_buy_candidates(self) -> None:
-        if not self._buy_candidates:
-            return
-        if self._exit_order_executed_this_cycle:
-            self._defer_buy_candidates("sell_executed_this_cycle")
-            return
-        throttle_active, seconds_since_last, threshold = self._buy_queue_throttle_status()
-        if throttle_active:
-            self._defer_buy_candidates(
-                "order_throttle",
-                seconds_since_last=seconds_since_last,
-                threshold=threshold,
-            )
-            return
-        max_per_cycle = int(getattr(self.config, "max_orders_per_cycle", 0) or 0)
-        limit = max_per_cycle if max_per_cycle > 0 else len(self._buy_candidates)
-        ranked = sorted(
-            self._buy_candidates,
-            key=lambda c: (float(c["score"]), float(c["confidence"]), -int(c["seq"])),
-            reverse=True,
-        )
-        for candidate in ranked[:limit]:
-            self._execute(
-                candidate["symbol"],
-                "BUY",
-                candidate["qty"],
-                candidate["price"],
-                candidate["reason"],
-                candidate.get("indicators"),
-                candidate.get("prediction"),
-            )
-            self._record_long_signal(
-                candidate["symbol"],
-                candidate["price"],
-                candidate["qty"],
-                candidate.get("prediction"),
-            )
-        self._buy_candidates = []
-
     def _should_terminate_session(self) -> bool:
         from datetime import datetime, time as dt_time
         # Simplified market check (US hours HKT: 21:15-04:15)
@@ -646,7 +460,6 @@ class LiveTradingLoop:
             await asyncio.sleep(sleep_sec)
 
     async def run_one_cycle(self) -> None:
-        self._reset_order_rate_limit_cycle()
         self._check_heartbeat()
         self._sync_broker_state()
         self._sync_sentiment()
@@ -656,7 +469,6 @@ class LiveTradingLoop:
         # All missing/stale quotes are fetched ONCE at cycle start.
         # Individual symbol cycles then hit cache (fast, zero network I/O).
         await self._prefetch_quotes()
-        self._collect_buy_candidates = True
 
         # ── Technical Screener: rank and filter symbols ─────────────────────
         if os.getenv("ENABLE_SCREENER", "0") == "1":
@@ -692,11 +504,7 @@ class LiveTradingLoop:
             async with semaphore:
                 await self._run_symbol_cycle(symbol)
 
-        try:
-            await asyncio.gather(*(guarded(symbol) for symbol in self.symbols))
-        finally:
-            self._collect_buy_candidates = False
-        self._flush_buy_candidates()
+        await asyncio.gather(*(guarded(symbol) for symbol in self.symbols))
 
         # -- Persist market buffers to DB (PR #83) --
         try:
@@ -1533,26 +1341,14 @@ class LiveTradingLoop:
                     win_rate=mc["win_rate"], avg_win=mc["avg_win"], avg_loss=mc["avg_loss"]
                 )
                 if kelly["zero_edge"]:
-                    # Phase 1 hot-patch 2026-05-20: MC uses raw price returns, not strategy
-                    # outcomes, so HK universe drift silently triggers zero_edge for every name.
-                    # Fall back to confidence sizing for HK and let ROR_GATE remain the hard guard.
-                    # Remove once Phase 3 (conditional-outcome MC) lands.
-                    if symbol.endswith(".HK") and getattr(self.config, "hk_bypass_kelly_zero_edge", True):
-                        self.logger.info(
-                            "[KELLY_ZERO_EDGE][%s] HK bypass: using confidence sizing (win_rate=%.3f)",
-                            symbol, mc["win_rate"],
-                        )
-                        risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
-                    else:
-                        self.logger.info(
-                            "[KELLY_ZERO_EDGE][%s] skip BUY: win_rate=%.3f avg_win=%.4f avg_loss=%.4f",
-                            symbol, mc["win_rate"], mc["avg_win"], mc["avg_loss"],
-                        )
-                        self._append_decision_trace({**trace_base, "action": "BUY_BLOCKED_KELLY_ZERO_EDGE",
-                            "kelly_raw": kelly["kelly_raw"], "win_rate": float(mc["win_rate"])})
-                        return
-                else:
-                    risk_pct = kelly["capped_fraction"]
+                    self.logger.info(
+                        "[KELLY_ZERO_EDGE][%s] skip BUY: win_rate=%.3f avg_win=%.4f avg_loss=%.4f",
+                        symbol, mc["win_rate"], mc["avg_win"], mc["avg_loss"],
+                    )
+                    self._append_decision_trace({**trace_base, "action": "BUY_BLOCKED_KELLY_ZERO_EDGE",
+                        "kelly_raw": kelly["kelly_raw"], "win_rate": float(mc["win_rate"])})
+                    return
+                risk_pct = kelly["capped_fraction"]
             else:
                 kelly = None
                 risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
@@ -1729,7 +1525,22 @@ class LiveTradingLoop:
                     }
                 )
                 self._execute(symbol, "BUY", buy_qty, current_price, buy_reason, indicators, prediction)
-                self._record_long_signal(symbol, current_price, buy_qty, prediction)
+
+                # Self-Learning: log BUY signal
+                try:
+                    from self_learn import hook_on_signal
+                    _sig_id = hook_on_signal(
+                        action="BUY",
+                        prediction_id=self._pred_id_by_symbol.get(symbol),
+                        entry_price=float(current_price),
+                        size=int(buy_qty),
+                    )
+                    self._signal_id_by_symbol[symbol] = _sig_id
+                    if prediction is not None:
+                        self._entry_pred_price_by_symbol[symbol] = float(prediction)
+                    self._entry_time_by_symbol[symbol] = datetime.now(timezone.utc)
+                except Exception:
+                    pass
             else:
                 self._append_decision_trace(
                     {
@@ -1784,23 +1595,6 @@ class LiveTradingLoop:
                 self.sell_signal_streak_by_symbol[symbol] = 0
 
     # ── 2026-04-24: Smart market-aware thresholds ───────────────────────────
-    def _record_long_signal(self, symbol: str, entry_price: float, size: int, prediction: float | None = None) -> None:
-        """Record an accepted long BUY in self_learn and remember closure metadata."""
-        try:
-            from self_learn import hook_on_signal
-            _sig_id = hook_on_signal(
-                action="BUY",
-                prediction_id=self._pred_id_by_symbol.get(symbol),
-                entry_price=float(entry_price),
-                size=int(size),
-            )
-            self._signal_id_by_symbol[symbol] = _sig_id
-            if prediction is not None:
-                self._entry_pred_price_by_symbol[symbol] = float(prediction)
-            self._entry_time_by_symbol[symbol] = datetime.now(timezone.utc)
-        except Exception:
-            pass
-
     def _get_market_thresholds(self, symbol: str) -> dict:
         """智能分辨港美市場，動態調整門檻。"""
         if symbol.endswith(".HK"):
@@ -1965,26 +1759,9 @@ class LiveTradingLoop:
         threshold_up = current_price * (1 + symbol_threshold)
         threshold_down = current_price * (1 - symbol_threshold)
         predicted_move = (prediction - current_price) / max(current_price, 1e-9)
-        predicted_move_pct = predicted_move * 100.0
         model_buy_signal = predicted_move > symbol_threshold
         model_sell_signal = predicted_move < -symbol_threshold
         swing = self._evaluate_swing_signal(symbol, current_price, latest_frame)
-        swing_buy_signal = bool(swing["buy_signal"])
-        if swing_buy_signal and not self._signal_density_gate_allows(symbol, "swing", confidence):
-            swing_buy_signal = False
-        if model_buy_signal and not self._signal_density_gate_allows(symbol, "model", confidence):
-            model_buy_signal = False
-        if (
-            swing_buy_signal
-            and model_sell_signal
-            and not model_buy_signal
-            and not bool(getattr(self.config, "swing_buy_reversal_override", False))
-        ):
-            self.logger.info(
-                "[SIGNAL_DENSITY_GATE][%s] suppressed swing BUY: model_sell=True model_buy=False",
-                symbol,
-            )
-            swing_buy_signal = False
 
         if getattr(self.config, "log_trade_decisions", True):
             self.logger.info(
@@ -1995,7 +1772,7 @@ class LiveTradingLoop:
             if getattr(self.config, "diagnostics_verbose", True):
                 self.logger.info(
                     "DIAG_GATE[%s] allow_long=%s qty=%d swing_buy=%s swing_sell=%s model_buy=%s model_sell=%s bypass_ror=%s",
-                    symbol, allow_long, qty, swing_buy_signal, swing["sell_signal"],
+                    symbol, allow_long, qty, swing["buy_signal"], swing["sell_signal"],
                     model_buy_signal, model_sell_signal, getattr(self.config, "bypass_ror_gate", False),
                 )
 
@@ -2007,7 +1784,7 @@ class LiveTradingLoop:
             return
 
         if getattr(self.config, "swing_strategy_enabled", True):
-            if qty == 0 and allow_long and swing_buy_signal and not model_buy_signal:
+            if qty == 0 and allow_long and swing["buy_signal"]:
                 returns = self._get_buffer(symbol)["Close"].pct_change().dropna()
                 mc_swing = self.monte_carlo.stress_test(returns)
                 kelly_swing = self._kelly_sizer.calculate_details(
@@ -2022,23 +1799,13 @@ class LiveTradingLoop:
                 alloc = min(self.account_value * swing_risk_pct, self.account_value * cap_fraction)
                 buy_qty = max(0, int(alloc / max(current_price, 1e-9)))
                 if buy_qty > 0:
-                    self._submit_buy_candidate(
-                        symbol,
-                        buy_qty,
-                        current_price,
-                        f"swing_signal_conf={confidence:.3f}",
-                        confidence,
-                        predicted_move_pct,
-                        "swing_only",
-                        prediction=prediction,
-                    )
+                    self._execute(symbol, "BUY", buy_qty, current_price, f"swing_signal_conf={confidence:.3f}")
                     return
             elif qty > 0 and swing["sell_signal"]:
                 self._execute(symbol, "SELL", qty, current_price, "swing_signal")
                 return
 
         if allow_long and model_buy_signal and qty == 0:
-            signal_type = "both" if swing_buy_signal else "model_only"
             # position cap gate
             max_pos = getattr(self.config, "max_positions", getattr(self.config, "max_portfolio_positions", 999))
             open_positions = sum(1 for s, q in self.position_qty_by_symbol.items() if q > 0)
@@ -2061,20 +1828,12 @@ class LiveTradingLoop:
                     win_rate=mc["win_rate"], avg_win=mc["avg_win"], avg_loss=mc["avg_loss"]
                 )
                 if kelly2["zero_edge"]:
-                    if symbol.endswith(".HK") and getattr(self.config, "hk_bypass_kelly_zero_edge", True):
-                        self.logger.info(
-                            "[KELLY_ZERO_EDGE][%s] HK bypass: using confidence sizing (win_rate=%.3f)",
-                            symbol, mc["win_rate"],
-                        )
-                        risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
-                    else:
-                        self.logger.info(
-                            "[KELLY_ZERO_EDGE][%s] skip BUY: win_rate=%.3f avg_win=%.4f avg_loss=%.4f",
-                            symbol, mc["win_rate"], mc["avg_win"], mc["avg_loss"],
-                        )
-                        return
-                else:
-                    risk_pct = kelly2["capped_fraction"]
+                    self.logger.info(
+                        "[KELLY_ZERO_EDGE][%s] skip BUY: win_rate=%.3f avg_win=%.4f avg_loss=%.4f",
+                        symbol, mc["win_rate"], mc["avg_win"], mc["avg_loss"],
+                    )
+                    return
+                risk_pct = kelly2["capped_fraction"]
             else:
                 risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
             rr = max(0.5, abs(prediction - current_price) / max(current_price * symbol_threshold, 1e-6))
@@ -2097,17 +1856,7 @@ class LiveTradingLoop:
             alloc = min(self.account_value * risk_pct, self.account_value * cap_fraction)
             buy_qty = max(0, int(alloc / max(current_price, 1e-9)))
             if buy_qty > 0:
-                reason_prefix = "combined_signal" if signal_type == "both" else "model_signal"
-                self._submit_buy_candidate(
-                    symbol,
-                    buy_qty,
-                    current_price,
-                    f"{reason_prefix}_conf={confidence:.3f}",
-                    confidence,
-                    predicted_move_pct,
-                    signal_type,
-                    prediction=prediction,
-                )
+                self._execute(symbol, "BUY", buy_qty, current_price, f"model_signal_conf={confidence:.3f}")
         elif model_sell_signal and qty > 0:
             if self.cycles_since_buy_by_symbol.get(symbol, 0) >= self.config.buy_cooldown_cycles:
                 self._execute(symbol, "SELL", qty, current_price, "model_signal")
@@ -2203,9 +1952,6 @@ class LiveTradingLoop:
         if code.startswith("HK."):
             raw = code[3:]
             # Futu uses five-digit HK codes (HK.03690) while config uses 3690.HK.
-            # Some legacy resolver paths return HK.3690.HK; normalize both forms.
-            if raw.upper().endswith(".HK"):
-                raw = raw[:-3]
             if raw.isdigit():
                 raw = raw.lstrip("0") or "0"
             return f"{raw}.HK"
@@ -2461,16 +2207,7 @@ class LiveTradingLoop:
                     broker_positions = self.futu_connector.get_sync_positions()
                 if not broker_positions.empty and "code" in broker_positions.columns:
                     broker_code, _ = self.futu_connector.resolve_symbol(symbol)
-                    target_symbol = self._broker_code_to_symbol(broker_code) or symbol
-                    actual_qty = 0
-                    for _, row in broker_positions.iterrows():
-                        row_code = str(row.get("code", "")).strip()
-                        row_symbol = self._broker_code_to_symbol(row_code)
-                        if row_code == broker_code or row_symbol == target_symbol:
-                            try:
-                                actual_qty += int(float(row.get("qty", 0) or 0))
-                            except Exception:
-                                continue
+                    actual_qty = broker_positions[broker_positions["code"] == broker_code]["qty"].sum()
                     if actual_qty < qty:
                         self.logger.warning(
                             "[PRE_CHECK][%s] Broker qty=%d < requested=%d — skipping",
@@ -2505,10 +2242,6 @@ class LiveTradingLoop:
                 )
                 return
 
-        rate_limit_ok, rate_limit_now = self._order_rate_limit_guard(symbol, side, reason)
-        if not rate_limit_ok:
-            return
-
         # Route through execution state machine: PAPER fills locally, LIVE places broker order first
         delta = PositionDelta(symbol=symbol, side=side, qty=qty, fill_price=fill_price, reason=reason)
         accepted = dispatch_execution(
@@ -2523,10 +2256,6 @@ class LiveTradingLoop:
         if not accepted:
             # LIVE broker rejection — position state is unchanged, do not log or persist
             return
-
-        self._record_order_rate_limit_accept(rate_limit_now)
-        if side == "SELL":
-            self._exit_order_executed_this_cycle = True
 
         # Position was accepted (PAPER fill or LIVE broker accepted) — update secondary state
         if side == "BUY":
@@ -2754,7 +2483,6 @@ class LiveTradingLoop:
             self.logger.info("PAPER_SHORT_COVER %s qty=%d limit=%.4f type=NORMAL", symbol, qty, fill_price)
         else:
             self.futu_connector.place_order(symbol, qty, "BUY", fill_price)
-        self._exit_order_executed_this_cycle = True
 
         self.logger.info("EXEC_SHORT_COVER %s qty=%d fill=%.4f reason=%s", symbol, qty, fill_price, reason)
 

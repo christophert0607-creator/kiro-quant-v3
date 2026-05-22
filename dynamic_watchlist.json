@@ -1,125 +1,110 @@
 {
-  "version": "2.0",
-  "date": "2026-05-16 08:01:59",
-  "expanded_universe": false,
-  "tiers": {
-    "tier1": {
-      "description": "Active trading — screener picks, model evaluation, order execution",
-      "max_size": 20,
-      "symbols": [
-        "MSFT", "GOOGL", "NVDA", "AMD", "TSM", "AVGO"
-      ]
+    "version": "2.0",
+    "date": "2026-05-22 08:00:13",
+    "expanded_universe": false,
+    "tiers": {
+        "tier1": {
+            "description": "Active trading \u2014 screener picks, model evaluation, order execution",
+            "max_size": 20,
+            "symbols": [
+                "MSFT",
+                "NVDA",
+                "GOOGL",
+                "AMD",
+                "AVGO",
+                "TSM"
+            ]
+        },
+        "tier2": {
+            "description": "Full universe \u2014 data collection, backfill, indicator computation",
+            "count": 300,
+            "sources": [
+                "data/hk_universe.json",
+                "data/us_universe.json"
+            ]
+        },
+        "tier3": {
+            "description": "Suspended/removed \u2014 no data collection, no trading",
+            "symbols": [],
+            "reasons": {}
+        }
     },
-    "tier2": {
-      "description": "Full universe — data collection, backfill, indicator computation",
-      "count": 300,
-      "sources": [
-        "data/hk_universe.json",
-        "data/us_universe.json"
-      ]
+    "metadata": {
+        "last_screener_run": "2026-05-16 08:01:59",
+        "screener_config": {
+            "top_n": 6,
+            "min_liquidity": 0.7,
+            "max_pe": 50.0,
+            "min_eps_growth": 0.15
+        },
+        "last_screened_at": "2026-05-22 08:00:13",
+        "last_screener": "V3FunnelScreener",
+        "picks_count": 6,
+        "failed_count": 0
     },
-    "tier3": {
-      "description": "Suspended/removed — no data collection, no trading",
-      "symbols": [],
-      "reasons": {}
-    }
-  },
-  "metadata": {
-    "last_screener_run": "2026-05-16 08:01:59",
-    "screener_config": {
-      "top_n": 6,
-      "min_liquidity": 0.7,
-      "max_pe": 50.0,
-      "min_eps_growth": 0.15
-    }
-  },
-  "picks": [
-    "MSFT",
-    "GOOGL",
-    "NVDA",
-    "AMD",
-    "TSM",
-    "AVGO"
-  ],
-  "details": [
-    {
-      "symbol": "MSFT",
-      "pe": 21.15421,
-      "eps_growth": 0.231,
-      "rev_growth": 0.183,
-      "peg": 1.26,
-      "price": 409.43,
-      "ma50": 398.7554,
-      "tier": 1,
-      "sector": "Technology",
-      "liquidity_score": 0.99,
-      "last_updated": "2026-05-16"
-    },
-    {
-      "symbol": "GOOGL",
-      "pe": 27.727713,
-      "eps_growth": 0.812,
-      "rev_growth": 0.218,
-      "peg": 1.53,
-      "price": 401.07,
-      "ma50": 328.864,
-      "tier": 1,
-      "sector": "Technology",
-      "liquidity_score": 0.98,
-      "last_updated": "2026-05-16"
-    },
-    {
-      "symbol": "NVDA",
-      "pe": 20.736755,
-      "eps_growth": 0.945,
-      "rev_growth": 0.732,
-      "peg": 0.7,
-      "price": 235.74,
-      "ma50": 191.1776,
-      "tier": 1,
-      "sector": "Technology",
-      "liquidity_score": 0.99,
-      "last_updated": "2026-05-16"
-    },
-    {
-      "symbol": "AMD",
-      "pe": 34.840103,
-      "eps_growth": 0.951,
-      "rev_growth": 0.378,
-      "peg": 1.08,
-      "price": 449.7,
-      "ma50": 269.767,
-      "tier": 1,
-      "sector": "Technology",
-      "liquidity_score": 0.97,
-      "last_updated": "2026-05-16"
-    },
-    {
-      "symbol": "TSM",
-      "pe": 21.652298,
-      "eps_growth": 0.583,
-      "rev_growth": 0.351,
-      "peg": 1.23,
-      "price": 417.72,
-      "ma50": 365.3772,
-      "tier": 1,
-      "sector": "Technology",
-      "liquidity_score": 0.97,
-      "last_updated": "2026-05-16"
-    },
-    {
-      "symbol": "AVGO",
-      "pe": 24.162401,
-      "eps_growth": 0.335,
-      "rev_growth": 0.295,
-      "peg": 0.91,
-      "price": 439.79,
-      "ma50": 365.1092,
-      "tier": 1,
-      "sector": "Technology",
-      "liquidity_score": 0.97,
-      "last_updated": "2026-05-16"
-    }
-  ],
-  "failed_symbols": []
+    "picks": [
+        "MSFT",
+        "NVDA",
+        "GOOGL",
+        "AMD",
+        "AVGO",
+        "TSM"
+    ],
+    "details": [
+        {
+            "symbol": "MSFT",
+            "pe": 21.67214,
+            "eps_growth": 0.231,
+            "rev_growth": 0.183,
+            "peg": 1.3,
+            "price": 419.09,
+            "ma50": 399.8226
+        },
+        {
+            "symbol": "NVDA",
+            "pe": 18.846476,
+            "eps_growth": 0.945,
+            "rev_growth": 0.732,
+            "peg": 0.71,
+            "price": 219.51,
+            "ma50": 195.4944
+        },
+        {
+            "symbol": "GOOGL",
+            "pe": 26.825176,
+            "eps_growth": 0.812,
+            "rev_growth": 0.218,
+            "peg": 1.53,
+            "price": 387.66,
+            "ma50": 337.9726
+        },
+        {
+            "symbol": "AMD",
+            "pe": 34.69182,
+            "eps_growth": 0.951,
+            "rev_growth": 0.378,
+            "peg": 1.08,
+            "price": 449.59,
+            "ma50": 292.8982
+        },
+        {
+            "symbol": "AVGO",
+            "pe": 22.704918,
+            "eps_growth": 0.335,
+            "rev_growth": 0.295,
+            "peg": 0.91,
+            "price": 414.57,
+            "ma50": 374.0174
+        },
+        {
+            "symbol": "TSM",
+            "pe": 20.86159,
+            "eps_growth": 0.583,
+            "rev_growth": 0.351,
+            "peg": 1.25,
+            "price": 407.15,
+            "ma50": 370.7026
+        }
+    ],
+    "failed_symbols": []
 }

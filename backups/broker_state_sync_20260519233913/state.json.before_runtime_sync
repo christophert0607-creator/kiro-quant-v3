@@ -1,0 +1,222 @@
+{
+  "date": "2026-05-19",
+  "daily_pnl": 0.0,
+  "daily_trades": 4,
+  "consecutive_errors": 0,
+  "circuit_broken": false,
+  "circuit_break_time": null,
+  "last_orders": {
+    "0388.HK": "SELL 2 @ 403.60 (swing_signal)",
+    "1211.HK": "SELL 8 @ 102.55 (swing_signal)",
+    "2269.HK": "BUY 24 @ 35.16 (swing_signal)",
+    "0941.HK": "SELL 10 @ 79.71 (swing_signal)",
+    "1810.HK": "BUY 24 @ 34.74 (swing_signal)",
+    "1109.HK": "BUY 27 @ 30.58 (swing_signal)",
+    "1299.HK": "BUY 10 @ 84.54 (swing_signal)",
+    "2018.HK": "BUY 25 @ 33.24 (swing_signal)",
+    "2318.HK": "BUY 13 @ 63.03 (swing_signal)",
+    "US.META": {
+      "time": 1779111132.9670925,
+      "signal": "SELL",
+      "qty": 362,
+      "price": 606.9299926757812,
+      "reason": "model_signal"
+    },
+    "US.NVDA": {
+      "time": 1778087165.919831,
+      "signal": "SELL",
+      "qty": 9,
+      "price": 204.88009643554688,
+      "reason": "model_signal_confirmed"
+    },
+    "US.JPM": {
+      "time": 1778769531.6291525,
+      "signal": "SELL",
+      "qty": 176,
+      "price": 301.30999755859375,
+      "reason": "model_signal"
+    },
+    "US.PG": {
+      "time": 1778087169.3063364,
+      "signal": "SELL",
+      "qty": 13,
+      "price": 147.0749969482422,
+      "reason": "model_signal_confirmed"
+    },
+    "US.HD": {
+      "time": 1778087169.8150837,
+      "signal": "SELL",
+      "qty": 6,
+      "price": 323.6300048828125,
+      "reason": "model_signal_confirmed"
+    },
+    "US.MRK": {
+      "time": 1778769301.7075675,
+      "signal": "SELL",
+      "qty": 500,
+      "price": 113.13999938964844,
+      "reason": "model_signal"
+    },
+    "US.INTC": {
+      "time": 1778771307.3882782,
+      "signal": "BUY",
+      "qty": 43,
+      "price": 116.69499969482422,
+      "reason": "model_signal_conf=0.970"
+    },
+    "US.MSTR": {
+      "time": 1779111213.4075623,
+      "signal": "SELL",
+      "qty": 5,
+      "price": 167.0,
+      "reason": "model_signal"
+    },
+    "US.AMD": {
+      "time": 1778770231.6895275,
+      "signal": "SELL",
+      "qty": 9,
+      "price": 451.8800048828125,
+      "reason": "model_signal"
+    },
+    "US.QCOM": {
+      "time": 1778771307.7235134,
+      "signal": "BUY",
+      "qty": 104,
+      "price": 203.30999755859375,
+      "reason": "model_signal_conf=1.000"
+    },
+    "US.JNJ": {
+      "time": 1778770232.7117207,
+      "signal": "SELL",
+      "qty": 730,
+      "price": 230.0500030517578,
+      "reason": "model_signal"
+    },
+    "US.AMZN": {
+      "time": 1779111211.3783705,
+      "signal": "SELL",
+      "qty": 1466,
+      "price": 264.25,
+      "reason": "model_signal"
+    },
+    "US.SMCI": {
+      "time": 1778770389.143208,
+      "signal": "BUY",
+      "qty": 89,
+      "price": 33.529998779296875,
+      "reason": "model_signal_conf=0.400"
+    },
+    "US.NFLX": {
+      "time": 1778772611.6800032,
+      "signal": "BUY",
+      "qty": 63,
+      "price": 87.79019927978516,
+      "reason": "swing_signal_conf=0.833"
+    },
+    "US.AMAT": {
+      "time": 1779197525.7984748,
+      "signal": "SELL",
+      "qty": 3,
+      "price": 406.7200012207031,
+      "reason": "max_hold_5_bars"
+    },
+    "US.ARM": {
+      "time": 1779111134.6542468,
+      "signal": "SELL",
+      "qty": 306,
+      "price": 210.6800994873047,
+      "reason": "model_signal"
+    },
+    "HK.0700.HK": {
+      "time": 1779205136.0218806,
+      "signal": "BUY",
+      "qty": 100,
+      "price": 60.0,
+      "reason": "test"
+    },
+    "US.TSLA": {
+      "time": 1779205136.0252666,
+      "signal": "BUY",
+      "qty": 10,
+      "price": 200.0,
+      "reason": "test"
+    },
+    "US.ORCL": {
+      "time": 1779197525.365139,
+      "signal": "SELL",
+      "qty": 50,
+      "price": 185.625,
+      "reason": "max_hold_5_bars"
+    },
+    "US.COIN": {
+      "time": 1779111212.7804112,
+      "signal": "SELL",
+      "qty": 6,
+      "price": 189.98500061035156,
+      "reason": "model_signal"
+    }
+  },
+  "positions": {
+    "US.META": 0,
+    "US.NVDA": 0,
+    "US.JPM": 0,
+    "US.PG": 0,
+    "US.HD": 0,
+    "US.MRK": 0,
+    "US.INTC": 43,
+    "US.MSTR": 0,
+    "US.AMD": 0,
+    "US.QCOM": 104,
+    "US.JNJ": 0,
+    "US.AMZN": 0,
+    "US.SMCI": 89,
+    "US.NFLX": 63,
+    "US.AMAT": 0,
+    "US.ARM": 0,
+    "HK.0700.HK": 100,
+    "US.TSLA": 10,
+    "US.ORCL": 0,
+    "US.COIN": 0
+  },
+  "total_invested": 0.0,
+  "mode": "HK_lite",
+  "runtime_profile": "lite",
+  "last_review": "2026-03-18T19:22:00Z",
+  "review_notes": "Hourly self-review 2026-03-18 19:22 UTC: System healthy. HK lite profile running with no errors. Logs show clean execution - multiple trade cycles processed. 9 trades executed this hour: mixed BUY (6) and SELL (3). Model predictions negative (-0.38% to -6.47%). Position cap at 10/10 - full. PnL: daily=$0, cumulative=-$3,219.28. Code review: syntax OK, no bare except, async/await implemented, Kelly sizer integrated, transaction cost calculator present. TA-Lib still using pandas fallback. No code changes applied this hour.",
+  "short_positions": {
+    "US.META": 0,
+    "US.NVDA": 0,
+    "US.JPM": 0,
+    "US.PG": 0,
+    "US.HD": 0,
+    "US.MRK": 0,
+    "US.INTC": 0,
+    "US.MSTR": 0,
+    "US.AMD": 0,
+    "US.QCOM": 0,
+    "US.JNJ": 0,
+    "US.AMZN": 0,
+    "US.SMCI": 0,
+    "US.NFLX": 0,
+    "US.AMAT": 0,
+    "US.ARM": 0,
+    "HK.0700.HK": 0,
+    "US.TSLA": 0,
+    "US.ORCL": 0,
+    "US.COIN": 0
+  },
+  "account_routing": {
+    "account_routing": {
+      "HK": {
+        "resolved_acc_id": 14239754,
+        "source": "config"
+      },
+      "US": {
+        "resolved_acc_id": 18526451,
+        "source": "config"
+      }
+    },
+    "global_fallback_acc_id": 18526451,
+    "trd_env": "SIMULATE"
+  }
+}

@@ -167,6 +167,16 @@ class _DummyDataManager:
         return self.payload
 
 
+class _ZeroEdgeMonteCarlo:
+    def stress_test(self, _returns):
+        return {"win_rate": 0.30, "avg_win": 0.01, "avg_loss": 0.02, "var95": -0.05}
+
+
+class _ZeroEdgeKellySizer:
+    def calculate_details(self, **_kwargs):
+        return {"zero_edge": True, "kelly_raw": -0.1, "capped_fraction": 0.0}
+
+
 class _PassFeatureGenerator:
     def generate(self, frame):
         return frame
@@ -285,6 +295,65 @@ def test_trade_logic_swing_buy_signal_triggers_entry():
     assert executed
     assert executed[0][0] == "BUY"
     assert "swing_signal" in executed[0][2]
+
+
+def test_swing_buy_logs_self_learn_signal(monkeypatch):
+    loop = _build_loop(prediction=100.2)
+    loop._pred_id_by_symbol["TSLA"] = "pred-swing-1"
+    calls: list[dict] = []
+
+    def _fake_hook_on_signal(**kwargs):
+        calls.append(kwargs)
+        return "sig-swing-1"
+
+    monkeypatch.setitem(sys.modules, "self_learn", SimpleNamespace(hook_on_signal=_fake_hook_on_signal))
+    loop._execute = lambda *args, **kwargs: None  # type: ignore[assignment]
+    latest = pd.DataFrame(
+        [
+            {"Date": pd.Timestamp("2026-03-13T09:58:00Z"), "Low": 99.5, "High": 101.0, "Close": 100.4, "RSI_14": 40.0, "MACD": -0.2, "MACD_SIGNAL": -0.1},
+            {"Date": pd.Timestamp("2026-03-13T09:59:00Z"), "Low": 98.9, "High": 100.8, "Close": 100.0, "RSI_14": 25.0, "MACD": -0.05, "MACD_SIGNAL": -0.08},
+        ]
+    )
+
+    loop.check_and_trade(
+        symbol="TSLA",
+        current_price=100.0,
+        prediction=100.2,
+        confidence=0.8,
+        allow_long=True,
+        latest_frame=latest,
+    )
+
+    assert calls == [{"action": "BUY", "prediction_id": "pred-swing-1", "entry_price": 100.0, "size": 81}]
+    assert loop._signal_id_by_symbol["TSLA"] == "sig-swing-1"
+
+
+def test_hk_kelly_zero_edge_bypass_is_controlled_by_feature_flag():
+    loop = _build_loop(prediction=108.0)
+    loop.config.prediction_thresholds = {"0700.HK": 0.01}
+    loop.config.swing_strategy_enabled = False
+    loop.config.hk_bypass_kelly_zero_edge = False
+    loop.config.max_position_value = 100_000.0
+    loop.account_value = 1_000_000.0
+    loop.monte_carlo = _ZeroEdgeMonteCarlo()
+    loop._kelly_sizer = _ZeroEdgeKellySizer()
+    loop.market_buffers["0700.HK"] = pd.DataFrame(
+        [
+            {"Low": 98.0, "High": 101.0, "Close": 99.0, "RSI_14": 50.0},
+            {"Low": 99.0, "High": 102.0, "Close": 100.0, "RSI_14": 50.0},
+            {"Low": 100.0, "High": 103.0, "Close": 101.0, "RSI_14": 50.0},
+        ]
+    )
+    executed: list[tuple] = []
+    loop._execute = lambda *args, **kwargs: executed.append(args)  # type: ignore[assignment]
+
+    loop.check_and_trade("0700.HK", current_price=100.0, prediction=108.0, confidence=0.8, allow_long=True)
+    assert executed == []
+
+    loop.config.hk_bypass_kelly_zero_edge = True
+    loop.check_and_trade("0700.HK", current_price=100.0, prediction=108.0, confidence=0.8, allow_long=True)
+    assert executed
+    assert executed[-1][0:2] == ("0700.HK", "BUY")
 
 
 def test_trade_logic_swing_sell_signal_triggers_exit():

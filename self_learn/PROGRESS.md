@@ -810,3 +810,106 @@ CRON_JSON_PARSE_FAIL: Expecting value: line 1 column 1 (char 0)
 ## [2026-05-17 16:00 UTC]
 **Stats:** 0 predictions | 0 signals | 0 closed | PnL=0.0
 **Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-17 20:00 UTC]
+**Stats:** 0 predictions | 0 signals | 0 closed | PnL=0.0
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-18 00:00 UTC]
+**Stats:** 0 predictions | 0 signals | 0 closed | PnL=0.0
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-18 04:00 UTC]
+**Stats:** 0 predictions | 0 signals | 0 closed | PnL=0.0
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-18 08:00 UTC]
+**Stats:** 0 predictions | 0 signals | 0 closed | PnL=0.0
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-18 12:00 UTC]
+**Stats:** 0 predictions | 0 signals | 0 closed | PnL=0.0
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-18 16:00 UTC]
+**Stats:** 0 predictions | 0 signals | 0 closed | PnL=0.0
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-18 20:00 UTC]
+**Stats:** 0 predictions | 0 signals | 0 closed | PnL=0.0
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-19 00:00 UTC]
+**Stats:** 0 predictions | 0 signals | 0 closed | PnL=0.0
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-19 04:00 UTC]
+**Stats:** 12218 predictions | 3 signals | 0 closed | PnL=0.0
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-19 08:00 UTC]
+**Stats:** 14070 predictions | 5 signals | 0 closed | PnL=0.0
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-19 12:00 UTC]
+**Stats:** 14070 predictions | 5 signals | 0 closed | PnL=0.0
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-19 16:00 UTC]
+**Stats:** 19870 predictions | 5 signals | 0 closed | PnL=0.0
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-19 20:00 UTC]
+**Stats:** 29170 predictions | 5 signals | 0 closed | PnL=0.0
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-20 00:00 UTC]
+**Stats:** 29170 predictions | 5 signals | 0 closed | PnL=0.0
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-20 04:00 UTC]
+**Stats:** 30656 predictions | 5 signals | 0 closed | PnL=0.0
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-20 08:00 UTC]
+**Stats:** 32447 predictions | 5 signals | 0 closed | PnL=0.0
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-20 12:00 UTC]
+**Stats:** 32466 predictions | 5 signals | 0 closed | PnL=0.0
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-20 16:00 UTC]
+**Stats:** 38166 predictions | 1965 signals | 0 closed | PnL=0.0
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-21 16:00 UTC]
+**Stats:** 57790 predictions | 5066 signals | 0 closed | PnL=0.0
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-21 20:00 UTC]
+**Stats:** 67140 predictions | 5254 signals | 0 closed | PnL=0.0
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-22 00:00 UTC]
+**Stats:** 67140 predictions | 5254 signals | 0 closed | PnL=0.0
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-22 04:00 UTC]
+**Stats:** 68898 predictions | 5385 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** True
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-05-22 08:00 UTC]
+**Stats:** 70815 predictions | 5545 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** True
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-05-22 12:00 UTC]
+**Stats:** 70815 predictions | 5545 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-05-22 16:00 UTC]
+**Stats:** 76465 predictions | 5612 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** True
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100

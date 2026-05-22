@@ -9,6 +9,7 @@ from v3_pipeline.core.futu_connector import FutuConfig, FutuConnector
 class DummyTradeContext:
     def __init__(self):
         self.unlock_calls = []
+        self.place_order_calls = []
         self._acc_df = pd.DataFrame([{"acc_id": 123456}])
 
     def unlock_trade(self, password):
@@ -17,6 +18,18 @@ class DummyTradeContext:
 
     def get_acc_list(self, **kwargs):
         return 0, self._acc_df
+
+    def place_order(self, **kwargs):
+        self.place_order_calls.append(kwargs)
+        return 0, pd.DataFrame([{"order_id": "T123"}])
+
+    def accinfo_query(self, **kwargs):
+        return 0, pd.DataFrame([{
+            "cash": 5000.0,
+            "available_funds": "N/A",
+            "power": "N/A",
+            "max_buying_power": "N/A",
+        }])
 
 
 class DummyQuoteContext:
@@ -154,6 +167,96 @@ def test_connect_does_not_unlock_in_simulate_mode(monkeypatch):
 
     assert connector.trade_ctx is not None
     assert connector.trade_ctx.unlock_calls == []
+
+
+def test_place_order_reprices_na_string_before_broker_submission(monkeypatch):
+    """Broker/live paths sometimes pass Yahoo/Futu sentinel prices like 'N/A'.
+    The connector should sanitize/reprice before calling Futu, not surface a raw
+    ValueError as BROKER_REJECTED."""
+    cfg = FutuConfig(trd_env="SIMULATE", target_acc_id=123456)
+    connector = FutuConnector(config=cfg)
+    connector.ft = DummyFT
+    connector.trade_ctx = DummyTradeContext()
+    connector.trade_ctxs = {"US": connector.trade_ctx}
+    monkeypatch.setattr(connector, "validate_trading_ready", lambda **kwargs: None)
+    monkeypatch.setattr(connector, "get_order_reference_price", lambda *args, **kwargs: 123.456)
+
+    connector.place_order("XOM", 10, "BUY", price="N/A")
+
+    assert connector.trade_ctx.place_order_calls
+    sent = connector.trade_ctx.place_order_calls[0]
+    assert sent["price"] == 123.46
+    assert sent["code"] == "US.XOM"
+
+
+def test_place_order_rejects_na_string_when_no_valid_reference(monkeypatch):
+    cfg = FutuConfig(trd_env="SIMULATE", target_acc_id=123456)
+    connector = FutuConnector(config=cfg)
+    connector.ft = DummyFT
+    connector.trade_ctx = DummyTradeContext()
+    connector.trade_ctxs = {"US": connector.trade_ctx}
+    monkeypatch.setattr(connector, "validate_trading_ready", lambda **kwargs: None)
+    monkeypatch.setattr(connector, "get_order_reference_price", lambda *args, **kwargs: 0.0)
+
+    with pytest.raises(RuntimeError, match="invalid_order_price"):
+        connector.place_order("XOM", 10, "BUY", price="N/A")
+
+    assert connector.trade_ctx.place_order_calls == []
+
+
+def test_validate_trading_ready_ignores_na_account_metrics_when_cash_is_valid(monkeypatch):
+    cfg = FutuConfig(trd_env="SIMULATE", target_acc_id=123456)
+    connector = FutuConnector(config=cfg)
+    connector.ft = DummyFT
+    connector.trade_ctx = DummyTradeContext()
+
+    connector.validate_trading_ready(symbol="XOM", qty=10, side="BUY", est_price=100.0)
+
+
+def test_validate_trading_ready_uses_per_market_acc_id_and_never_crosses_hk_to_us():
+    cfg = FutuConfig(trd_env="SIMULATE")
+    connector = FutuConnector(config=cfg)
+    connector.ft = DummyFT
+    hk_ctx = DummyTradeContext()
+    us_ctx = DummyTradeContext()
+    hk_calls = []
+    us_calls = []
+
+    def hk_accinfo_query(**kwargs):
+        hk_calls.append(kwargs)
+        return 0, pd.DataFrame([{"cash": 50000.0}])
+
+    def us_accinfo_query(**kwargs):
+        us_calls.append(kwargs)
+        return 0, pd.DataFrame([{"cash": 50000.0}])
+
+    hk_ctx.accinfo_query = hk_accinfo_query
+    us_ctx.accinfo_query = us_accinfo_query
+    connector.trade_ctx = us_ctx
+    connector.trade_ctxs = {"HK": hk_ctx, "US": us_ctx}
+    connector.config_market_accounts = {"HK": 14239754, "US": 18526451}
+
+    connector.validate_trading_ready(symbol="0700.HK", qty=100, side="BUY", est_price=300.0)
+    connector.validate_trading_ready(symbol="XOM", qty=10, side="BUY", est_price=100.0)
+
+    assert hk_calls == [{"acc_id": 14239754, "trd_env": "SIMULATE"}]
+    assert us_calls == [{"acc_id": 18526451, "trd_env": "SIMULATE"}]
+    assert all(call.get("acc_id") != 18526451 for call in hk_calls)
+
+
+def test_get_order_reference_price_ignores_na_order_book_and_uses_latest_quote():
+    cfg = FutuConfig(trd_env="SIMULATE", target_acc_id=123456)
+    connector = FutuConnector(config=cfg)
+    connector.ft = DummyFT
+
+    class QuoteCtx:
+        def get_order_book(self, code, num=1):
+            return 0, {"Ask": [("N/A", 10)], "Bid": [("N/A", 10)]}
+
+    connector.quote_ctx = QuoteCtx()
+    connector.get_latest_quote = lambda symbol, use_cache=True: {"Close": "101.23"}
+
+    assert connector.get_order_reference_price("XOM", "BUY", fallback_price="N/A") == 101.23
 
 
 def test_connect_error_in_wsl2_includes_network_hints(monkeypatch):

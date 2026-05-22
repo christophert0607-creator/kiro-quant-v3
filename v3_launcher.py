@@ -187,6 +187,11 @@ def _base_live_config(config_path: str = "config.json") -> LiveConfig:
         ),
         auto_trade=bool(v3_live.get("auto_trade", cfg.get("auto_trade", True))),
         paper_trading=bool(v3_live.get("paper_trading", cfg.get("paper_trading", True))),
+        max_orders_per_cycle=int(v3_live.get("max_orders_per_cycle", 3)),
+        order_throttle_seconds=float(v3_live.get("order_throttle_seconds", 30.0)),
+        swing_buy_min_confidence=float(v3_live.get("swing_buy_min_confidence", 0.45)),
+        model_buy_min_confidence=float(v3_live.get("model_buy_min_confidence", 0.55)),
+        swing_buy_reversal_override=bool(v3_live.get("swing_buy_reversal_override", False)),
         buy_cooldown_cycles=int(v3_live.get("buy_cooldown_cycles", 3)),
         bucket_fractions=bucket_fractions,
         bucket_by_symbol=bucket_by_symbol,
@@ -213,6 +218,7 @@ def _base_live_config(config_path: str = "config.json") -> LiveConfig:
         short_take_profit=float(v3_live.get("short_take_profit", 0.02)),
         short_trailing_stop_trigger=float(v3_live.get("short_trailing_stop_trigger", 0.015)),
         short_trailing_stop_lock=float(v3_live.get("short_trailing_stop_lock", 0.0)),
+        hk_bypass_kelly_zero_edge=bool(v3_live.get("hk_bypass_kelly_zero_edge", True)),
     )
 
 

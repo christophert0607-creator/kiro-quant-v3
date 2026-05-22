@@ -18,13 +18,7 @@ class _FakeXGBClassifier:
         pass
 
 
-class _FakeXGBRegressor:
-    def __init__(self, *args, **kwargs):
-        pass
-
-
 fake_xgb.XGBClassifier = _FakeXGBClassifier
-fake_xgb.XGBRegressor = _FakeXGBRegressor
 sys.modules.setdefault("xgboost", fake_xgb)
 
 fake_sklearn = types.ModuleType("sklearn")
@@ -45,13 +39,9 @@ def _fake_split(X, y, test_size=0.2, shuffle=False):
 def _fake_accuracy_score(y_true, y_pred):
     return 0.5
 
-def _fake_mean_absolute_error(y_true, y_pred):
-    return 0.1
-
 fake_pre.StandardScaler = _FakeStandardScaler
 fake_model_selection.train_test_split = _fake_split
 fake_metrics.accuracy_score = _fake_accuracy_score
-fake_metrics.mean_absolute_error = _fake_mean_absolute_error
 
 sys.modules.setdefault("sklearn", fake_sklearn)
 sys.modules.setdefault("sklearn.preprocessing", fake_pre)
