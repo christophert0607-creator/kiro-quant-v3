@@ -1,5 +1,5 @@
 {
-  "date": "2026-05-23",
+  "date": "2026-05-24",
   "daily_pnl": 0.0,
   "daily_trades": 0,
   "consecutive_errors": 0,
@@ -58,11 +58,11 @@
       "reason": "model_signal"
     },
     "US.INTC": {
-      "time": 1779460732.5118935,
-      "signal": "BUY",
-      "qty": 762,
-      "price": 121.77010345458984,
-      "reason": "model_signal_conf=0.988"
+      "time": 1779629565.9136808,
+      "signal": "SELL",
+      "qty": 978,
+      "price": 119.83999633789062,
+      "reason": "model_signal"
     },
     "US.MSTR": {
       "time": 1779111213.4075623,
@@ -149,11 +149,11 @@
       "reason": "max_hold_5_bars"
     },
     "US.COIN": {
-      "time": 1779291213.9938512,
-      "signal": "SELL",
-      "qty": 299,
-      "price": 195.22500610351562,
-      "reason": "swing_signal"
+      "time": 1779637403.2002,
+      "signal": "BUY",
+      "qty": 22,
+      "price": 184.97000122070312,
+      "reason": "model_signal_conf=0.827"
     },
     "HK.3690.HK": {
       "time": 1779484347.5639136,
@@ -163,11 +163,11 @@
       "reason": "model_signal"
     },
     "US.CRM": {
-      "time": 1779460026.5351882,
-      "signal": "BUY",
-      "qty": 4,
-      "price": 177.91000366210938,
-      "reason": "model_signal_conf=0.644"
+      "time": 1779629721.0186949,
+      "signal": "SELL",
+      "qty": 686,
+      "price": 180.0800018310547,
+      "reason": "model_signal"
     },
     "US.ADBE": {
       "time": 1779456872.9208386,
@@ -212,11 +212,11 @@
       "reason": "model_signal"
     },
     "US.XOM": {
-      "time": 1779459230.3039057,
-      "signal": "BUY",
-      "qty": 65,
-      "price": 155.0,
-      "reason": "combined_signal_conf=0.686"
+      "time": 1779629800.4219084,
+      "signal": "SELL",
+      "qty": 124,
+      "price": 154.86500549316406,
+      "reason": "max_hold_5_bars"
     },
     "US.CVX": {
       "time": 1779293284.2249756,
@@ -261,11 +261,11 @@
       "reason": "model_signal"
     },
     "US.ZS": {
-      "time": 1779460652.6736696,
-      "signal": "BUY",
-      "qty": 880,
-      "price": 176.08999633789062,
-      "reason": "model_signal_conf=0.824"
+      "time": 1779629488.9433522,
+      "signal": "SELL",
+      "qty": 1636,
+      "price": 182.39999389648438,
+      "reason": "quick_take_profit_0.0100"
     },
     "US.UNH": {
       "time": 1779457892.6306665,
@@ -287,23 +287,39 @@
       "qty": 17,
       "price": 385.3999938964844,
       "reason": "model_signal"
+    },
+    "US.MU": {
+      "time": 1779629646.2072828,
+      "signal": "BUY",
+      "qty": 63,
+      "price": 750.7899780273438,
+      "reason": "combined_signal_conf=1.000"
+    },
+    "US.ABBV": {
+      "time": 1779630348.2624521,
+      "signal": "BUY",
+      "qty": 497,
+      "price": 215.8000030517578,
+      "reason": "combined_signal_conf=1.000"
     }
   },
   "positions": {
-    "HK.3690.HK": 0,
-    "HK.0700.HK": 100,
-    "US.TSLA": 10
+    "US.XOM": 124,
+    "US.CRM": 686,
+    "US.INTC": 978,
+    "US.ZS": 1636,
+    "US.TIP": 212,
+    "US.HYG": 465,
+    "US.VTI": 118,
+    "US.QQQ": 282,
+    "HK.03690": 100
   },
   "total_invested": 0.0,
   "mode": "HK_lite",
   "runtime_profile": "lite",
   "last_review": "2026-03-18T19:22:00Z",
   "review_notes": "Hourly self-review 2026-03-18 19:22 UTC: System healthy. HK lite profile running with no errors. Logs show clean execution - multiple trade cycles processed. 9 trades executed this hour: mixed BUY (6) and SELL (3). Model predictions negative (-0.38% to -6.47%). Position cap at 10/10 - full. PnL: daily=$0, cumulative=-$3,219.28. Code review: syntax OK, no bare except, async/await implemented, Kelly sizer integrated, transaction cost calculator present. TA-Lib still using pandas fallback. No code changes applied this hour.",
-  "short_positions": {
-    "HK.3690.HK": 0,
-    "HK.0700.HK": 0,
-    "US.TSLA": 0
-  },
+  "short_positions": {},
   "account_routing": {
     "account_routing": {
       "HK": {
