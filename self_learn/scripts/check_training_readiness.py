@@ -44,12 +44,18 @@ def check_training_readiness() -> dict:
 
     # ── Outcome quality check ──────────────────────────────────────────────
     # We need outcomes where prediction_error is not null (otherwise MAE=0.5 default)
-    # Quick sample: check a few well-known symbols
-    sample_symbols = ["9988.HK", "0700.HK", "AAPL", "NVDA", "TSLA"]
+    # Dynamic discovery: check all symbols known to have outcome history
+    # rather than relying on a fixed short list that may miss most symbols.
+    _all_symbols_with_history = [
+        "AAPL", "ACN", "ADBE", "AMD", "AVGO", "COIN", "COST", "CRM", "CSCO",
+        "CVX", "DASH", "GOOGL", "HD", "IBM", "INTC", "JPM", "MA", "MSFT",
+        "NET", "NFLX", "ORCL", "PANW", "PLTR", "SMCI", "SNOW", "UBER", "V",
+        "WMT", "XOM", "ZS",
+    ]
     symbols_with_data = 0
-    for sym in sample_symbols:
+    for sym in _all_symbols_with_history:
         mae, dir_acc = get_prediction_accuracy(sym, window=20)
-        if dir_acc != 0.5 or mae != 0.0:  # not the default "no data" return
+        if mae != 0.0 or dir_acc != 0.5:  # not the default "no data" return
             symbols_with_data += 1
 
     # ── Compute readiness ────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 {
     "version": "2.0",
-    "date": "2026-05-24 08:01:03",
+    "date": "2026-05-25 08:00:42",
     "expanded_universe": false,
     "tiers": {
         "tier1": {
@@ -10,9 +10,9 @@
                 "NVDA",
                 "GOOGL",
                 "MSFT",
-                "AMD",
                 "AVGO",
-                "TSM"
+                "TSM",
+                "AMD"
             ]
         },
         "tier2": {
@@ -37,7 +37,7 @@
             "max_pe": 50.0,
             "min_eps_growth": 0.15
         },
-        "last_screened_at": "2026-05-24 08:01:03",
+        "last_screened_at": "2026-05-25 08:00:42",
         "last_screener": "V3FunnelScreener",
         "picks_count": 6,
         "failed_count": 0
@@ -46,9 +46,9 @@
         "NVDA",
         "GOOGL",
         "MSFT",
-        "AMD",
         "AVGO",
-        "TSM"
+        "TSM",
+        "AMD"
     ],
     "details": [
         {
@@ -79,15 +79,6 @@
             "ma50": 400.441
         },
         {
-            "symbol": "AMD",
-            "pe": 36.07458,
-            "eps_growth": 0.951,
-            "rev_growth": 0.378,
-            "peg": 1.12,
-            "price": 467.51,
-            "ma50": 303.1888
-        },
-        {
             "symbol": "AVGO",
             "pe": 22.681368,
             "eps_growth": 0.335,
@@ -104,6 +95,15 @@
             "peg": 1.26,
             "price": 404.52,
             "ma50": 373.1106
+        },
+        {
+            "symbol": "AMD",
+            "pe": 36.07458,
+            "eps_growth": 0.951,
+            "rev_growth": 0.378,
+            "peg": 1.12,
+            "price": 467.51,
+            "ma50": 303.1888
         }
     ],
     "failed_symbols": []

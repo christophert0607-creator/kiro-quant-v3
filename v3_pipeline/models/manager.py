@@ -16,10 +16,16 @@ from torch.utils.data import DataLoader, TensorDataset
 
 try:
     import xgboost as xgb
+except ImportError:
+    xgb = None
+try:
     import lightgbm as lgb
+except ImportError:
+    lgb = None
+try:
     from catboost import CatBoostClassifier, Pool
 except ImportError:
-    xgb = lgb = CatBoostClassifier = Pool = None
+    CatBoostClassifier = Pool = None
 
 from v3_pipeline.data.downloader import HistoricalDataDownloader
 from v3_pipeline.features.indicators import TechnicalIndicatorGenerator
@@ -358,12 +364,15 @@ class AttentiveKiroLSTM(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.fc = nn.Linear(hidden_dim, output_dim)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, return_hidden: bool = False):
         seq, _ = self.lstm(x)
         attn_out, _ = self.attn(seq, seq, seq, need_weights=False)
         fused = self.norm(seq + attn_out)
-        last = fused[:, -1, :]
-        return self.fc(self.dropout(last))
+        last = fused[:, -1, :]  # (B, hidden_dim)
+        pred = self.fc(self.dropout(last))
+        if return_hidden:
+            return pred, last
+        return pred
 
 
 class ModelManager:
@@ -382,6 +391,40 @@ class ModelManager:
         self.model_dir = Path(model_dir)
         self.model_dir.mkdir(parents=True, exist_ok=True)
         self.registry = registry or ModelRegistry.from_file(self.model_dir)
+
+        # CL Encoder (Contrastive Learning) — optional 128-dim embedding feature
+        self.cl_encoder = None
+        try:
+            from self_learn.scripts.cl_encoder.encoder import CLEncoder
+            cl_path = Path(__file__).parent.parent.parent / "self_learn" / "models" / "cl_encoder.pkl"
+            if cl_path.exists():
+                self.cl_encoder = CLEncoder()
+                self.cl_encoder.load_state_dict(torch.load(cl_path, map_location="cpu"))
+                self.cl_encoder.eval()
+                self.logger.info("[CL_ENCODER] loaded from %s", cl_path)
+        except Exception as exc:
+            self.cl_encoder = None
+            self.logger.warning("[CL_ENCODER_FAIL] %s", exc)
+
+    def extract_cl_embedding(self, close_prices) -> Optional[np.ndarray]:
+        """Return (128,) CL embedding from a 1D close-price window, or None on failure.
+
+        Callers building XGBoost feature vectors should concatenate this onto their
+        OHLCV features (expected_features 25 → 153 per spec)."""
+        if self.cl_encoder is None:
+            return None
+        try:
+            from self_learn.scripts.cl_encoder.gaf_transform import to_gaf_image
+            prices = np.asarray(close_prices, dtype=np.float64).flatten()
+            if len(prices) < 60:
+                return None
+            with torch.no_grad():
+                gaf = to_gaf_image(prices[-60:]).unsqueeze(0)
+                emb = self.cl_encoder(gaf).cpu().numpy().flatten()
+            return emb
+        except Exception as exc:
+            self.logger.warning("[CL_ENCODER_FAIL] %s, using OHLCV only", exc)
+            return None
 
     @classmethod
     def build_global_pretraining_manager(cls, sample_frame: pd.DataFrame, config: Optional[GlobalPretrainConfig] = None) -> "ModelManager":
@@ -499,21 +542,111 @@ class ModelManager:
         with torch.no_grad():
             x = active_preparer.transform_for_inference(latest_data_window).to(self.device)
             self._ensure_model_input_dim(int(x.shape[-1]))
-            model_out = self.model(x)
-            scaled_tensor = model_out[0] if isinstance(model_out, tuple) else model_out
-            scaled_pred = float(scaled_tensor.cpu().numpy().ravel()[0])
-            pred = active_preparer.inverse_scale_target(scaled_pred)
-            
+
+            try:
+                model_out = self.model(x, return_hidden=True)
+            except TypeError:
+                model_out = self.model(x)
+
+            if isinstance(model_out, tuple) and len(model_out) >= 2:
+                lstm_pred, lstm_hidden = model_out[0], model_out[1]
+            else:
+                lstm_pred = model_out
+                lstm_hidden = None
+                try:
+                    seq, _ = self.model.lstm(x)
+                    lstm_hidden = seq[:, -1, :]
+                except Exception:
+                    lstm_hidden = None
+
+            cl_emb = None
+            if self.cl_encoder is not None and "Close" in latest_data_window.columns:
+                cl_emb = self.extract_cl_embedding(latest_data_window["Close"].values)
+
+            xgb_used = False
+            if cl_emb is not None and lstm_hidden is not None:
+                combined = np.concatenate([
+                    lstm_hidden.cpu().numpy().flatten(),
+                    np.asarray(cl_emb).flatten(),
+                ])
+                pred = self._xgb_head_predict(combined, lstm_pred, active_preparer)
+                xgb_used = getattr(self, "_xgb_head", None) is not None
+            else:
+                scaled_pred = float(lstm_pred.cpu().numpy().ravel()[0])
+                pred = active_preparer.inverse_scale_target(scaled_pred)
+
             # FINAL SAFETY CHECK: Ensure prediction is not NaN or Inf
             if not np.isfinite(pred):
-                self.logger.warning("Prediction is non-finite (NaN/Inf). Scaled=%.6f. Falling back to latest price.", scaled_pred)
+                self.logger.warning("Prediction is non-finite (NaN/Inf). Falling back to latest price.")
                 try:
                     pred = float(latest_data_window.iloc[-1][active_preparer.target_col])
-                except:
-                    pred = 0.0 # Extreme fallback
-            
-            self.logger.info("Prediction (scaled=%.6f, inverse=%.6f, input_dim=%d)", scaled_pred, pred, int(x.shape[-1]))
+                except Exception:
+                    pred = 0.0  # Extreme fallback
+
+            self.logger.info(
+                "Prediction (cl_enabled=%s, xgb_head=%s, pred=%.6f, input_dim=%d)",
+                bool(cl_emb is not None),
+                xgb_used,
+                pred,
+                int(x.shape[-1]),
+            )
             return pred
+
+    def _load_xgb_head(self) -> None:
+        if xgb is None:
+            self._xgb_head = None
+            self.logger.warning("[XGB_HEAD] xgboost unavailable")
+            return
+        head_path = self.model_dir / "xgb_head.json"
+        if head_path.exists():
+            try:
+                self._xgb_head = xgb.XGBRegressor()
+                self._xgb_head.load_model(str(head_path))
+                self.logger.info("[XGB_HEAD] loaded from %s", head_path)
+            except Exception as exc:
+                self._xgb_head = None
+                self.logger.warning("[XGB_HEAD_FAIL] %s", exc)
+        else:
+            self._xgb_head = None
+            self.logger.warning("[XGB_HEAD] not found at %s; using LSTM fallback", head_path)
+
+    def _xgb_head_predict(self, combined_features: np.ndarray, lstm_pred: torch.Tensor, active_preparer: DataPreparer) -> float:
+        if not hasattr(self, "_xgb_head"):
+            self._load_xgb_head()
+
+        if self._xgb_head is None:
+            scaled_pred = float(lstm_pred.cpu().numpy().ravel()[0])
+            return active_preparer.inverse_scale_target(scaled_pred)
+
+        try:
+            feat = np.asarray(combined_features, dtype=np.float32).reshape(1, -1)
+            scaled = float(self._xgb_head.predict(feat)[0])
+            return active_preparer.inverse_scale_target(scaled)
+        except Exception as exc:
+            self.logger.warning("[XGB_HEAD_FAIL] predict failed: %s; using LSTM fallback", exc)
+            scaled_pred = float(lstm_pred.cpu().numpy().ravel()[0])
+            return active_preparer.inverse_scale_target(scaled_pred)
+
+    def _train_xgb_head(self, X: np.ndarray, y_scaled: np.ndarray) -> None:
+        """Train XGBoost head. Caller must pre-scale y using the SAME DataPreparer
+        target scaler (preparer.target_min / target_max) that produced the LSTM
+        hidden states, otherwise live prediction magnitude will be biased."""
+        if xgb is None:
+            raise RuntimeError("xgboost is not installed")
+
+        self._xgb_head = xgb.XGBRegressor(
+            n_estimators=100,
+            max_depth=4,
+            learning_rate=0.1,
+            subsample=0.8,
+            colsample_bytree=0.8,
+            random_state=42,
+        )
+        self._xgb_head.fit(X, y_scaled)
+
+        head_path = self.model_dir / "xgb_head.json"
+        self._xgb_head.save_model(str(head_path))
+        self.logger.info("[XGB_HEAD] trained and saved to %s", head_path)
 
     def _classify_pattern_rule_based(self, df: pd.DataFrame) -> dict:
         """
