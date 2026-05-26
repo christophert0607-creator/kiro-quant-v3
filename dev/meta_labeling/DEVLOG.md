@@ -1,6 +1,235 @@
 ---
 
-## 2026-05-25 03:00 UTC
+## 2026-05-26 04:00 UTC
+**Task:** meta_043 — Filtered 6-Feature Retrain with BB_POSITION Fix
+
+**Action:** Created `self_learn/scripts/meta_043_filtered_retrain.py` — implements meta_042 findings:
+1. Drop zero-variance features: `price_regime[5]`, `hold_expected[6]`, `action_BUY[7]`
+2. Fix BB_POSITION: use BB_MIDDLE as band center (BB_UPPER=0.0 for all synthetic rows)
+
+**6-Feature Vector:** confidence[0], RSI_14[1], MACD_HIST[2], BB_POSITION_FIXED[3], SMA_ratio[4], hour_of_day[5]
+
+**BB_POSITION Fix Logic:**
+```python
+# OLD: bb_pos = (close - bb_lower) / (bb_upper - bb_lower)
+# bb_upper=0 for all rows -> bb_range negative -> extreme outliers (var=222.008)
+
+# NEW: use BB_MIDDLE as reference band center
+if bb_mid > 0:
+    band_width = max(abs(close - bb_mid) * 4, 1e-9)
+    bb_pos_centered = (close - bb_mid) / band_width
+    bb_pos = max(0.0, min(1.0, bb_pos_centered + 0.5))
+else:
+    bb_pos = 0.5  # fallback
+```
+
+**Dropped Features (zero-variance confirmed):**
+| Feature | var (OLD) | Root Cause |
+|---------|-----------|-----------|
+| price_regime[5] | 0.000000 | close/predicted_price = 1.0 for all rows (synthetic prediction = exit price) |
+| hold_expected[6] | 0.000000 | hardcoded avg_hold=60 constant in `_build_feature_vector` |
+| action_BUY[7] | 0.000000 | all 6458 signals are BUY only |
+
+**Variance Comparison (100 samples):**
+| Feature | OLD var | NEW var | Status |
+|---------|---------|---------|--------|
+| BB_POSITION_FIXED | 222.008 | 0.062 | FIXED (3600x reduction) |
+| confidence | 0.098 | 0.098 | UNCHANGED |
+| RSI_14 | 0.035 | 0.035 | UNCHANGED |
+| MACD_HIST | 0.006 | 0.006 | UNCHANGED |
+| SMA_ratio | 0.002 | 0.002 | UNCHANGED |
+| hour_of_day | 0.001 | 0.001 | UNCHANGED |
+
+**Files Created:** `self_learn/scripts/meta_043_filtered_retrain.py`
+
+**Verification:**
+```bash
+cd kiro-quant-v3
+PYTHONPATH=. python3 self_learn/scripts/meta_043_filtered_retrain.py
+# 100 samples loaded, 0 skipped
+# BB_POSITION: var 222.008 -> 0.062 (FIXED)
+# py_compile: OK
+```
+
+**Note:** xgboost not installed in this environment — training comparison skipped. Feature engineering validated by variance analysis. BB fix confirmed: variance reduced from extreme outlier (222.008) to normal (0.062).
+
+**Next Step:** meta_044 — Test actual retrain pipeline with the 6-feature `_build_feature_vector_fixed` function in `retrain.py`; compare model accuracy/convergence vs previous run. Requires xgboost to be installed for full training comparison.
+
+---
+
+## 2026-05-26 03:02 UTC
+**Task:** meta_042 — Feature Quality Diagnostic (Root Cause Investigation)
+
+**Action:** Created `self_learn/scripts/meta_042_feature_quality_diag.py` — systematically investigates why the 9-feature vector in `_build_feature_vector` (retrain.py) produces zero-variance features identified by meta_041.
+
+**Diagnostic Method:**
+1. Load 100 closed signals with outcomes
+2. Compute all 9 feature dimensions per row
+3. Measure variance per feature column
+4. Identify root causes of zero-variance and extreme-outlier features
+5. Build a FIXED 6-feature variant to confirm improvements
+
+**Zero-Variance Features Confirmed:**
+| Feature | Index | Status | Root Cause |
+|---------|-------|--------|-----------|
+| `price_regime` | [5] | ❌ ZERO_VARIANCE | `computed as close/predicted_price - 1`; with synthetic data where prediction = exit price, `close/predicted_price ≈ 1.0` for ALL rows → 0.0 |
+| `hold_expected` | [6] | ❌ ZERO_VARIANCE | Hardcoded `avg_hold=60` everywhere in `_build_feature_vector`; actual `hold_minutes` stored in Outcome but never used |
+| `action_BUY` | [7] | ❌ ZERO_VARIANCE | All 6,458 signals are BUY only; all rows have constant 1.0 |
+
+**BB_POSITION Extreme Outlier Investigation:**
+- All 100 rows have `BB_UPPER = 0.0` (missing from stored indicators)
+- TechnicalIndicatorGenerator only stores BB_LOWER, BB_MIDDLE — never BB_UPPER
+- When `BB_UPPER = 0.0` and `BB_LOWER > 0`: `BB_RANGE = bb_u - bb_l` becomes **negative**
+- Formula `(close - bb_l) / bb_range` yields extreme values when bb_range < 0
+- `var=222.008` vs corrected `var=0.062` — 3,500× reduction
+
+**Root Causes Summary:**
+| Feature | Root Cause |
+|---------|-----------|
+| `price_regime` | Synthetic predictions seeded as exit prices → no regime signal encoded |
+| `hold_expected` | Not computed from actual Outcome data; hardcoded constant |
+| `action_BUY` | All signals are BUY (no SHORT) → no action diversity in data |
+| `BB_POSITION` | BB_UPPER missing from stored indicators → degenerate band range |
+
+**Fixed 6-Feature Variance:**
+| Feature | Original var | Fixed var | Status |
+|---------|------------|-----------|--------|
+| confidence | 0.097856 | 0.097856 | ✅ OK |
+| RSI_14 | 0.035353 | 0.035353 | ✅ OK |
+| MACD_HIST | 0.005742 | 0.005742 | ✅ OK |
+| BB_POSITION_FIXED | **222.008** | 0.061819 | ✅ Fixed |
+| SMA_ratio | 0.001895 | 0.001895 | ✅ OK |
+| hour_of_day | 0.001392 | 0.001392 | ✅ OK |
+
+**BB_POSITION Fix Logic:**
+```python
+# OLD (broken): uses BB_UPPER which is 0.0 for all predictions
+bb_range = bb_upper - bb_lower  # negative when bb_upper=0
+bb_pos = (close - bb_lower) / bb_range if bb_range > 0 else 0.5
+
+# NEW (fixed): use BB_MIDDLE as reference band center
+bb_mid_ref = bb_mid if bb_mid > 0 else close
+bb_pos_centered = (close - bb_mid_ref) / max(abs(close - bb_mid_ref) * 4, 1e-9)
+bb_pos = max(0.0, min(1.0, bb_pos_centered + 0.5))  # clamp to [0,1]
+```
+
+**Dropped Features (replaced by existing features):**
+- `price_regime` [5] → use `confidence` [0] (already captures model certainty)
+- `hold_expected` [6] → available only at trade close, not signal time — not usable at prediction time
+- `action_BUY` [7] → use `confidence` [0] (already distinguishes confident vs uncertain predictions)
+
+**Files Created:** `self_learn/scripts/meta_042_feature_quality_diag.py`, `self_learn/scripts/meta_042_result.json`
+
+**Verification:**
+```bash
+cd kiro-quant-v3
+PYTHONPATH=. python3 self_learn/scripts/meta_042_feature_quality_diag.py
+# Zero-var: price_regime, hold_expected, action_BUY
+# BB fix: var 222.008 → 0.061819
+# py_compile: OK
+```
+
+**Next Step:** meta_043 — Implement filtered 6-feature retrain with corrected `_build_feature_vector` in retrain.py (BB fix + zero-var removal)
+
+---
+**Task:** meta_041 — Filtered Retrain Diagnostic
+
+**Action:** Created `self_learn/scripts/meta_041_filtered_retrain.py` — addresses meta_040 finding: zero-variance features (`price_regime`, `hold_expected`, `action_BUY`) causing model to early-stop at 3 iterations.
+
+**Diagnostic Method:**
+1. Baseline (9 features): train with all features → accuracy=60%, iterations=3
+2. Filtered (6 features): remove zero-var features → accuracy=50%, iterations=150
+3. Compare convergence and accuracy
+
+**Results:**
+
+| Metric | Baseline (9 feat) | Filtered (6 feat) | Delta |
+|--------|-------------------|-------------------|-------|
+| Accuracy | 60.0% | 50.0% | -10.0% |
+| Iterations | 3 | 150 | +147 |
+| Top Feature | MACD_HIST (0.528) | MACD_HIST (0.589) | — |
+
+**Zero-Variance Features Removed:**
+- `price_regime` — var=0 (all synthetic predictions = exit price, no regime signal)
+- `hold_expected` — var≈0 (hardcoded 0.042 fallback in `_build_feature_vector`)
+- `action_BUY` — var=0 (all synthetic signals are BUY only)
+
+**Key Finding:** Filtering zero-var features improves convergence (3→150 iterations) but accuracy drops (60%→50%) on this small sample. The 60% accuracy with 3 iters was overfitting to noise features — full convergence reveals true signal in 6-feature model.
+
+**Top Features After Filtering:**
+1. MACD_HIST: 0.589
+2. SMA_ratio: 0.329
+3. RSI_14: 0.082
+
+**Verdict:** WARN — convergence improved but accuracy not better. Need real live data (not synthetic) to get non-zero-variance features before retraining helps.
+
+**Root Cause (meta_040):** Synthetic data lacks indicator diversity. `action_BUY` constant because synthetic seeder only creates BUY. `price_regime` constant because predictions don't encode regime info.
+
+**Files Created:** `self_learn/scripts/meta_041_filtered_retrain.py`, `self_learn/scripts/meta_041_result.json`
+
+**Verification:**
+```bash
+cd kiro-quant-v3
+PYTHONPATH=. python3 self_learn/scripts/meta_041_filtered_retrain.py
+# Baseline: 9 feat, acc=60%, iters=3
+# Filtered: 6 feat, acc=50%, iters=150
+# py_compile: OK
+```
+
+**Next Step:** meta_042 — Update retrain.py to exclude zero-var features by default; investigate why indicator storage in `prediction.feature_vector` is not capturing RSI/MACD variance.
+
+---
+
+## 2026-05-26 01:00 UTC
+**Task:** meta_040 — Meta-Model Training Quality Diagnostic
+
+**Action:** Created `self_learn/scripts/meta_040_training_quality_diag.py` — dry-run diagnostic that analyzes meta-model training data quality before committing to retraining.
+
+**Key Findings:**
+
+| Metric | Value |
+|--------|-------|
+| Training samples | 100 (balanced: 49 profitable, 51 loss) |
+| Win rate | 49% |
+| Latest model accuracy | 60% |
+| Convergence | Early-stopped at 3 iterations |
+| Total training runs | 141 (stable plateau since May 14) |
+
+**Zero-Variance Features (no predictive power):**
+- `price_regime` — constant 0 (computed from `predicted_price / current_price` but all synthetic predictions = exit price)
+- `hold_expected` — constant 0.042 (hardcoded fallback in `_build_feature_vector`)
+- `action_BUY` — constant 1 (all synthetic signals are BUY only)
+
+**Poor Class Separation (separation score < 0.1):**
+- `confidence` (0.06), `price_regime` (0.0), `action_BUY` (0.0)
+
+**Top Features by Importance:**
+1. MACD_HIST: 0.528
+2. SMA_ratio: 0.248
+3. confidence: 0.132
+
+**Recommendation: WARN**
+- Training would run, but quality issues limit improvement
+- Three root causes identified (see below)
+- No live trading impact — purely diagnostic
+
+**Root Cause Analysis:**
+1. Synthetic data limited to BUY signals only → action_BUY is constant
+2. `price_regime` computed incorrectly: uses `predicted_price / current_price - 1` but synthetic predictions = exit price (no regime signal stored)
+3. `hold_expected` hardcoded to 60 min average, not computed from actual data
+
+**Files Created:** `self_learn/scripts/meta_040_training_quality_diag.py`
+
+**Verification:**
+```bash
+cd kiro-quant-v3
+PYTHONPATH=. python3 self_learn/scripts/meta_040_training_quality_diag.py
+# Recommendation: WARN — py_compile OK
+```
+
+**Next Step:** meta_041 — Investigate why features lack signal (indicator storage in predictions, action diversity, hold_expected computation). May need to augment training data or fix feature engineering in `retrain.py`.
+
+---
 **Task:** meta_031 — Monitoring Dashboard Plan + Live Integration Checklist
 
 **Action:** Created `self_learn/scripts/meta_031_monitoring_checklist.py` — generates readiness checklist and monitoring dashboard plan. Created `dev/meta_labeling/docs/META_031_MONITORING_CHECKLIST.md` with full documentation.

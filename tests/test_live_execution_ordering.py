@@ -278,6 +278,76 @@ def test_live_order_rate_limit_throttles_within_30_seconds(monkeypatch):
 # ── Test: broker is called BEFORE position is mutated (ordering) ─────────────
 
 
+def test_buy_candidate_qty_is_capped_by_per_position_fraction():
+    connector = _FakeConnector()
+    loop = _make_loop(
+        auto_trade=True,
+        paper_trading=False,
+        connector=connector,
+        max_orders_per_cycle=10,
+        order_throttle_seconds=0,
+        per_position_cap_fraction=0.05,
+        per_position_cap_value=0.0,
+    )
+    loop.account_value = 10_000.0
+    loop._collect_buy_candidates = True
+
+    loop._submit_buy_candidate(
+        "TSLA",
+        qty=100,
+        price=100.0,
+        reason="model_signal_conf=1.000",
+        confidence=1.0,
+        predicted_move_pct=0.10,
+        signal_type="both",
+    )
+    loop._collect_buy_candidates = False
+
+    loop._flush_buy_candidates()
+
+    assert connector.place_order_calls == [("TSLA", 5, "BUY", 100.0)]
+    assert loop.position_qty_by_symbol["TSLA"] == 5
+
+
+
+def test_portfolio_full_replaces_weakest_holding_before_buying_new_candidate():
+    connector = _FakeConnector()
+    loop = _make_loop(
+        auto_trade=True,
+        paper_trading=False,
+        connector=connector,
+        max_portfolio_positions=1,
+        max_orders_per_cycle=10,
+        order_throttle_seconds=0,
+    )
+    loop.symbols = ["TSLA", "NVDA"]
+    loop.position_qty_by_symbol["TSLA"] = 10
+    loop.position_qty_by_symbol["NVDA"] = 0
+    loop.entry_price_by_symbol["TSLA"] = 100.0
+    loop.last_price_by_symbol["TSLA"] = 90.0
+    loop.last_price_by_symbol["NVDA"] = 200.0
+    loop._collect_buy_candidates = True
+
+    loop._submit_buy_candidate(
+        "NVDA",
+        qty=5,
+        price=200.0,
+        reason="model_signal_conf=1.000",
+        confidence=1.0,
+        predicted_move_pct=0.12,
+        signal_type="both",
+    )
+    loop._collect_buy_candidates = False
+
+    loop._flush_buy_candidates()
+
+    assert connector.place_order_calls == [("TSLA", 10, "SELL", 90.0)]
+    assert loop.position_qty_by_symbol["TSLA"] == 0
+    assert loop.position_qty_by_symbol["NVDA"] == 0
+    assert [candidate["symbol"] for candidate in loop._deferred_buy_candidates] == ["NVDA"]
+
+
+
 def test_live_broker_called_before_position_mutated():
     """Verify broker.place_order() is called while position is still at 0."""
     position_at_call_time = {}

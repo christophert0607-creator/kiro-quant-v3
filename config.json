@@ -60,15 +60,45 @@
       "CVX",
       "MRK",
       "ABBV",
-      "KO"
+      "KO",
+      "CAT",
+      "GE",
+      "HON",
+      "UPS",
+      "RTX",
+      "SPY",
+      "QQQ",
+      "GLD",
+      "SLV",
+      "TLT",
+      "IEF",
+      "LQD",
+      "HYG",
+      "VTI",
+      "IWM",
+      "EEM",
+      "EWJ",
+      "VGK",
+      "VEA",
+      "VWO",
+      "QQQM",
+      "SCHD",
+      "VIG",
+      "DGRO",
+      "VYM",
+      "UVXY",
+      "VIXY",
+      "TQQQ",
+      "SPXL",
+      "SOXL"
     ],
     "prediction_thresholds": {
-      "0700.HK": 0.0065,
-      "9988.HK": 0.0065,
-      "3690.HK": 0.0065
+      "0700.HK": 0.0057,
+      "9988.HK": 0.0057,
+      "3690.HK": 0.0057
     },
-    "buy_cooldown_cycles": 5,
-    "swing_buy_confirmation_count": 1,
+    "buy_cooldown_cycles": 3,
+    "swing_buy_confirmation_count": 3,
     "swing_block_on_model_sell": false,
     "polling_seconds": 60,
     "auto_trade": true,
@@ -78,8 +108,8 @@
     "max_hold_bars": 30,
     "max_positions": 15,
     "market_mode": "AUTO",
-    "rsi_oversold": 35,
-    "rsi_overbought": 80,
+    "rsi_oversold": 41,
+    "rsi_overbought": 72,
     "macd_signal": 0.005,
     "xgb_confidence": 0.1,
     "min_hold_minutes": 45,
@@ -115,7 +145,28 @@
     "short_trailing_stop_lock": 0,
     "hk_bypass_kelly_zero_edge": true,
     "max_orders_per_cycle": 3,
-    "order_throttle_seconds": 30.0
+    "order_throttle_seconds": 30.0,
+    "per_position_cap_fraction": 0.1,
+    "per_position_cap_value": 0.0
+  },
+  "hk_live": {
+    "prediction_thresholds": {
+      "0700.HK": 0.004,
+      "9988.HK": 0.004,
+      "3690.HK": 0.004
+    },
+    "min_confidence_threshold": 0.48,
+    "swing_buy_min_confidence": 0.4,
+    "model_buy_min_confidence": 0.48,
+    "max_orders_per_cycle": 5,
+    "order_throttle_seconds": 15.0,
+    "rsi_oversold_entry": 38,
+    "rsi_overbought_entry": 70,
+    "swing_buy_confirmation_count": 1,
+    "buy_cooldown_cycles": 2,
+    "hk_bypass_kelly_zero_edge": true,
+    "per_position_cap_fraction": 0.1,
+    "per_position_cap_value": 0.0
   },
   "futu": {
     "target_acc_id": 18526451,
@@ -140,6 +191,6 @@
     "stop_before_open_min": 30
   },
   "posture": "risk_off",
-  "posture_timestamp": "2026-05-25T05:31:00+00:00",
-  "posture_rationale": "2800.HK momentum=-0.003091 & 3033.HK momentum=-0.003770 → both <0 → risk_off; threshold +0.0004→0.0065, rsi_oversold +4→35 (clamped from 31), confirmation -2→1, cooldown -1→5 (clamped from 6)"
+  "posture_timestamp": "2026-05-26T08:30:54+00:00",
+  "posture_rationale": "2800.HK momentum=-0.000774, 3033.HK momentum=0.004146; mixed (2800<0, 3033>0) => risk_off"
 }

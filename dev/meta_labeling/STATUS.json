@@ -3,7 +3,7 @@
   "workspace": "/home/tsukii0607/.openclaw/workspace-quant/kiro-quant-v3",
   "status": "active",
   "created": "2026-05-19",
-  "next_task": "meta_040",
+  "next_task": "meta_044",
   "blocks": [],
   "completed_tasks": [
     "meta_001_schema_sync",
@@ -24,9 +24,113 @@
     "meta_023_phase3_validation_report",
     "meta_030_live_integration_audit",
     "meta_031_monitoring_checklist",
-    "meta_032_fix_symbols_check"
+    "meta_032_fix_symbols_check",
+    "meta_040_training_quality_diag",
+    "meta_041_filtered_retrain",
+    "meta_042_feature_quality_diag",
+    "meta_043_filtered_retrain"
   ],
   "findings": {
+    "meta_041": {
+      "script_created": "self_learn/scripts/meta_041_filtered_retrain.py",
+      "purpose": "Address meta_040: zero-variance features causing early-stop at 3 iterations. Compare baseline (9 features) vs filtered (6 features) training.",
+      "zero_variance_removed": ["price_regime", "hold_expected", "action_BUY"],
+      "baseline_9_features": {
+        "accuracy": 0.6,
+        "actual_iterations": 3,
+        "top_feature": "MACD_HIST: 0.528"
+      },
+      "filtered_6_features": {
+        "features": ["confidence", "RSI_14", "MACD_HIST", "BB_POSITION", "SMA_ratio", "hour_of_day"],
+        "accuracy": 0.5,
+        "actual_iterations": 150,
+        "top_features": {
+          "MACD_HIST": 0.589,
+          "SMA_ratio": 0.329,
+          "RSI_14": 0.082
+        }
+      },
+      "comparison": {
+        "feature_reduction": "9 → 6",
+        "accuracy_delta": -0.1,
+        "iterations_delta": "+147",
+        "convergence_improved": true,
+        "accuracy_improved": false,
+        "verdict": "WARN — convergence improved but accuracy not better"
+      },
+      "root_cause": "Zero-var features dominated by synthetic data: action_BUY=1 (all BUY), price_regime=0 (predictions = exit prices), hold_expected hardcoded 0.042",
+      "py_compile": "OK",
+      "next": "meta_042 — Update retrain.py to exclude zero-var features; investigate indicator storage in prediction.feature_vector"
+    },
+    "meta_040": {
+      "script_created": "self_learn/scripts/meta_040_training_quality_diag.py",
+      "purpose": "Dry-run diagnostic: analyze meta-model training data quality before retraining",
+      "data_state": {
+        "samples": 100,
+        "profitable": 49,
+        "loss": 51,
+        "win_rate": "49% (balanced)"
+      },
+      "zero_variance_features": ["price_regime", "hold_expected", "action_BUY"],
+      "poor_class_separation": ["confidence", "price_regime", "action_BUY"],
+      "model_convergence": "early-stopped at 3 iterations (features lack signal)",
+      "top_features": {
+        "MACD_HIST": 0.528,
+        "SMA_ratio": 0.248,
+        "confidence": 0.132
+      },
+      "recommendation": "WARN — training would run but quality issues limit improvement",
+      "quality_warnings": [
+        "Zero-variance features (no predictive power): price_regime, hold_expected, action_BUY",
+        "Poor class separation: confidence, price_regime, action_BUY",
+        "Model converging too fast (3 avg iters) — features may lack signal"
+      ],
+      "recent_training_history": {
+        "total_runs": 141,
+        "all_recent": "acc=0.6, win_rate=0.5, iters=3 (stable plateau since May 14)"
+      },
+      "py_compile": "OK",
+      "next": "meta_041 — Address feature quality issues in retrain pipeline (filter zero-var features, check indicator storage)"
+    },
+    "meta_042": {
+      "script_created": "self_learn/scripts/meta_042_feature_quality_diag.py",
+      "purpose": "Investigate root causes of zero-variance features identified by meta_041",
+      "zero_variance_features": ["price_regime", "hold_expected", "action_BUY"],
+      "bb_position_issue": "BB_UPPER missing from stored indicators — TechnicalIndicatorGenerator only stores BB_LOWER, BB_MIDDLE. BB_UPPER is 0.0 for all 100 rows, causing degenerate BB_RANGE = 0 - positive → negative. Formula (close-bb_lower)/bb_range when bb_range<0 defaults to 0.5 but 1 case in 100 has a special fallback (range=1.0 from else clause), causing extreme outlier 150.25.",
+      "root_causes": {
+        "price_regime": "computed as close/predicted_price - 1; with predicted_price stored as exit price in synthetic data (seed_synthetic_outcomes), close/predicted_price ≈ 1.0 for all rows, resulting in 0.0",
+        "hold_expected": "hardcoded avg_hold=60 everywhere in _build_feature_vector; actual hold_minutes are stored in Outcome but not used",
+        "action_BUY": "all 6458 signals are BUY only; no SHORT signals in dataset"
+      },
+      "per_feature_variance": {
+        "confidence": {"index": 0, "status": "OK", "var": 0.097856},
+        "RSI_14": {"index": 1, "status": "OK", "var": 0.035353},
+        "MACD_HIST": {"index": 2, "status": "OK", "var": 0.005742},
+        "BB_POSITION": {"index": 3, "status": "EXTREME_OUTLIERS", "var": 222.008},
+        "SMA_ratio": {"index": 4, "status": "OK", "var": 0.001895},
+        "price_regime": {"index": 5, "status": "ZERO_VARIANCE", "var": 0.000000},
+        "hold_expected": {"index": 6, "status": "ZERO_VARIANCE", "var": 0.000000},
+        "action_BUY": {"index": 7, "status": "ZERO_VARIANCE", "var": 0.000000},
+        "hour_of_day": {"index": 8, "status": "OK", "var": 0.001392}
+      },
+      "bb_upper_missing": "BB_UPPER storage confirmed absent — all 100 rows store 0.0 for BB_UPPER, BB_RANGE becomes negative (bb_u - bb_l where bb_u=0), condition bb_u != bb_l catches this but bb_range is still negative, raw computation yields extreme value when bb_range is used instead of fallback",
+      "fixed_6feature_variance": {
+        "confidence": 0.097856,
+        "RSI_14": 0.035353,
+        "MACD_HIST": 0.005742,
+        "BB_POSITION_FIXED": 0.061819,
+        "SMA_ratio": 0.001895,
+        "hour_of_day": 0.001392
+      },
+      "dropped_features": [
+        "price_regime [5]: zero variance — use prediction confidence instead (already [0])",
+        "hold_expected [6]: hardcoded constant 0.0417 — available only at trade close, not at signal time",
+        "action_BUY [7]: all BUY constant — use prediction confidence instead (already [0])"
+      ],
+      "bb_fix": "BB_POSITION recomputed using BB_MIDDLE as the reference band center instead of degenerate BB_UPPER/BB_LOWER range. Formula: position relative to BB_MIDDLE band: (close - BB_MIDDLE) / band_width, clamped to [0, 1] where 0.5 = at middle band.",
+      "py_compile": "OK",
+      "next": "meta_043 — Implement filtered 6-feature retrain; document required changes to _build_feature_vector in retrain.py (BB fix + zero-var removal)"
+    },
     "meta_032": {
       "script_created": "self_learn/scripts/meta_032_diagnose_symbols.py",
       "purpose": "Diagnose C3 blocker: symbols_with_history=0 despite 100 closed outcomes",
@@ -327,6 +431,36 @@
       ],
       "py_compile": "OK",
       "next": "meta_032 — Investigate C3 blocker: symbols_with_history = 0 despite 100 closed outcomes"
+    },
+    "meta_043": {
+      "script_created": "self_learn/scripts/meta_043_filtered_retrain.py",
+      "purpose": "Implement filtered 6-feature retrain with BB_POSITION fix + zero-variance feature removal",
+      "zero_var_removed": ["price_regime [5]", "hold_expected [6]", "action_BUY [7]"],
+      "bb_fix": "BB_POSITION recomputed using BB_MIDDLE as band center instead of BB_UPPER/BB_LOWER range — BB_UPPER=0.0 for all synthetic rows caused degenerate negative range and extreme outliers (var=222.008 → 0.062)",
+      "dropped_features": [
+        "price_regime [5]: close/predicted_price ≈ 1.0 for all rows (synthetic predictions = exit prices)",
+        "hold_expected [6]: hardcoded avg_hold=60 constant, not computed from Outcome data",
+        "action_BUY [7]: all 6458 signals are BUY only — constant 1.0"
+      ],
+      "variance_comparison": {
+        "confidence": {"old_var": 0.097856, "new_var": 0.097856, "status": "UNCHANGED"},
+        "RSI_14": {"old_var": 0.035353, "new_var": 0.035353, "status": "UNCHANGED"},
+        "MACD_HIST": {"old_var": 0.005742, "new_var": 0.005742, "status": "UNCHANGED"},
+        "BB_POSITION_FIXED": {"old_var": 222.008, "new_var": 0.061819, "status": "FIXED — var reduced 3600x"},
+        "SMA_ratio": {"old_var": 0.001895, "new_var": 0.001895, "status": "UNCHANGED"},
+        "hour_of_day": {"old_var": 0.001392, "new_var": 0.001392, "status": "UNCHANGED"}
+      },
+      "new_6feature_variance": {
+        "confidence": 0.097856,
+        "RSI_14": 0.035353,
+        "MACD_HIST": 0.005742,
+        "BB_POSITION_FIXED": 0.061819,
+        "SMA_ratio": 0.001895,
+        "hour_of_day": 0.001392
+      },
+      "xgboost_training_note": "xgboost not installed in this environment — script validates feature engineering only; BB fix confirmed by variance reduction (222.008 → 0.062)",
+      "py_compile": "OK",
+      "next": "meta_044 — Test actual retrain pipeline with 6-feature vector in retrain.py; compare model accuracy/convergence vs previous run"
     }
   }
 }

@@ -58,10 +58,45 @@ def _reset_crash_count() -> None:
         pass
 
 
+# === Expanded HK universe (46 symbols) ===
 HK_SYMBOLS = [
+    # Mega Cap / Blue Chips (original 20)
     "0700.HK", "9988.HK", "3690.HK", "1024.HK", "2318.HK", "1299.HK", "0939.HK",
     "0005.HK", "0388.HK", "0960.HK", "1109.HK", "0941.HK", "0175.HK", "1810.HK",
     "2688.HK", "2269.HK", "1211.HK", "2018.HK", "0688.HK",
+    # Major Banks / Finance
+    "2628.HK",  # 國壽
+    "3968.HK",  # 招行
+    "3988.HK",  # 中行
+    "1398.HK",  # 工行
+    "2388.HK",  # 中銀香港
+    "0001.HK",  # 匯控
+    # Consumer / Retail
+    "2319.HK",  # 蒙牛
+    "0669.HK",  # 創科實業
+    "2313.HK",  # 申洲國際
+    "9911.HK",  # 海底撈
+    "9922.HK",  # 銀河娛樂
+    "9961.HK",  # 瑞幸咖啡
+    "1093.HK",  # 石藥集團
+    # Bio / Pharma
+    "1177.HK",  # 中生製藥
+    "1801.HK",  # 信達生物
+    "1877.HK",  # 君實生物
+    "9688.HK",  # 再鼎醫藥
+    "2899.HK",  # 紫金礦業
+    # Tech / Internet
+    "3888.HK",  # 金山軟件
+    "2382.HK",  # 舜宇光學
+    "6618.HK",  # 京東健康
+    "9618.HK",  # 京東
+    "3692.HK",  # 嗶哩嗶哩
+    "9616.HK",  # 京東物流
+    # REITs / Property
+    "0823.HK",  # 領展
+    "6098.HK",  # 碧桂園服務
+    # Energy / Industrial
+    "0883.HK",  # 中國海洋石油
 ]
 US_SYMBOLS = [
     "A", "AA", "AAL", "AAP", "AAPL", "ABBV", "ABNB", "ABT",
@@ -144,13 +179,46 @@ US_SYMBOLS = [
     "WRB", "WSM", "WTW", "WYNN", "XMSR", "XTO", "XYZ", "ZM",
     "ZS",
 ]
-# Top 50 most liquid US stocks for IDLE precompute (Stabilized 2026-05-04)
+# Top 80 most liquid US stocks + ETFs for IDLE precompute (Expanded 2026-05-26)
 TOP_PRECOMPUTE_US = [
+    # Tech / Mega-cap (15)
     "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "AMD", "AVGO", "ORCL",
-    "CRM", "ADBE", "CSCO", "ACN", "IBM", "INTC", "QCOM", "TXN", "AMAT", "MU",
-    "NFLX", "COIN", "MSTR", "UBER", "DASH", "SNOW", "PANW", "CRWD", "ZS", "NET",
+    "CRM", "ADBE", "CSCO", "ACN", "IBM",
+    # Semis / Cloud (15)
+    "INTC", "QCOM", "TXN", "AMAT", "MU", "NFLX", "COIN", "MSTR", "UBER", "DASH",
+    "SNOW", "PANW", "CRWD", "ZS", "NET",
+    # High-conviction / AI-adjacent (15)
     "PLTR", "ARM", "SMCI", "TSM", "V", "MA", "JPM", "BAC", "LLY", "UNH",
-    "WMT", "COST", "PG", "JNJ", "HD", "XOM", "CVX", "MRK", "ABBV", "KO"
+    "WMT", "COST", "PG", "JNJ", "HD",
+    # Energy / Industrial (10)
+    "XOM", "CVX", "MRK", "ABBV", "KO",
+    "CAT", "GE", "HON", "UPS", "RTX",
+    # ETFs (25)
+    "SPY",  # S&P 500
+    "QQQ",  # Nasdaq 100
+    "GLD",  # Gold
+    "SLV",  # Silver
+    "TLT",  # 20+ Year Treasury
+    "IEF",  # 7-10 Year Treasury
+    "LQD",  # Investment Grade Corporate Bonds
+    "HYG",  # High Yield Corporate Bonds
+    "VTI",  # Total Stock Market
+    "IWM",  # Russell 2000
+    "EEM",  # Emerging Markets
+    "EWJ",  # Japan
+    "VGK",  # Europe
+    "VEA",  # Developed Markets ex-US
+    "VWO",  # Emerging Markets ex-China
+    "QQQM", # Nasdaq 100 (Invesco)
+    "SCHD", # Dividend Aristocrats
+    "VIG",  # Dividend Appreciation
+    "DGRO", # Dividend Growth
+    "VYM",  # High Dividend Yield
+    "UVXY", # 1.5x VIX (volatility)
+    "VIXY", # VIX short-term futures
+    "TQQQ", # 3x Nasdaq
+    "SPXL", # 3x S&P 500
+    "SOXL", # 3x Semiconductors
 ]
 IDLE_COLLECTION_SYMBOLS = HK_SYMBOLS + TOP_PRECOMPUTE_US
 
@@ -166,6 +234,7 @@ def _read_config(config_path: str = "config.json") -> tuple[dict, Path]:
 def _base_live_config(config_path: str = "config.json") -> LiveConfig:
     cfg, _ = _read_config(config_path)
     v3_live = cfg.get("v3_live", {}) if isinstance(cfg, dict) else {}
+    hk_live = cfg.get("hk_live", {}) if isinstance(cfg, dict) else {}
     capital_buckets = v3_live.get("capital_buckets", {}) if isinstance(v3_live, dict) else {}
     bucket_fractions = capital_buckets.get(
         "fractions",
@@ -189,6 +258,8 @@ def _base_live_config(config_path: str = "config.json") -> LiveConfig:
         paper_trading=bool(v3_live.get("paper_trading", cfg.get("paper_trading", True))),
         max_orders_per_cycle=int(v3_live.get("max_orders_per_cycle", 3)),
         order_throttle_seconds=float(v3_live.get("order_throttle_seconds", 30.0)),
+        per_position_cap_fraction=float(v3_live.get("per_position_cap_fraction", cfg.get("per_position_cap_fraction", 0.05))),
+        per_position_cap_value=float(v3_live.get("per_position_cap_value", cfg.get("per_position_cap_value", 0.0))),
         swing_buy_min_confidence=float(v3_live.get("swing_buy_min_confidence", 0.45)),
         model_buy_min_confidence=float(v3_live.get("model_buy_min_confidence", 0.55)),
         swing_buy_reversal_override=bool(v3_live.get("swing_buy_reversal_override", False)),
@@ -224,6 +295,40 @@ def _base_live_config(config_path: str = "config.json") -> LiveConfig:
 
 def build_live_config(config_path: str = "config.json") -> LiveConfig:
     base_cfg = _base_live_config(config_path)
+
+    # ── HK market parameter injection ─────────────────────────────────────
+    # When in HK trading hours, overlay hk_live params so that
+    # HK symbols get looser confidence gates, lower RSI thresholds,
+    # faster cooldown, and more orders per cycle vs US/Global defaults.
+    try:
+        cfg, _ = _read_config(config_path)
+        hk_live = cfg.get("hk_live", {}) if isinstance(cfg, dict) else {}
+        if hk_live and resolve_market_mode() == "HK":
+            overrides = {
+                # Confidence gates
+                "model_buy_min_confidence": float(hk_live.get("model_buy_min_confidence", 0.480)),
+                "swing_buy_min_confidence": float(hk_live.get("swing_buy_min_confidence", 0.400)),
+                "min_confidence_threshold": float(hk_live.get("min_confidence_threshold", 0.480)),
+                # RSI triggers
+                "rsi_oversold_entry": int(hk_live.get("rsi_oversold_entry", 38)),
+                "rsi_overbought_entry": int(hk_live.get("rsi_overbought_entry", 70)),
+                # Timing & rate limit
+                "max_orders_per_cycle": int(hk_live.get("max_orders_per_cycle", 5)),
+                "order_throttle_seconds": float(hk_live.get("order_throttle_seconds", 15.0)),
+                "buy_cooldown_cycles": int(hk_live.get("buy_cooldown_cycles", 2)),
+                "per_position_cap_fraction": float(hk_live.get("per_position_cap_fraction", getattr(base_cfg, "per_position_cap_fraction", 0.05))),
+                "per_position_cap_value": float(hk_live.get("per_position_cap_value", getattr(base_cfg, "per_position_cap_value", 0.0))),
+                # Prediction thresholds
+                "prediction_thresholds": hk_live.get("prediction_thresholds", {}),
+                # Kelly bypass
+                "hk_bypass_kelly_zero_edge": bool(hk_live.get("hk_bypass_kelly_zero_edge", True)),
+            }
+            base_cfg = replace(base_cfg, **overrides)
+            print(f"[launcher] HK mode — injected hk_live params: {list(overrides.keys())}")
+    except Exception as exc:
+        print(f"[launcher] hk_live param injection failed: {exc}")
+    # ── End HK injection ────────────────────────────────────────────────────
+
     use_dynamic = os.getenv("USE_DYNAMIC_WATCHLIST", "1").strip().lower()
     if use_dynamic not in {"0", "false", "no"}:
         watchlist_path = Path(__file__).parent / 'dynamic_watchlist.json'

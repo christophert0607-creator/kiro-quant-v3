@@ -33,7 +33,12 @@ class DummyTradeContext:
 
 
 class DummyQuoteContext:
-    pass
+    def __init__(self):
+        self.subscribe_calls = []
+
+    def subscribe(self, codes, sub_types, subscribe_push=False):
+        self.subscribe_calls.append((codes, sub_types, subscribe_push))
+        return 0, "ok"
 
 
 class DummyFT:
@@ -257,6 +262,49 @@ def test_get_order_reference_price_ignores_na_order_book_and_uses_latest_quote()
     connector.get_latest_quote = lambda symbol, use_cache=True: {"Close": "101.23"}
 
     assert connector.get_order_reference_price("XOM", "BUY", fallback_price="N/A") == 101.23
+
+
+def test_resolve_symbol_formats_hk_codes_for_futu():
+    connector = FutuConnector(config=FutuConfig(market_prefix="US"))
+
+    assert connector.resolve_symbol("0700.HK") == ("HK.00700", "HK")
+    assert connector.resolve_symbol("700.HK") == ("HK.00700", "HK")
+    assert connector.resolve_symbol("HK.700") == ("HK.00700", "HK")
+    assert connector.resolve_symbol("AAPL") == ("US.AAPL", "US")
+
+
+def test_subscribe_symbols_uses_futu_hk_format():
+    connector = FutuConnector(config=FutuConfig(market_prefix="US"))
+    connector.ft = types.SimpleNamespace(RET_OK=0, SubType=types.SimpleNamespace(QUOTE="QUOTE"))
+    connector.quote_ctx = DummyQuoteContext()
+
+    connector.subscribe_symbols(["0700.HK", "AAPL"])
+
+    assert connector.quote_ctx.subscribe_calls == [(["HK.00700", "US.AAPL"], ["QUOTE"], True)]
+
+
+def test_connect_respects_no_futu_quote(monkeypatch):
+    monkeypatch.setenv("NO_FUTU_QUOTE", "1")
+    cfg = FutuConfig(trd_env="SIMULATE", trade_password="secret")
+    connector = FutuConnector(config=cfg)
+
+    def forbidden_quote_context(host, port):
+        raise AssertionError("OpenQuoteContext should not be called when NO_FUTU_QUOTE=1")
+
+    fake_module = types.SimpleNamespace(
+        RET_OK=DummyFT.RET_OK,
+        TrdEnv=DummyFT.TrdEnv,
+        TrdSide=DummyFT.TrdSide,
+        OrderType=DummyFT.OrderType,
+        OpenQuoteContext=forbidden_quote_context,
+        OpenUSTradeContext=DummyFT.OpenUSTradeContext,
+    )
+    monkeypatch.setitem(__import__("sys").modules, "futu", fake_module)
+
+    connector.connect()
+
+    assert connector.quote_ctx is None
+    assert connector.is_connected
 
 
 def test_connect_error_in_wsl2_includes_network_hints(monkeypatch):

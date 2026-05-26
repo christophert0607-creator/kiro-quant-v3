@@ -172,6 +172,8 @@ class LiveConfig:
     )
 
     max_portfolio_positions: int = 3  # v2: reduced from 8 to limit risk
+    portfolio_replacement_enabled: bool = True
+    replacement_min_score_edge: float = 0.05
 
     # ---- Hard risk caps (2026-04-12 fix) ----
     max_loss_per_trade: float = 30.0   # Hard cap: never lose more than $30 per trade
@@ -230,6 +232,8 @@ class LiveConfig:
     stop_loss_pct: float = 0.02
     max_hold_bars: int = 5
     max_position_fraction: float = 0.30
+    per_position_cap_fraction: float = 0.05
+    per_position_cap_value: float = 0.0
     min_diversified_symbols: int = 3
     max_diversified_symbols: int = 5
     pattern_confidence_threshold: float = 0.65
@@ -518,6 +522,33 @@ class LiveTradingLoop:
             + self._signal_type_weight(signal_type) * 0.20
         )
 
+    def _per_position_cap_value(self) -> float:
+        """Return max notional value allowed per single long/short position."""
+        caps: list[float] = []
+        absolute_cap = float(getattr(self.config, "per_position_cap_value", 0.0) or 0.0)
+        if absolute_cap > 0:
+            caps.append(absolute_cap)
+        fraction_cap = float(getattr(self.config, "per_position_cap_fraction", 0.0) or 0.0)
+        if fraction_cap > 0:
+            caps.append(float(self.account_value) * max(0.0, min(1.0, fraction_cap)))
+        legacy_cap = float(getattr(self.config, "max_position_value", 0.0) or 0.0)
+        if legacy_cap > 0 and legacy_cap != 2000.0:
+            caps.append(legacy_cap)
+        return min(caps) if caps else 0.0
+
+    def _cap_qty_to_position_limit(self, symbol: str, qty: int, price: float, side: str = "BUY") -> int:
+        cap_value = self._per_position_cap_value()
+        if cap_value <= 0 or price <= 0 or qty <= 0:
+            return int(qty)
+        capped_qty = min(int(qty), max(0, int(cap_value / max(float(price), 1e-9))))
+        capped_qty = self._round_to_lot(capped_qty, symbol) if symbol.endswith(".HK") else capped_qty
+        if capped_qty < int(qty):
+            self.logger.info(
+                "[POSITION_CAP][%s] %s qty capped %d→%d cap_value=%.2f price=%.4f",
+                symbol, side, int(qty), int(capped_qty), cap_value, float(price),
+            )
+        return int(capped_qty)
+
     def _submit_buy_candidate(
         self,
         symbol: str,
@@ -531,6 +562,10 @@ class LiveTradingLoop:
         prediction: float | None = None,
     ) -> None:
         if qty <= 0:
+            return
+        qty = self._cap_qty_to_position_limit(symbol, int(qty), float(price), "BUY")
+        if qty <= 0:
+            self.logger.info("[POSITION_CAP][%s] BUY skipped: cap below lot/price", symbol)
             return
         if not self._collect_buy_candidates:
             self._execute(symbol, "BUY", qty, price, reason, indicators, prediction)
@@ -576,11 +611,91 @@ class LiveTradingLoop:
         seconds_since_last = time.monotonic() - self._last_order_monotonic
         return seconds_since_last < throttle_seconds, seconds_since_last, throttle_seconds
 
+    def _holding_replacement_score(self, symbol: str) -> float:
+        """Score an existing long position for replacement; lower = weaker holding."""
+        entry = float(self.entry_price_by_symbol.get(symbol, 0.0) or 0.0)
+        current = float(self.last_price_by_symbol.get(symbol, 0.0) or 0.0)
+        if current <= 0 and self._buffer_contains(symbol) and not self._get_buffer(symbol).empty:
+            try:
+                current = float(self._get_buffer(symbol).iloc[-1]["Close"])
+            except Exception:
+                current = 0.0
+        if entry <= 0 or current <= 0:
+            return -1.0
+        return (current - entry) / entry
+
+    def _weakest_long_holding(self) -> tuple[str | None, int, float, float]:
+        weakest_symbol: str | None = None
+        weakest_qty = 0
+        weakest_price = 0.0
+        weakest_score = float("inf")
+        for symbol, qty_raw in self.position_qty_by_symbol.items():
+            qty = int(qty_raw or 0)
+            if qty <= 0:
+                continue
+            score = self._holding_replacement_score(symbol)
+            if score < weakest_score:
+                weakest_symbol = symbol
+                weakest_qty = qty
+                weakest_price = float(self.last_price_by_symbol.get(symbol, 0.0) or self.entry_price_by_symbol.get(symbol, 0.0) or 0.0)
+                weakest_score = score
+        if weakest_symbol is None:
+            return None, 0, 0.0, 0.0
+        return weakest_symbol, weakest_qty, weakest_price, weakest_score
+
+    def _handle_portfolio_full_replacement(self) -> bool:
+        """When full, sell the weakest holding first if a queued BUY is materially stronger.
+
+        Returns True when BUY queue handling is complete for this cycle.
+        """
+        if not bool(getattr(self.config, "portfolio_replacement_enabled", True)):
+            return False
+        max_positions = int(getattr(self.config, "max_portfolio_positions", 0) or 0)
+        if max_positions <= 0:
+            return False
+        active_positions = sum(1 for q in self.position_qty_by_symbol.values() if int(q or 0) > 0)
+        if active_positions < max_positions:
+            return False
+        ranked = sorted(
+            self._buy_candidates,
+            key=lambda c: (float(c["score"]), float(c["confidence"]), -int(c["seq"])),
+            reverse=True,
+        )
+        if not ranked:
+            return False
+        best = ranked[0]
+        held_symbols = {s for s, q in self.position_qty_by_symbol.items() if int(q or 0) > 0}
+        if best["symbol"] in held_symbols:
+            return False
+        weakest_symbol, weakest_qty, weakest_price, weakest_score = self._weakest_long_holding()
+        if not weakest_symbol or weakest_qty <= 0 or weakest_price <= 0:
+            self.logger.warning("[POSITION_CONTROL_MODE] full portfolio but no sellable weak holding; block new BUY")
+            self._buy_candidates = []
+            return True
+        edge = float(getattr(self.config, "replacement_min_score_edge", 0.05) or 0.0)
+        best_score = float(best["score"])
+        if best_score <= weakest_score + edge:
+            self.logger.info(
+                "[POSITION_CONTROL_MODE] block new BUY: best=%s score=%.4f weakest=%s score=%.4f edge=%.4f",
+                best["symbol"], best_score, weakest_symbol, weakest_score, edge,
+            )
+            self._buy_candidates = []
+            return True
+        self.logger.warning(
+            "[PORTFOLIO_REPLACEMENT] sell weakest=%s qty=%d score=%.4f for candidate=%s score=%.4f",
+            weakest_symbol, weakest_qty, weakest_score, best["symbol"], best_score,
+        )
+        self._execute(weakest_symbol, "SELL", weakest_qty, weakest_price, f"portfolio_replacement_for_{best['symbol']}")
+        self._defer_buy_candidates("portfolio_replacement")
+        return True
+
     def _flush_buy_candidates(self) -> None:
         if not self._buy_candidates:
             return
         if self._exit_order_executed_this_cycle:
             self._defer_buy_candidates("sell_executed_this_cycle")
+            return
+        if self._handle_portfolio_full_replacement():
             return
         throttle_active, seconds_since_last, threshold = self._buy_queue_throttle_status()
         if throttle_active:
@@ -598,10 +713,19 @@ class LiveTradingLoop:
             reverse=True,
         )
         for candidate in ranked[:limit]:
+            capped_qty = self._cap_qty_to_position_limit(
+                candidate["symbol"],
+                int(candidate["qty"]),
+                float(candidate["price"]),
+                "BUY",
+            )
+            if capped_qty <= 0:
+                self.logger.info("[POSITION_CAP][%s] queued BUY skipped: cap below lot/price", candidate["symbol"])
+                continue
             self._execute(
                 candidate["symbol"],
                 "BUY",
-                candidate["qty"],
+                capped_qty,
                 candidate["price"],
                 candidate["reason"],
                 candidate.get("indicators"),
@@ -610,7 +734,7 @@ class LiveTradingLoop:
             self._record_long_signal(
                 candidate["symbol"],
                 candidate["price"],
-                candidate["qty"],
+                capped_qty,
                 candidate.get("prediction"),
             )
         self._buy_candidates = []
@@ -1482,8 +1606,7 @@ class LiveTradingLoop:
                             short_kelly_frac = (kelly["capped_fraction"] if kelly is not None and not kelly["zero_edge"] else None) or 0.10
                             alloc = available_bucket * short_kelly_frac * float(risk_multiplier)
                             short_alloc_qty = max(0, int(alloc / max(current_price, 1e-9)))
-                            max_pos_value = float(getattr(self.config, 'max_position_value', 2000.0))
-                            short_alloc_qty = min(short_alloc_qty, max(0, int(max_pos_value / max(current_price, 1e-9))))
+                            short_alloc_qty = self._cap_qty_to_position_limit(symbol, short_alloc_qty, current_price, "SHORT")
                             short_alloc_qty = self._round_to_lot(short_alloc_qty, symbol)
                             if short_alloc_qty > 0:
                                 self.logger.info(
@@ -1712,9 +1835,8 @@ class LiveTradingLoop:
                 self.logger.warning("meta_gate error: %s", _exc)
 
             buy_qty = max(0, int(alloc / max(current_price, 1e-9)))
-            # HARD CAP: never allocate more than max_position_value ($30 loss / 1.5% SL = $2000)
-            max_pos_value = float(getattr(self.config, 'max_position_value', 2000.0))
-            buy_qty = min(buy_qty, max(0, int(max_pos_value / max(current_price, 1e-9))))
+            # HARD CAP: never allocate more than the configured per-position limit.
+            buy_qty = self._cap_qty_to_position_limit(symbol, buy_qty, current_price, "BUY")
             # Round to HK board lot size (skip HK stocks for now)
             buy_qty = self._round_to_lot(buy_qty, symbol)
             if buy_qty > 0:

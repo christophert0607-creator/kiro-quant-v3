@@ -355,7 +355,11 @@ class FutuConnector:
             import futu as ft
 
             self.ft = ft
-            self.quote_ctx = ft.OpenQuoteContext(host=self.config.host, port=self.config.port)
+            if os.getenv("NO_FUTU_QUOTE", "").strip().lower() in {"1", "true", "yes", "on"}:
+                self.quote_ctx = None
+                self.logger.info("Futu quote context disabled by NO_FUTU_QUOTE=1")
+            else:
+                self.quote_ctx = ft.OpenQuoteContext(host=self.config.host, port=self.config.port)
 
             # Open US trade context (always required)
             self.trade_ctxs["US"] = ft.OpenUSTradeContext(host=self.config.host, port=self.config.port)
@@ -448,7 +452,9 @@ class FutuConnector:
     @property
     def is_connected(self) -> bool:
         """True when both quote and trade contexts are alive."""
-        return self.quote_ctx is not None and self.trade_ctx is not None and self.ft is not None
+        quote_disabled = os.getenv("NO_FUTU_QUOTE", "").strip().lower() in {"1", "true", "yes", "on"}
+        quote_ready = self.quote_ctx is not None or quote_disabled
+        return quote_ready and self.trade_ctx is not None and self.ft is not None
 
     def _resolved_trd_env(self):
         if self.ft is None:
@@ -765,14 +771,23 @@ class FutuConnector:
 
         Returns:
             (broker_code, market_prefix), e.g.
-            'AAPL'    -> ('US.AAPL',    'US')
-            '0700.HK' -> ('HK.0700.HK', 'HK')
+            'AAPL'    -> ('US.AAPL',  'US')
+            '0700.HK' -> ('HK.00700', 'HK')
         """
-        if str(symbol).upper().endswith(".HK"):
+        raw = str(symbol).upper().strip()
+        if raw.startswith("HK."):
             prefix = "HK"
-        else:
-            prefix = self.config.market_prefix or "US"
-        return f"{prefix}.{symbol}", prefix
+            code = raw.split(".", 1)[1]
+            return f"HK.{code.zfill(5)}", prefix
+        if raw.endswith(".HK"):
+            prefix = "HK"
+            code = raw[:-3]
+            return f"HK.{code.zfill(5)}", prefix
+        if raw.startswith("US."):
+            prefix = "US"
+            return raw, prefix
+        prefix = self.config.market_prefix or "US"
+        return f"{prefix}.{raw}", prefix
 
     def set_market_prefix(self, prefix: str) -> None:
         """Update the active market prefix (called when switching HK ↔ US session)."""
