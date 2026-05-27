@@ -93,11 +93,11 @@
       "SOXL"
     ],
     "prediction_thresholds": {
-      "0700.HK": 0.0057,
-      "9988.HK": 0.0057,
-      "3690.HK": 0.0057
+      "0700.HK": 0.008,
+      "9988.HK": 0.008,
+      "3690.HK": 0.008
     },
-    "buy_cooldown_cycles": 3,
+    "buy_cooldown_cycles": 5,
     "swing_buy_confirmation_count": 3,
     "swing_block_on_model_sell": false,
     "polling_seconds": 60,
@@ -108,7 +108,7 @@
     "max_hold_bars": 30,
     "max_positions": 15,
     "market_mode": "AUTO",
-    "rsi_oversold": 41,
+    "rsi_oversold": 35,
     "rsi_overbought": 72,
     "macd_signal": 0.005,
     "xgb_confidence": 0.1,
@@ -191,6 +191,6 @@
     "stop_before_open_min": 30
   },
   "posture": "risk_off",
-  "posture_timestamp": "2026-05-26T08:30:54+00:00",
-  "posture_rationale": "2800.HK momentum=-0.000774, 3033.HK momentum=0.004146; mixed (2800<0, 3033>0) => risk_off"
+  "posture_timestamp": "2026-05-27T14:32:51.454503",
+  "posture_rationale": "2800.HK momentum=-0.004684, 3033.HK momentum=-0.005387; both < 0 => risk_off"
 }

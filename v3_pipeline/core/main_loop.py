@@ -490,22 +490,16 @@ class LiveTradingLoop:
         self._orders_placed_this_cycle += 1
         self._last_order_monotonic = now
 
-    def _signal_density_gate_allows(self, symbol: str, signal_kind: str, confidence: float) -> bool:
-        if signal_kind == "swing":
+    def _signal_density_gate_allows(self, symbol: str, signal_type: str, confidence: float) -> bool:
+        if signal_type == "swing":
             threshold = float(getattr(self.config, "swing_buy_min_confidence", 0.45))
-        elif signal_kind == "model":
+        elif signal_type == "model":
             threshold = float(getattr(self.config, "model_buy_min_confidence", 0.55))
         else:
-            raise ValueError(f"unknown signal_kind={signal_kind!r}")
+            raise ValueError(f"unknown signal_type={signal_type!r}")
         if float(confidence) >= threshold:
             return True
-        self.logger.info(
-            "[SIGNAL_DENSITY_GATE][%s] suppressed %s BUY: conf=%.3f threshold=%.3f",
-            symbol,
-            signal_kind,
-            float(confidence),
-            threshold,
-        )
+        self.logger.info("[SIGNAL_DENSITY_GATE][%s] suppressed %s BUY: conf=%.3f threshold=%.3f", symbol, signal_type, float(confidence), threshold)
         return False
 
     def _signal_type_weight(self, signal_type: str) -> float:
@@ -514,13 +508,6 @@ class LiveTradingLoop:
             "model_only": 0.7,
             "swing_only": 0.4,
         }.get(signal_type, 0.0)
-
-    def _buy_candidate_score(self, confidence: float, predicted_move_pct: float, signal_type: str) -> float:
-        return (
-            float(confidence) * 0.45
-            + float(predicted_move_pct) * 0.35
-            + self._signal_type_weight(signal_type) * 0.20
-        )
 
     def _per_position_cap_value(self) -> float:
         """Return max notional value allowed per single long/short position."""
