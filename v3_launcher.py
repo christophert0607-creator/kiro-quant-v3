@@ -4,17 +4,33 @@
 import asyncio
 import json
 import os
+import sys
 import socket
 import threading
 import time  # 2026-04-24: for cooldown
 import argparse
 import logging
 import pandas as pd
+import importlib
 from dataclasses import replace
 from datetime import datetime, time as dt_time_cls, timezone
 from pathlib import Path
 from typing import Optional
 from zoneinfo import ZoneInfo
+
+# Force PYTHONPATH for all child processes (critical for multiprocessing 'spawn' mode)
+cwd = os.path.abspath(os.path.dirname(__file__))
+os.environ['PYTHONPATH'] = cwd + os.pathsep + os.environ.get('PYTHONPATH', '')
+sys.path.insert(0, cwd)
+
+# Load .env manually
+
+# Force PYTHONPATH for all child processes (critical for multiprocessing 'spawn' mode)
+cwd = os.path.abspath(os.path.dirname(__file__))
+os.environ['PYTHONPATH'] = cwd + os.pathsep + os.environ.get('PYTHONPATH', '')
+sys.path.insert(0, cwd)
+
+# Load .env manually
 
 # Load .env manually
 _env_path = Path(__file__).parent / ".env"
@@ -32,6 +48,14 @@ from v3_pipeline.models.manager import DataPreparer, ModelManager
 from v3_pipeline.risk.manager import RiskController
 from v3_pipeline.core.market_analyzer import MarketAnalyzer
 from v3_pipeline.features.screener import V3FunnelScreener
+
+# CRITICAL MONKEY PATCH: Fix AttributeError in LiveTradingLoop
+def _fixed_buy_candidate_score(self, conf, move, sig):
+    base = float(conf) * abs(float(move))
+    return base * (1.2 if sig == "model" else 1.0)
+
+LiveTradingLoop._buy_candidate_score = _fixed_buy_candidate_score
+print("[launcher] MONKEY PATCH applied: LiveTradingLoop._buy_candidate_score")
 
 HK_TZ = ZoneInfo("Asia/Hong_Kong")
 _CRASH_COUNT_FILE = Path(__file__).parent / ".crash_count"
@@ -796,6 +820,14 @@ async def _run_market_aware(
                 loop.logger.info("History priming completed for %d symbols in %s mode", len(loop.symbols), mode)
             
             # Execute primary trading cycle (HK/US active)
+            # EMERGENCY PATCH: Fix missing _buy_candidate_score on the loop instance
+            if not hasattr(loop, "_buy_candidate_score"):
+                def _patch_score(self, conf, move, sig):
+                    base = float(conf) * abs(float(move))
+                    return base * (1.2 if sig == "model" else 1.0)
+                loop._buy_candidate_score = _patch_score.__get__(loop, type(loop))
+                loop.logger.info("EMERGENCY: Injected _buy_candidate_score into loop instance")
+            
             await loop.run_one_cycle()
             
             # Non-blocking background precompute for US stocks during HK session

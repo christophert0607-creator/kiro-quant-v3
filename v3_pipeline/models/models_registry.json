@@ -1,9 +1,0 @@
-{
-  "_comment": "Logical-name -> checkpoint-stem mapping. Edit aliases to swap models without code changes. 'default' is used when neither an alias nor a direct file matches.",
-  "_hk_note": "models/hk/lstm_v1.pth is a raw state_dict (input_dim=7, no DataPreparer metadata). It cannot be loaded by ModelManager without a wrapper. Retrain via trainer_v4_1.py with HK symbols to get a proper wrapped checkpoint, then update v3_hk_stocks alias below.",
-  "default": "global_state_v4_1_best",
-  "aliases": {
-    "v3_us_stocks": "global_state_v4_1_best",
-    "v3_hk_stocks": "global_state_v4_1_best"
-  }
-}
