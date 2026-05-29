@@ -125,30 +125,27 @@ def _build_feature_vector(prediction: Prediction, signal: Signal, outcome: Outco
     sma20     = float(ind.get("SMA_20", 0.0))
     close     = float(prediction.predicted_price or 0.0)
 
-    # BB position: where is price relative to BB band width?
-    bb_range = bb_upper - bb_lower if bb_upper != bb_lower else 1.0
-    bb_pos = (close - bb_lower) / bb_range if bb_range > 0 else 0.5
+    # BB position: Use BB_MIDDLE as reference center to avoid degenerate BB_UPPER=0.0 issue
+    if bb_mid > 0:
+        band_width = max(abs(close - bb_mid) * 4, 1e-9)
+        bb_pos_centered = (close - bb_mid) / band_width
+        bb_pos = max(0.0, min(1.0, bb_pos_centered + 0.5))
+    else:
+        bb_pos = 0.5
 
     # SMA ratio: 5 vs 20 SMA (mean reversion signal)
     sma_ratio = (sma5 / sma20 - 1) / 0.1 if sma20 > 0 else 0.0
 
-    # Price-regime: how far is prediction from current price?
-    price_reg = (close / max(prediction.predicted_price or close, 1e-9) - 1) / 0.1
-
     entry_hour = signal.created_at.hour if signal.created_at else 12.0
 
-    # Expected hold: use avg historical hold from closed outcomes, or default 60 min
-    avg_hold = 60.0  # minutes — will be overridden if available
+    # Return 6-feature vector (Drop zero-variance: price_reg, hold_expected, action_BUY)
     return np.array([
         float(prediction.confidence or 0.0),   # [0] confidence
         rsi,                                     # [1] RSI /100
         macd_hist,                               # [2] MACD_HIST/5
         bb_pos,                                 # [3] BB position (0-1)
         sma_ratio,                             # [4] SMA 5/20 reversion
-        price_reg,                             # [5] price-regime
-        float(avg_hold) / 1440.0,              # [6] expected hold (normalized)
-        1.0 if signal.action == "BUY" else 0.0, # [7] action
-        entry_hour / 24.0,                     # [8] market hour
+        entry_hour / 24.0,                     # [5] market hour
     ], dtype=np.float32)
 
 
