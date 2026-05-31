@@ -1,7 +1,7 @@
 {
-  "date": "2026-05-29",
+  "date": "2026-05-31",
   "daily_pnl": 0.0,
-  "daily_trades": 14,
+  "daily_trades": 1,
   "consecutive_errors": 0,
   "circuit_broken": false,
   "circuit_break_time": null,
@@ -156,7 +156,7 @@
       "reason": "max_hold_5_bars"
     },
     "HK.3690.HK": {
-      "time": 1779810790.0298336,
+      "time": 1780189392.0256343,
       "signal": "SELL",
       "qty": 100,
       "price": 83.0,
@@ -430,14 +430,17 @@
     "US.INTC": 2098,
     "US.QCOM": 2484,
     "US.BAC": 851,
-    "US.TIP": 212
+    "US.TIP": 212,
+    "HK.3690.HK": 0
   },
   "total_invested": 0.0,
   "mode": "HK_lite",
   "runtime_profile": "lite",
   "last_review": "2026-03-18T19:22:00Z",
   "review_notes": "Hourly self-review 2026-03-18 19:22 UTC: System healthy. HK lite profile running with no errors. Logs show clean execution - multiple trade cycles processed. 9 trades executed this hour: mixed BUY (6) and SELL (3). Model predictions negative (-0.38% to -6.47%). Position cap at 10/10 - full. PnL: daily=$0, cumulative=-$3,219.28. Code review: syntax OK, no bare except, async/await implemented, Kelly sizer integrated, transaction cost calculator present. TA-Lib still using pandas fallback. No code changes applied this hour.",
-  "short_positions": {},
+  "short_positions": {
+    "HK.3690.HK": 0
+  },
   "account_routing": {
     "account_routing": {
       "HK": {
