@@ -58,6 +58,11 @@ def on_trade_closed(
     pnl: float,
     pnl_pct: float,
     hold_minutes: int,
+    prediction_error: float | None = None,
+    source: str = "synthetic_seed",
+    broker_order_id: str | None = None,
+    recorded_by: str | None = None,
+    provenance_meta: str | None = None,
 ) -> dict:
     """Called when a position is closed. Writes outcome to DB."""
     _record_outcome(
@@ -66,6 +71,11 @@ def on_trade_closed(
         pnl=pnl,
         pnl_pct=pnl_pct,
         hold_minutes=hold_minutes,
+        prediction_error=prediction_error,
+        source=source,
+        broker_order_id=broker_order_id,
+        recorded_by=recorded_by,
+        provenance_meta=provenance_meta,
     )
     # Write latest outcome for quick review
     latest = {
@@ -74,6 +84,10 @@ def on_trade_closed(
         "pnl": pnl,
         "pnl_pct": pnl_pct,
         "hold_minutes": hold_minutes,
+        "prediction_error": prediction_error,
+        "source": source,
+        "broker_order_id": broker_order_id,
+        "recorded_by": recorded_by,
         "closed_at": datetime.now(timezone.utc).isoformat(),
     }
     LATEST_OUTCOME_FILE.write_text(json.dumps(latest, indent=2))

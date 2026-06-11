@@ -2,6 +2,7 @@ import asyncio
 import enum
 import json
 import logging
+import math
 import os
 import random
 import sys
@@ -333,12 +334,37 @@ class FutuConnector:
             self.ft = ft
             self.quote_ctx = ft.OpenQuoteContext(host=self.config.host, port=self.config.port)
 
-            # Open US trade context (always required)
-            self.trade_ctxs["US"] = ft.OpenUSTradeContext(host=self.config.host, port=self.config.port)
+            def _open_trade_context(market: str) -> Any:
+                """Open a market-specific trade context across Futu SDK versions.
 
-            # Open HK trade context if the SDK supports it (optional — non-fatal if missing)
+                Some installed Futu SDK builds only expose OpenSecTradeContext
+                (with filter_trdmarket) and do not provide OpenUSTradeContext /
+                OpenHKTradeContext.  Use the market-specific classes when
+                available, otherwise fall back to OpenSecTradeContext.
+                """
+                market = market.upper()
+                class_name = f"Open{market}TradeContext"
+                ctx_cls = getattr(ft, class_name, None)
+                if ctx_cls is not None:
+                    return ctx_cls(host=self.config.host, port=self.config.port)
+                trd_market = getattr(ft.TrdMarket, market, ft.TrdMarket.NONE)
+                self.logger.info(
+                    "%s unavailable; using OpenSecTradeContext(filter_trdmarket=%s)",
+                    class_name,
+                    trd_market,
+                )
+                return ft.OpenSecTradeContext(
+                    host=self.config.host,
+                    port=self.config.port,
+                    filter_trdmarket=trd_market,
+                )
+
+            # Open US trade context (always required)
+            self.trade_ctxs["US"] = _open_trade_context("US")
+
+            # Open HK trade context if possible (optional — non-fatal if unavailable)
             try:
-                self.trade_ctxs["HK"] = ft.OpenHKTradeContext(host=self.config.host, port=self.config.port)
+                self.trade_ctxs["HK"] = _open_trade_context("HK")
             except Exception as hk_exc:
                 self.logger.warning("HK trade context unavailable (non-fatal): %s", hk_exc)
 
@@ -694,19 +720,20 @@ class FutuConnector:
     def resolve_symbol(self, symbol: str) -> tuple[str, str]:
         """Resolve a logical symbol to a Futu broker code and market prefix.
 
-        HK symbols (ending in '.HK') always use the 'HK' prefix regardless of
-        current market_prefix. All others use self.config.market_prefix.
-
-        Returns:
-            (broker_code, market_prefix), e.g.
-            'AAPL'    -> ('US.AAPL',    'US')
-            '0700.HK' -> ('HK.0700.HK', 'HK')
+        HK stocks must be Futu's five-digit format: 0700.HK -> HK.00700.
+        US stocks use US.<ticker> unless already prefixed.
         """
-        if str(symbol).upper().endswith(".HK"):
-            prefix = "HK"
-        else:
-            prefix = self.config.market_prefix or "US"
-        return f"{prefix}.{symbol}", prefix
+        raw = str(symbol).strip().upper()
+        if raw.endswith(".HK"):
+            code = raw[:-3]
+            return f"HK.{code.zfill(5)}", "HK"
+        if raw.startswith("HK."):
+            code = raw.split(".", 1)[1]
+            return f"HK.{code.zfill(5)}", "HK"
+        if raw.startswith("US."):
+            return raw, "US"
+        prefix = (self.config.market_prefix or "US").upper()
+        return f"{prefix}.{raw}", prefix
 
     def set_market_prefix(self, prefix: str) -> None:
         """Update the active market prefix (called when switching HK ↔ US session)."""
@@ -848,19 +875,29 @@ class FutuConnector:
                     if side_upper == "BUY":
                         asks = data.get("Ask", [])
                         if asks:
-                            return float(asks[0][0])
+                            ask = self._coerce_positive_float(asks[0][0])
+                            if ask is not None:
+                                return ask
                     else:
                         bids = data.get("Bid", [])
                         if bids:
-                            return float(bids[0][0])
+                            bid = self._coerce_positive_float(bids[0][0])
+                            if bid is not None:
+                                return bid
             except Exception as exc:
                 self.logger.warning("Order book reference failed for %s: %s", code, exc)
 
         try:
             quote = self.get_latest_quote(symbol)
-            return float(quote.get("Close", fallback_price))
+            close = self._coerce_positive_float(quote.get("Close", fallback_price))
+            if close is not None:
+                return close
         except Exception:
-            return float(fallback_price)
+            pass
+        fallback = self._coerce_positive_float(fallback_price)
+        if fallback is not None:
+            return fallback
+        raise RuntimeError(f"invalid_order_reference_price: symbol={symbol} side={side}")
 
     def get_sync_assets(self) -> dict:
         if self._futu_degraded:
@@ -1106,10 +1143,10 @@ class FutuConnector:
             
             # ── Buying Power Guard (smart preflight) ──
             # Use max_buying_power if available, fall back to cash / available_funds
-            cash = float(row.get("cash", 0.0) or 0.0)
-            available_funds = float(row.get("available_funds", 0.0) or 0.0)
-            power = float(row.get("power", 0.0) or 0.0)
-            max_buying_power = float(row.get("max_buying_power", 0.0) or 0.0)
+            cash = self._coerce_positive_float(row.get("cash", 0.0)) or 0.0
+            available_funds = self._coerce_positive_float(row.get("available_funds", 0.0)) or 0.0
+            power = self._coerce_positive_float(row.get("power", 0.0)) or 0.0
+            max_buying_power = self._coerce_positive_float(row.get("max_buying_power", 0.0)) or 0.0
             
             # Use the most permissive available metric
             effective_bp = max(cash, available_funds, power, max_buying_power)
@@ -1133,6 +1170,18 @@ class FutuConnector:
                     f"est_cost={est_cost:.2f} symbol={symbol} qty={qty} "
                     f"(cash={cash:.2f}, power={power:.2f}, max_bp={max_buying_power:.2f})"
                 )
+
+    @staticmethod
+    def _coerce_positive_float(value: object) -> float | None:
+        try:
+            if value is None:
+                return None
+            if isinstance(value, str) and value.strip().upper() in {"", "N/A", "NA", "--", "NULL", "NONE"}:
+                return None
+            out = float(value)  # type: ignore[arg-type]
+        except Exception:
+            return None
+        return out if math.isfinite(out) and out > 0 else None
 
     def _round_price(self, price: float, symbol: str) -> float:
         """Round price to the precision Futu API requires.
@@ -1172,7 +1221,9 @@ class FutuConnector:
                 f"account_route_error: no account configured for market {market} (symbol={symbol})"
             )
 
-        raw_price = float(price) if price is not None else self.get_order_reference_price(symbol, side, fallback_price=0.0)
+        raw_price = self._coerce_positive_float(price) if price is not None else None
+        if raw_price is None:
+            raw_price = self.get_order_reference_price(symbol, side, fallback_price=0.0)
         limit_price = self._round_price(raw_price, symbol)
         if limit_price != raw_price:
             self.logger.debug("Price rounded for %s: %.6f -> %.4f", symbol, raw_price, limit_price)

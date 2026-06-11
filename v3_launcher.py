@@ -163,9 +163,28 @@ def _read_config(config_path: str = "config.json") -> tuple[dict, Path]:
     return cfg, p
 
 
-def _base_live_config(config_path: str = "config.json") -> LiveConfig:
+def _live_gate_shadow_mode(section: dict, prefix: str, default: str = "shadow") -> bool:
+    """Return True only for explicit shadow mode, supporting legacy *_shadow_mode and plan *_mode keys."""
+    mode_key = f"{prefix}_mode"
+    shadow_key = f"{prefix}_shadow_mode"
+    if mode_key in section:
+        return str(section.get(mode_key, default)).strip().lower() == "shadow"
+    return bool(section.get(shadow_key, str(default).lower() == "shadow"))
+
+
+def _effective_live_section(cfg: dict, mode: str | None = None) -> dict:
+    """Merge v3_live with market-specific overlays such as hk_live."""
+    v3_live = dict(cfg.get("v3_live", {}) if isinstance(cfg.get("v3_live", {}), dict) else {})
+    if mode == "HK":
+        overlay = cfg.get("hk_live", {}) if isinstance(cfg.get("hk_live", {}), dict) else {}
+        if overlay:
+            v3_live.update(overlay)
+    return v3_live
+
+
+def _base_live_config(config_path: str = "config.json", mode: str | None = None) -> LiveConfig:
     cfg, _ = _read_config(config_path)
-    v3_live = cfg.get("v3_live", {}) if isinstance(cfg, dict) else {}
+    v3_live = _effective_live_section(cfg if isinstance(cfg, dict) else {}, mode=mode)
     capital_buckets = v3_live.get("capital_buckets", {}) if isinstance(v3_live, dict) else {}
     bucket_fractions = capital_buckets.get(
         "fractions",
@@ -192,6 +211,12 @@ def _base_live_config(config_path: str = "config.json") -> LiveConfig:
         bucket_by_symbol=bucket_by_symbol,
         bucket_thresholds=bucket_thresholds,
         max_portfolio_positions=int(v3_live.get("max_positions", 8)),
+        max_position_value=float(v3_live.get("max_position_value", 2000.0)),
+        hk_bypass_kelly_zero_edge=bool(v3_live.get("hk_bypass_kelly_zero_edge", False)),
+        hk_bypass_kelly_max_risk_pct=float(v3_live.get("hk_bypass_kelly_max_risk_pct", 0.02)),
+        kelly_zero_edge_exploration_enabled=bool(v3_live.get("kelly_zero_edge_exploration_enabled", False)),
+        kelly_zero_edge_exploration_min_confidence=float(v3_live.get("kelly_zero_edge_exploration_min_confidence", 0.65)),
+        kelly_zero_edge_exploration_max_risk_pct=float(v3_live.get("kelly_zero_edge_exploration_max_risk_pct", 0.005)),
         min_confidence_threshold=float(v3_live.get("xgb_confidence", 0.10)),  # 2026-04-23: default 0.10
         rsi_oversold_entry=int(v3_live.get("rsi_oversold", 50)),  # 2026-04-23: default 50
         rsi_extreme_oversold=int(v3_live.get("rsi_extreme_oversold", 35)),  # 2026-04-23: NEW
@@ -213,11 +238,29 @@ def _base_live_config(config_path: str = "config.json") -> LiveConfig:
         short_take_profit=float(v3_live.get("short_take_profit", 0.02)),
         short_trailing_stop_trigger=float(v3_live.get("short_trailing_stop_trigger", 0.015)),
         short_trailing_stop_lock=float(v3_live.get("short_trailing_stop_lock", 0.0)),
+        trade_quality_enabled=bool(v3_live.get("trade_quality_enabled", True)),
+        trade_quality_mode=str(v3_live.get("trade_quality_mode", "shadow")).strip().lower(),
+        trade_quality_shadow_mode=_live_gate_shadow_mode(v3_live, "trade_quality", default="shadow"),
+        trade_quality_min_score=float(v3_live.get("trade_quality_min_score", 0.65)),
+        trade_quality_shadow_min_score=float(v3_live.get("trade_quality_shadow_min_score", 0.50)),
+        trade_quality_semi_enforce_min_score=float(v3_live.get("trade_quality_semi_enforce_min_score", v3_live.get("trade_quality_shadow_min_score", 0.50))),
+        trade_quality_turnover_penalty_multiplier=float(v3_live.get("trade_quality_turnover_penalty_multiplier", v3_live.get("trade_quality_turnover_penalty", 0.15) / 0.15 if float(v3_live.get("trade_quality_turnover_penalty", 0.15) or 0.15) > 0 else 1.0)),
+        meta_label_enabled=bool(v3_live.get("meta_label_enabled", True)),
+        meta_label_shadow_mode=_live_gate_shadow_mode(v3_live, "meta_label", default="shadow"),
+        meta_label_min_real_outcomes=int(v3_live.get("meta_label_min_real_outcomes", 100)),
+        meta_label_confirm_win_rate=float(v3_live.get("meta_label_confirm_win_rate", 0.55)),
+        meta_label_reject_win_rate=float(v3_live.get("meta_label_reject_win_rate", 0.45)),
+        hk_model_v2_enabled=bool(v3_live.get("hk_model_v2_enabled", False)),
+        hk_model_v2_mode=str(v3_live.get("hk_model_v2_mode", "shadow")).strip().lower(),
+        max_orders_per_cycle=int(v3_live.get("max_orders_per_cycle", 3)),
+        order_throttle_seconds=float(v3_live.get("order_throttle_seconds", 30.0)),
+        single_order_loss_alert_pct=float(v3_live.get("single_order_loss_alert_pct", 0.05)),
     )
 
 
 def build_live_config(config_path: str = "config.json") -> LiveConfig:
-    base_cfg = _base_live_config(config_path)
+    current_mode = resolve_market_mode()
+    base_cfg = _base_live_config(config_path, mode=current_mode)
     use_dynamic = os.getenv("USE_DYNAMIC_WATCHLIST", "1").strip().lower()
     if use_dynamic not in {"0", "false", "no"}:
         watchlist_path = Path(__file__).parent / 'dynamic_watchlist.json'

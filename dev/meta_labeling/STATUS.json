@@ -1,0 +1,31 @@
+{
+  "updated_at": "2026-06-11 12:02:00 CST",
+  "current_task": "meta_069_cron_consumer_report_launch_failure_fixture",
+  "next_task": "meta_070_cron_consumer_report_timeout_fixture",
+  "phase": "shadow_telemetry_and_promotion_safety",
+  "last_completed": {
+    "id": "meta_069",
+    "summary": "Hardened the read-only cron/operator consumer so compact safety report launch failures and missing report scripts emit a conservative critical one-line summary instead of crashing or hiding the issue.",
+    "files_changed": [
+      "self_learn/scripts/meta_064_cron_safety_summary_smoke.py",
+      "tests/test_meta_064_cron_safety_summary_smoke.py",
+      "dev/meta_labeling/PLAN.md"
+    ],
+    "verification": [
+      "python3 -m py_compile self_learn/scripts/meta_064_cron_safety_summary_smoke.py tests/test_meta_064_cron_safety_summary_smoke.py",
+      "python3 -m pytest -q tests/test_meta_064_cron_safety_summary_smoke.py",
+      "python3 -m pytest -q tests/test_meta_058_daily_health_report.py tests/test_meta_064_cron_safety_summary_smoke.py",
+      "python3 self_learn/scripts/meta_064_cron_safety_summary_smoke.py --days 1 --min-eligible-outcomes 100"
+    ],
+    "runtime_result": {
+      "pytest_meta_064": "11 passed in 0.19s",
+      "pytest_meta_058_and_064": "14 passed in 0.25s",
+      "cron_consumer_line": "META_LABEL_CRON_CONSUMER alert=expected_shadow_blocked ok=true enforcement_safe=false real_source_verified=false eligible_real_source_count=0/100 recommendation=keep_meta_label_enforcement_disabled blockers=insufficient_eligible_real_outcomes:0/100,meta_label_source_not_ok_events:1922 warnings=meta_label_no_data_events:1922 live_trading_changes=false"
+    }
+  },
+  "blockers": [
+    "Meta-label gate still has source_ok=false / insufficient_real_outcomes; keep enforcement disabled until real broker/paper provenance is available.",
+    "Current outcomes provenance is schema_ready=true but eligible_real_source_count=0; all sampled eligible checks remain blocked by synthetic/legacy provenance."
+  ],
+  "live_trading_changes": false
+}

@@ -18,6 +18,13 @@ from v3_pipeline.core.history_priming import HistoryPrimer, PrimingConfig
 from v3_pipeline.core.market_context import build_market_contexts, sync_positions_to_contexts
 from v3_pipeline.core.monte_carlo import MonteCarloSimulator
 from v3_pipeline.core.strategy_factory import StrategyFactory
+from v3_pipeline.core.trade_quality import (
+    PositionContext,
+    RecentStats,
+    TradeQualityDecision,
+    TradeQualityFilter,
+    TradeQualityInput,
+)
 from v3_pipeline.features.indicators import TechnicalIndicatorGenerator
 from v3_pipeline.models.manager import DataPreparer, ModelManager
 from v3_pipeline.risk.kelly_sizer import KellyPositionSizer
@@ -171,6 +178,11 @@ class LiveConfig:
     # ---- Hard risk caps (2026-04-12 fix) ----
     max_loss_per_trade: float = 30.0   # Hard cap: never lose more than $30 per trade
     max_position_value: float = 2000.0 # Derived: $30 / 1.5% stop_loss = $2000 max position
+    hk_bypass_kelly_zero_edge: bool = False  # Conservative HK-only escape hatch for Kelly zero-edge stalls
+    hk_bypass_kelly_max_risk_pct: float = 0.02  # Keep bypass sizing small; max_position_value still caps order notional
+    kelly_zero_edge_exploration_enabled: bool = False  # B2: small exploratory BUY when entry gates passed but Kelly has zero edge
+    kelly_zero_edge_exploration_min_confidence: float = 0.65
+    kelly_zero_edge_exploration_max_risk_pct: float = 0.005
     min_confidence_threshold: float = 0.10  # 2026-04-23: lowered from 0.20 to allow more momentum signals through
 
     # ---- Strategy v2: Entry gates ----
@@ -227,6 +239,29 @@ class LiveConfig:
     pattern_confidence_threshold: float = 0.65
     pattern_threshold_relaxation: float = 0.25
 
+    # ---- Prediction upgrade gates (2026-06-04 plan) ----
+    trade_quality_enabled: bool = True
+    trade_quality_mode: str = "shadow"  # shadow | semi_enforce | enforce
+    trade_quality_shadow_mode: bool = True
+    trade_quality_min_score: float = 0.65
+    trade_quality_shadow_min_score: float = 0.50
+    trade_quality_semi_enforce_min_score: float = 0.50
+    trade_quality_turnover_penalty_multiplier: float = 1.0
+    meta_label_enabled: bool = True
+    meta_label_shadow_mode: bool = True
+    meta_label_min_real_outcomes: int = 100
+    meta_label_confirm_win_rate: float = 0.55
+    meta_label_reject_win_rate: float = 0.45
+
+    # ---- HK prediction model V2 (HKAlpha-1, 2026-06-11 plan) ----
+    hk_model_v2_enabled: bool = False
+    hk_model_v2_mode: str = "shadow"  # shadow | enforce
+
+    # ---- Order safety throttles ----
+    max_orders_per_cycle: int = 3
+    order_throttle_seconds: float = 30.0
+    single_order_loss_alert_pct: float = 0.05  # Alert agent when one long position/order is down >= 5%
+
 
 class LiveTradingLoop:
     @property
@@ -256,6 +291,9 @@ class LiveTradingLoop:
         self.broker_offline_fallback_mode: bool = False
         self.futu_reconnect_failures: int = 0
         self.latest_prices: dict[str, float] = {}
+        self._orders_this_cycle: int = 0
+        self._last_entry_order_ts_by_symbol: dict[str, datetime] = {}
+        self._single_order_loss_alerted_by_symbol: dict[str, float] = {}
         self.logger = _build_stderr_logger(self.__class__.__name__)
         self.structured_logger = _build_structured_logger("kiro.decisions")
 
@@ -316,6 +354,10 @@ class LiveTradingLoop:
         # Ensure all universe symbols have position tracking (lightweight dicts)
         _all_tracking = self.universe_symbols if _EXPANDED_MODE else self.symbols
         self.position_qty_by_symbol: dict[str, int] = {s: 0 for s in _all_tracking}
+        # Broker-synced long positions are the exit source of truth.  Keep this
+        # separate from strategy state so exits still work after restart/desync.
+        self.broker_position_qty_by_symbol: dict[str, int] = {s: 0 for s in _all_tracking}
+        self.sell_retry_required_by_symbol: dict[str, str] = {}
         # v3 Plan B: track SHORT positions separately (positive = LONG qty, negative = SHORT qty)
         self.short_position_qty_by_symbol: dict[str, int] = {s: 0 for s in _all_tracking}
         self.highest_price_since_entry_by_symbol: dict[str, float] = {s: 0.0 for s in _all_tracking}
@@ -358,6 +400,7 @@ class LiveTradingLoop:
         self.alpha_engine = KiroAlphaEngine(AlphaConfig())
         self.monte_carlo = MonteCarloSimulator()
         self._kelly_sizer = KellyPositionSizer()
+        self.trade_quality_filter = TradeQualityFilter()
         self.history_primer = HistoryPrimer(
             self.logger,
             PrimingConfig(
@@ -430,17 +473,35 @@ class LiveTradingLoop:
             )
 
     def _should_terminate_session(self) -> bool:
-        from datetime import datetime, time as dt_time
-        # Simplified market check (US hours HKT: 21:15-04:15)
-        now = datetime.now()
-        weekday = now.weekday()
-        # Weekend check: Sat=5, Sun=6
-        if weekday >= 5:
-            return True  # Always terminate on weekend, let launcher re-evaluate
-        cur_time = now.time()
-        is_open = cur_time >= dt_time(21, 15) or cur_time <= dt_time(4, 15)
-        if self.config.auto_trade and not is_open: return True
-        if not self.config.auto_trade and is_open: return True
+        """Let the launcher re-evaluate when market mode crosses IDLE/HK/US.
+
+        Older logic only understood US hours, so HK live sessions terminated right
+        after startup. Reuse v3_launcher.resolve_market_mode when available so HK
+        auto-trade stays alive during 09:30-12:00 / 13:00-16:00 HKT.
+        """
+        try:
+            from v3_launcher import resolve_market_mode
+            mode = resolve_market_mode()
+            is_open = mode in {"HK", "US"}
+        except Exception:
+            from datetime import datetime, time as dt_time
+            now = datetime.now(timezone(timedelta(hours=8)))
+            weekday = now.weekday()
+            cur_time = now.time()
+            is_hk_open = weekday < 5 and (
+                dt_time(9, 30) <= cur_time <= dt_time(12, 0)
+                or dt_time(13, 0) <= cur_time <= dt_time(16, 0)
+            )
+            is_us_open = cur_time >= dt_time(21, 30) or cur_time <= dt_time(4, 0)
+            if weekday == 5 and cur_time > dt_time(4, 0):
+                is_us_open = False
+            if weekday == 6 and cur_time < dt_time(21, 30):
+                is_us_open = False
+            is_open = is_hk_open or is_us_open
+        if self.config.auto_trade and not is_open:
+            return True
+        if not self.config.auto_trade and is_open:
+            return True
         return False
 
     async def _run_forever(self) -> None:
@@ -460,6 +521,7 @@ class LiveTradingLoop:
             await asyncio.sleep(sleep_sec)
 
     async def run_one_cycle(self) -> None:
+        self._orders_this_cycle = 0
         self._check_heartbeat()
         self._sync_broker_state()
         self._sync_sentiment()
@@ -790,6 +852,19 @@ class LiveTradingLoop:
 
         # Store for signal hook
         self._pred_id_by_symbol[symbol] = _pred_id_for_signal
+
+        # ── HK prediction model V2 (HKAlpha-1): shadow alongside / enforce over LSTM ──
+        v2_pred = self._maybe_hk_model_v2(symbol, wfa_frame, prediction, current_price)
+        if (
+            v2_pred is not None
+            and str(getattr(self.config, "hk_model_v2_mode", "shadow")).strip().lower() == "enforce"
+        ):
+            prediction = float(v2_pred.predicted_price)
+            confidence = float(v2_pred.confidence)
+            self.logger.info(
+                "[HK_MODEL_V2][%s] ENFORCE: prediction source switched to %s",
+                symbol, v2_pred.model_id,
+            )
 
         vix_value = await asyncio.to_thread(self._get_vix)
         profile = self.strategy_factory.choose_profile(vix_value, self.sentiment_score)
@@ -1294,6 +1369,8 @@ class LiveTradingLoop:
                             short_alloc_qty = min(short_alloc_qty, max(0, int(max_pos_value / max(current_price, 1e-9))))
                             short_alloc_qty = self._round_to_lot(short_alloc_qty, symbol)
                             if short_alloc_qty > 0:
+                                if not self._entry_gates_allow(symbol, "SHORT", current_price, prediction, confidence, indicators):
+                                    return
                                 self.logger.info(
                                     "[SHORT_ENTRY][%s] qty=%d price=%.4f reason=%s conf=%.4f",
                                     symbol, short_alloc_qty, current_price, short_reason, confidence,
@@ -1333,6 +1410,8 @@ class LiveTradingLoop:
             return # Wait for next cycle to confirm cover and enter LONG
 
         if allow_long and prediction > threshold_up and qty == 0:
+            if not self._entry_gates_allow(symbol, "BUY", current_price, prediction, confidence, indicators):
+                return
             returns = self._get_buffer(symbol)["Close"].pct_change().dropna()
             mc = self.monte_carlo.stress_test(returns)
             # Use Kelly when simulation produced both wins and losses; fall back to confidence otherwise
@@ -1341,14 +1420,52 @@ class LiveTradingLoop:
                     win_rate=mc["win_rate"], avg_win=mc["avg_win"], avg_loss=mc["avg_loss"]
                 )
                 if kelly["zero_edge"]:
-                    self.logger.info(
-                        "[KELLY_ZERO_EDGE][%s] skip BUY: win_rate=%.3f avg_win=%.4f avg_loss=%.4f",
-                        symbol, mc["win_rate"], mc["avg_win"], mc["avg_loss"],
-                    )
-                    self._append_decision_trace({**trace_base, "action": "BUY_BLOCKED_KELLY_ZERO_EDGE",
-                        "kelly_raw": kelly["kelly_raw"], "win_rate": float(mc["win_rate"])})
-                    return
-                risk_pct = kelly["capped_fraction"]
+                    if symbol.endswith(".HK") and bool(getattr(self.config, "hk_bypass_kelly_zero_edge", False)):
+                        fallback_risk = self.strategy_factory.confidence_to_risk_pct(confidence)
+                        risk_pct = min(
+                            float(fallback_risk),
+                            float(getattr(self.config, "hk_bypass_kelly_max_risk_pct", 0.02)),
+                        )
+                        self.logger.info(
+                            "[HK_BYPASS_KELLY_ZERO_EDGE][%s] allow BUY fallback sizing: "
+                            "win_rate=%.3f avg_win=%.4f avg_loss=%.4f conf=%.3f risk_pct=%.4f",
+                            symbol, mc["win_rate"], mc["avg_win"], mc["avg_loss"], confidence, risk_pct,
+                        )
+                        self._append_decision_trace({
+                            **trace_base,
+                            "action": "BUY_KELLY_ZERO_EDGE_BYPASS_HK",
+                            "kelly_raw": kelly["kelly_raw"],
+                            "win_rate": float(mc["win_rate"]),
+                            "risk_pct": float(risk_pct),
+                        })
+                    elif bool(getattr(self.config, "kelly_zero_edge_exploration_enabled", False)) and float(confidence) >= float(getattr(self.config, "kelly_zero_edge_exploration_min_confidence", 0.65)):
+                        fallback_risk = self.strategy_factory.confidence_to_risk_pct(confidence)
+                        risk_pct = min(
+                            float(fallback_risk),
+                            float(getattr(self.config, "kelly_zero_edge_exploration_max_risk_pct", 0.005)),
+                        )
+                        self.logger.info(
+                            "[KELLY_ZERO_EDGE_EXPLORATION][%s] allow small BUY: "
+                            "win_rate=%.3f avg_win=%.4f avg_loss=%.4f conf=%.3f risk_pct=%.4f",
+                            symbol, mc["win_rate"], mc["avg_win"], mc["avg_loss"], confidence, risk_pct,
+                        )
+                        self._append_decision_trace({
+                            **trace_base,
+                            "action": "BUY_KELLY_ZERO_EDGE_EXPLORATION",
+                            "kelly_raw": kelly["kelly_raw"],
+                            "win_rate": float(mc["win_rate"]),
+                            "risk_pct": float(risk_pct),
+                        })
+                    else:
+                        self.logger.info(
+                            "[KELLY_ZERO_EDGE][%s] skip BUY: win_rate=%.3f avg_win=%.4f avg_loss=%.4f",
+                            symbol, mc["win_rate"], mc["avg_win"], mc["avg_loss"],
+                        )
+                        self._append_decision_trace({**trace_base, "action": "BUY_BLOCKED_KELLY_ZERO_EDGE",
+                            "kelly_raw": kelly["kelly_raw"], "win_rate": float(mc["win_rate"])})
+                        return
+                else:
+                    risk_pct = kelly["capped_fraction"]
             else:
                 kelly = None
                 risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
@@ -1668,13 +1785,223 @@ class LiveTradingLoop:
             self.logger.warning("predict_pattern returned non-dict for %s: %r", symbol, raw)
             return None
         try:
-            float(raw.get("confidence", 0.0))
+            confidence = float(raw.get("confidence", 0.0))
         except (TypeError, ValueError):
             self.logger.warning(
                 "predict_pattern confidence is invalid for %s: %r", symbol, raw.get("confidence")
             )
             return None
+        if confidence <= 0:
+            return None
         return raw
+
+    def _order_rate_limit_guard(self, symbol: str, side: str) -> bool:
+        """Final safety gate for new entries; exits/risk sells must not be blocked."""
+        max_orders = int(getattr(self.config, "max_orders_per_cycle", 3) or 0)
+        if max_orders <= 0:
+            self.logger.info(
+                "[ORDER_RATE_LIMIT][%s] blocked %s: max_orders_per_cycle=%d",
+                symbol,
+                side,
+                max_orders,
+            )
+            return False
+        if self._orders_this_cycle >= max_orders:
+            self.logger.info(
+                "[ORDER_RATE_LIMIT][%s] blocked %s: orders_this_cycle=%d max_orders_per_cycle=%d",
+                symbol,
+                side,
+                self._orders_this_cycle,
+                max_orders,
+            )
+            return False
+
+        throttle = float(getattr(self.config, "order_throttle_seconds", 30.0) or 0.0)
+        if throttle > 0:
+            last_ts = self._last_entry_order_ts_by_symbol.get(symbol)
+            if last_ts is not None:
+                elapsed = (datetime.now(timezone.utc) - last_ts).total_seconds()
+                if elapsed < throttle:
+                    self.logger.info(
+                        "[ORDER_RATE_LIMIT][%s] blocked %s: throttle %.1fs < %.1fs",
+                        symbol,
+                        side,
+                        elapsed,
+                        throttle,
+                    )
+                    return False
+        return True
+
+    def _record_order_rate_limit_accept(self, symbol: str) -> None:
+        self._orders_this_cycle += 1
+        self._last_entry_order_ts_by_symbol[symbol] = datetime.now(timezone.utc)
+
+    def _recent_trade_quality_stats(self, symbol: str) -> RecentStats:
+        """Best-effort recent stats for TradeQualityFilter; never blocks trading on DB errors."""
+        try:
+            from self_learn.models import get_prediction_accuracy
+            mae_abs, directional_accuracy = get_prediction_accuracy(symbol, window=20)
+            last_px = max(float(self.last_price_by_symbol.get(symbol, 0.0) or 0.0), 1e-9)
+            mae_pct = float(mae_abs) / last_px if mae_abs else 0.0
+            return RecentStats(win_rate=float(directional_accuracy), prediction_mae_pct=mae_pct, turnover_penalty=0.0)
+        except Exception:
+            return RecentStats(win_rate=None, prediction_mae_pct=None, turnover_penalty=0.0)
+
+    def _evaluate_entry_quality(
+        self,
+        symbol: str,
+        action: str,
+        current_price: float,
+        prediction: float,
+        confidence: float,
+        indicators: dict[str, float] | None = None,
+    ):
+        market = "HK" if str(symbol).upper().endswith(".HK") else "US"
+        qty = int(self.position_qty_by_symbol.get(symbol, 0) or 0)
+        current_notional = max(0, qty) * max(float(current_price), 0.0)
+        max_position_value = float(getattr(self.config, "max_position_value", 2000.0))
+        cap_remaining = max(0.0, max_position_value - current_notional)
+        lot_size = 100 if market == "HK" else 1
+        result = self.trade_quality_filter.score(
+            TradeQualityInput(
+                symbol=symbol,
+                market=market,
+                action=action,
+                prediction=float(prediction),
+                current_price=float(current_price),
+                confidence=float(confidence),
+                indicators=indicators or {},
+                position=PositionContext(
+                    current_qty=qty,
+                    current_notional=current_notional,
+                    cap_remaining=cap_remaining,
+                    lot_size=lot_size,
+                ),
+                recent=self._recent_trade_quality_stats(symbol),
+                min_score=float(getattr(self.config, "trade_quality_min_score", 0.65)),
+                shadow_min_score=float(getattr(self.config, "trade_quality_shadow_min_score", 0.50)),
+                turnover_penalty_multiplier=float(getattr(self.config, "trade_quality_turnover_penalty_multiplier", 1.0)),
+            )
+        )
+        self._emit_structured(
+            "trade_quality_gate",
+            symbol=symbol,
+            action=action,
+            decision=str(result.decision.value),
+            score=result.score,
+            reasons=result.reasons,
+            components=result.components,
+            shadow=bool(getattr(self.config, "trade_quality_shadow_mode", True)),
+        )
+        return result
+
+    def _evaluate_meta_label_gate(
+        self,
+        symbol: str,
+        action: str,
+        current_price: float,
+        prediction: float,
+        confidence: float,
+        indicators: dict[str, float] | None = None,
+    ):
+        try:
+            from self_learn.meta_labeler import MetaDecision, MetaLabelGate
+            gate = MetaLabelGate(
+                min_real_outcomes=int(getattr(self.config, "meta_label_min_real_outcomes", 100)),
+                confirm_win_rate=float(getattr(self.config, "meta_label_confirm_win_rate", 0.55)),
+                reject_win_rate=float(getattr(self.config, "meta_label_reject_win_rate", 0.45)),
+            )
+            result = gate.should_take_trade(
+                symbol=symbol,
+                action=action,
+                entry_price=float(current_price),
+                predicted_price=float(prediction),
+                confidence=float(confidence),
+                indicators=indicators or {},
+            )
+            self._emit_structured(
+                "meta_label_gate",
+                symbol=symbol,
+                action=action,
+                decision=str(result.decision.value),
+                eligible_outcomes=int(result.eligible_outcomes),
+                win_rate=None if result.win_rate is None else round(float(result.win_rate), 4),
+                source_ok=bool(result.source_ok),
+                reason=result.reason,
+                shadow=bool(getattr(self.config, "meta_label_shadow_mode", True)),
+            )
+            return result
+        except Exception as exc:
+            self.logger.warning("[META_LABEL_GATE][%s] unavailable: %s", symbol, exc)
+            return None
+
+    def _trade_quality_allows_entry(self, tq) -> bool:
+        """Apply TradeQuality runtime mode.
+
+        Modes:
+        - shadow: telemetry only
+        - enforce: block every TradeQuality REJECT
+        - semi_enforce: only block obvious garbage entries while keeping SELL/risk exits untouched
+        """
+        mode = str(getattr(self.config, "trade_quality_mode", "shadow") or "shadow").strip().lower()
+        if mode == "shadow":
+            return True
+        if mode == "enforce":
+            return tq.decision != TradeQualityDecision.REJECT
+        if mode in {"semi", "semi_enforce", "semi-enforce"}:
+            hard_reasons = {
+                "prediction_direction_mismatch",
+                "hk_lot_cap_insufficient",
+                "position_cap_exhausted",
+                "low_confidence",
+                "high_turnover_penalty",
+            }
+            reasons = set(str(r) for r in (tq.reasons or []))
+            min_score = float(getattr(self.config, "trade_quality_semi_enforce_min_score", 0.50))
+            return not (bool(reasons & hard_reasons) or float(tq.score) < min_score)
+        # Unknown mode fails safe as shadow telemetry rather than unexpectedly blocking trading.
+        return True
+
+    def _entry_gates_allow(
+        self,
+        symbol: str,
+        action: str,
+        current_price: float,
+        prediction: float,
+        confidence: float,
+        indicators: dict[str, float] | None = None,
+    ) -> bool:
+        if getattr(self.config, "trade_quality_enabled", True):
+            tq = self._evaluate_entry_quality(symbol, action, current_price, prediction, confidence, indicators)
+            if not self._trade_quality_allows_entry(tq):
+                self.logger.info(
+                    "[TRADE_QUALITY_GATE][%s] blocked %s: mode=%s score=%.3f reasons=%s",
+                    symbol,
+                    action,
+                    str(getattr(self.config, "trade_quality_mode", "shadow")),
+                    tq.score,
+                    tq.reasons,
+                )
+                self._append_decision_trace({
+                    "symbol": symbol,
+                    "action": "TRADE_QUALITY_BLOCKED",
+                    "entry_action": action,
+                    "trade_quality_mode": str(getattr(self.config, "trade_quality_mode", "shadow")),
+                    "trade_quality_score": float(tq.score),
+                    "trade_quality_reasons": list(tq.reasons or []),
+                })
+                return False
+        if getattr(self.config, "meta_label_enabled", True):
+            meta = self._evaluate_meta_label_gate(symbol, action, current_price, prediction, confidence, indicators)
+            if meta is not None:
+                try:
+                    from self_learn.meta_labeler import MetaDecision
+                    if meta.decision == MetaDecision.REJECT and not bool(getattr(self.config, "meta_label_shadow_mode", True)):
+                        self.logger.info("[META_LABEL_GATE][%s] blocked %s: win_rate=%s reason=%s", symbol, action, meta.win_rate, meta.reason)
+                        return False
+                except Exception:
+                    pass
+        return True
 
     def check_and_trade(
         self,
@@ -1699,6 +2026,144 @@ class LiveTradingLoop:
             pattern_confidence=pattern_confidence,
         )
 
+    def _normalize_broker_code_to_symbol(self, code: str) -> str:
+        """Convert Futu broker code to engine symbol format."""
+        code = str(code or "").strip().upper()
+        if code.startswith("US."):
+            return code.split(".", 1)[1]
+        if code.startswith("HK."):
+            raw = code.split(".", 1)[1]
+            digits = "".join(ch for ch in raw if ch.isdigit())
+            if digits:
+                return f"{digits[-4:].zfill(4)}.HK"
+        return code
+
+    def _ensure_tracking_symbol(self, symbol: str) -> None:
+        """Ensure broker-held symbols remain in the cycle universe.
+
+        Dynamic screeners/watchlists can shrink `self.symbols`.  Exits are safety
+        actions, so any symbol currently held by broker must be tracked and
+        processed even when it was not part of today's entry universe.
+        """
+        if not symbol:
+            return
+        if symbol not in self.symbols:
+            self.symbols.append(symbol)
+            self.logger.warning("[POSITION_SYNC_REPAIR][%s] added broker-held symbol to cycle universe", symbol)
+        for attr in (
+            "position_qty_by_symbol",
+            "broker_position_qty_by_symbol",
+            "short_position_qty_by_symbol",
+            "highest_price_since_entry_by_symbol",
+            "bars_held_by_symbol",
+            "bars_held_short_by_symbol",
+            "cycles_since_buy_by_symbol",
+            "cycles_since_short_by_symbol",
+            "sell_signal_streak_by_symbol",
+            "buy_cover_signal_streak_by_symbol",
+            "entry_price_by_symbol",
+            "short_entry_price_by_symbol",
+            "entry_rsi_by_symbol",
+        ):
+            mapping = getattr(self, attr, None)
+            if isinstance(mapping, dict) and symbol not in mapping:
+                if "price" in attr:
+                    mapping[symbol] = 0.0
+                elif attr == "entry_rsi_by_symbol":
+                    mapping[symbol] = 50.0
+                elif attr.startswith("cycles_since"):
+                    mapping[symbol] = 999999
+                else:
+                    mapping[symbol] = 0
+        try:
+            if isinstance(self.market_buffers, dict) and symbol not in self.market_buffers:
+                self.market_buffers[symbol] = pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume", "data_source"])
+        except Exception:
+            pass
+
+    def _check_single_order_loss_alert(self, symbol: str, qty: int, entry_price: float, current_price: float) -> None:
+        """Notify agent once when a single long position/order loses beyond threshold."""
+        threshold = max(0.0, float(getattr(self.config, "single_order_loss_alert_pct", 0.05) or 0.0))
+        if threshold <= 0 or qty <= 0 or entry_price <= 0 or current_price <= 0:
+            return
+        loss_pct = (current_price - entry_price) / entry_price
+        if loss_pct > -threshold:
+            getattr(self, "_single_order_loss_alerted_by_symbol", {}).pop(symbol, None)
+            return
+        alerted = getattr(self, "_single_order_loss_alerted_by_symbol", {})
+        if symbol in alerted:
+            return
+        if not hasattr(self, "_single_order_loss_alerted_by_symbol"):
+            self._single_order_loss_alerted_by_symbol = {}
+        self._single_order_loss_alerted_by_symbol[symbol] = loss_pct
+        message = (
+            f"🚨 [LOSS_ALERT_SINGLE_ORDER] {symbol} 單張柯打虧損超過 {threshold:.0%}: "
+            f"loss={loss_pct:.2%} qty={int(qty)} entry={entry_price:.4f} current={current_price:.4f}. "
+            "Agent action required: check exit/order path."
+        )
+        self.logger.warning(message)
+        try:
+            self._append_decision_trace({
+                "event": "single_order_loss_alert",
+                "symbol": symbol,
+                "qty": int(qty),
+                "entry_price": float(entry_price),
+                "current_price": float(current_price),
+                "loss_pct": float(loss_pct),
+                "threshold_pct": float(threshold),
+            })
+        except Exception:
+            pass
+        self._notify(message)
+
+    def _broker_long_qty_for_symbol(self, symbol: str) -> int:
+        """Return broker-synced long qty for *symbol* if available.
+
+        Broker positions are the source of truth for exits.  This method is
+        tolerant of missing attributes so tests and degraded runtime paths can
+        still call it safely.
+        """
+        maps = [
+            getattr(self, "broker_position_qty_by_symbol", None),
+            getattr(self, "position_qty_by_symbol_broker", None),
+        ]
+        for mapping in maps:
+            if isinstance(mapping, dict):
+                try:
+                    qty = int(float(mapping.get(symbol, 0) or 0))
+                except Exception:
+                    qty = 0
+                if qty > 0:
+                    return qty
+        return 0
+
+    def _effective_long_qty_for_exit(self, symbol: str) -> int:
+        """Resolve long qty for exit decisions using broker truth first."""
+        try:
+            internal_qty = int(float(self.position_qty_by_symbol.get(symbol, 0) or 0))
+        except Exception:
+            internal_qty = 0
+        internal_qty = max(0, internal_qty)
+        broker_qty = self._broker_long_qty_for_symbol(symbol)
+        effective_qty = max(internal_qty, broker_qty)
+        if broker_qty > internal_qty:
+            self.logger.warning(
+                "[POSITION_SYNC_REPAIR][%s] broker_qty=%d internal_qty=%d -> effective_qty=%d",
+                symbol,
+                broker_qty,
+                internal_qty,
+                effective_qty,
+            )
+            self.position_qty_by_symbol[symbol] = effective_qty
+        self.logger.info(
+            "[EXIT_QTY_RESOLVE][%s] internal_qty=%d broker_qty=%d effective_qty=%d",
+            symbol,
+            internal_qty,
+            broker_qty,
+            effective_qty,
+        )
+        return effective_qty
+
     def _run_trading_logic_bridge(
         self,
         symbol: str,
@@ -1716,9 +2181,19 @@ class LiveTradingLoop:
             return
 
         qty_raw = int(self.position_qty_by_symbol.get(symbol, 0))
-        qty = max(0, qty_raw)
+        qty = self._effective_long_qty_for_exit(symbol)
         if qty_raw < 0:
             self.logger.warning("DIAG_QTY[%s] invalid negative qty=%d; clamped to 0", symbol, qty_raw)
+        retry_reason = getattr(self, "sell_retry_required_by_symbol", {}).get(symbol)
+        if retry_reason and qty > 0:
+            self.logger.warning(
+                "[SELL_RETRY_REQUIRED][%s] retrying previous failed SELL: reason=%s qty=%d",
+                symbol,
+                retry_reason,
+                qty,
+            )
+            self._execute(symbol, "SELL", qty, current_price, f"retry_{retry_reason}")
+            return
         self.bars_held_by_symbol[symbol] = self.bars_held_by_symbol.get(symbol, 0) + (1 if qty > 0 else 0)
         if qty > 0:
             self.cycles_since_buy_by_symbol[symbol] = self.cycles_since_buy_by_symbol.get(symbol, 0) + 1
@@ -1731,6 +2206,7 @@ class LiveTradingLoop:
             if entry_price <= 0:
                 entry_price = current_price
                 self.entry_price_by_symbol[symbol] = entry_price
+            self._check_single_order_loss_alert(symbol, qty, entry_price, current_price)
 
             stop_loss_pct = max(0.0, float(getattr(self.config, "stop_loss_pct", 0.02)))
             if stop_loss_pct > 0:
@@ -1762,6 +2238,18 @@ class LiveTradingLoop:
         model_buy_signal = predicted_move > symbol_threshold
         model_sell_signal = predicted_move < -symbol_threshold
         swing = self._evaluate_swing_signal(symbol, current_price, latest_frame)
+        latest_indicators: dict[str, float] = {}
+        try:
+            frame_for_ind = latest_frame if latest_frame is not None and not latest_frame.empty else self._get_buffer(symbol)
+            if frame_for_ind is not None and not frame_for_ind.empty:
+                row = frame_for_ind.iloc[-1]
+                for key in ("RSI_14", "RSI", "MACD_HIST", "MACD", "SMA_5", "SMA_20", "BB_POSITION", "ATR_14"):
+                    if key in row.index:
+                        val = row.get(key)
+                        if val is not None and not pd.isna(val):
+                            latest_indicators[key] = float(val)
+        except Exception:
+            latest_indicators = {}
 
         if getattr(self.config, "log_trade_decisions", True):
             self.logger.info(
@@ -1785,6 +2273,8 @@ class LiveTradingLoop:
 
         if getattr(self.config, "swing_strategy_enabled", True):
             if qty == 0 and allow_long and swing["buy_signal"]:
+                if not self._entry_gates_allow(symbol, "BUY", current_price, prediction, confidence, latest_indicators):
+                    return
                 returns = self._get_buffer(symbol)["Close"].pct_change().dropna()
                 mc_swing = self.monte_carlo.stress_test(returns)
                 kelly_swing = self._kelly_sizer.calculate_details(
@@ -1792,8 +2282,26 @@ class LiveTradingLoop:
                 )
                 cap_fraction = max(0.0, min(1.0, float(getattr(self.config, "max_position_fraction", 0.30))))
                 if kelly_swing["zero_edge"]:
-                    # Fall back to confidence-based sizing when Kelly has no edge signal
-                    swing_risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
+                    if bool(getattr(self.config, "kelly_zero_edge_exploration_enabled", False)):
+                        if float(confidence) >= float(getattr(self.config, "kelly_zero_edge_exploration_min_confidence", 0.65)):
+                            swing_fallback_risk = self.strategy_factory.confidence_to_risk_pct(confidence)
+                            swing_risk_pct = min(
+                                float(swing_fallback_risk),
+                                float(getattr(self.config, "kelly_zero_edge_exploration_max_risk_pct", 0.005)),
+                            )
+                            self.logger.info(
+                                "[KELLY_ZERO_EDGE_EXPLORATION][%s] allow small swing BUY: win_rate=%.3f avg_win=%.4f avg_loss=%.4f conf=%.3f risk_pct=%.4f",
+                                symbol, mc_swing["win_rate"], mc_swing["avg_win"], mc_swing["avg_loss"], confidence, swing_risk_pct,
+                            )
+                        else:
+                            self.logger.info(
+                                "[KELLY_ZERO_EDGE][%s] skip swing BUY: win_rate=%.3f avg_win=%.4f avg_loss=%.4f conf=%.3f",
+                                symbol, mc_swing["win_rate"], mc_swing["avg_win"], mc_swing["avg_loss"], confidence,
+                            )
+                            return
+                    else:
+                        # Legacy default outside B2 mode: fall back to confidence-based sizing.
+                        swing_risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
                 else:
                     swing_risk_pct = kelly_swing["capped_fraction"]
                 alloc = min(self.account_value * swing_risk_pct, self.account_value * cap_fraction)
@@ -1806,6 +2314,8 @@ class LiveTradingLoop:
                 return
 
         if allow_long and model_buy_signal and qty == 0:
+            if not self._entry_gates_allow(symbol, "BUY", current_price, prediction, confidence, latest_indicators):
+                return
             # position cap gate
             max_pos = getattr(self.config, "max_positions", getattr(self.config, "max_portfolio_positions", 999))
             open_positions = sum(1 for s, q in self.position_qty_by_symbol.items() if q > 0)
@@ -1828,12 +2338,25 @@ class LiveTradingLoop:
                     win_rate=mc["win_rate"], avg_win=mc["avg_win"], avg_loss=mc["avg_loss"]
                 )
                 if kelly2["zero_edge"]:
-                    self.logger.info(
-                        "[KELLY_ZERO_EDGE][%s] skip BUY: win_rate=%.3f avg_win=%.4f avg_loss=%.4f",
-                        symbol, mc["win_rate"], mc["avg_win"], mc["avg_loss"],
-                    )
-                    return
-                risk_pct = kelly2["capped_fraction"]
+                    if bool(getattr(self.config, "kelly_zero_edge_exploration_enabled", False)) and float(confidence) >= float(getattr(self.config, "kelly_zero_edge_exploration_min_confidence", 0.65)):
+                        fallback_risk = self.strategy_factory.confidence_to_risk_pct(confidence)
+                        risk_pct = min(
+                            float(fallback_risk),
+                            float(getattr(self.config, "kelly_zero_edge_exploration_max_risk_pct", 0.005)),
+                        )
+                        self.logger.info(
+                            "[KELLY_ZERO_EDGE_EXPLORATION][%s] allow small model BUY: "
+                            "win_rate=%.3f avg_win=%.4f avg_loss=%.4f conf=%.3f risk_pct=%.4f",
+                            symbol, mc["win_rate"], mc["avg_win"], mc["avg_loss"], confidence, risk_pct,
+                        )
+                    else:
+                        self.logger.info(
+                            "[KELLY_ZERO_EDGE][%s] skip BUY: win_rate=%.3f avg_win=%.4f avg_loss=%.4f",
+                            symbol, mc["win_rate"], mc["avg_win"], mc["avg_loss"],
+                        )
+                        return
+                else:
+                    risk_pct = kelly2["capped_fraction"]
             else:
                 risk_pct = self.strategy_factory.confidence_to_risk_pct(confidence)
             rr = max(0.5, abs(prediction - current_price) / max(current_price * symbol_threshold, 1e-6))
@@ -1979,10 +2502,15 @@ class LiveTradingLoop:
                 positions = self.futu_connector.get_sync_positions_all_markets()
             else:
                 positions = self.futu_connector.get_sync_positions()
-            # Reset all to zero before syncing
+            # Reset all to zero before syncing.  Reset broker map only on a
+            # successful broker query so failed syncs do not erase exit truth.
             for symbol in self.symbols:
                 self.position_qty_by_symbol[symbol] = 0
                 self.short_position_qty_by_symbol[symbol] = 0
+            if not hasattr(self, "broker_position_qty_by_symbol"):
+                self.broker_position_qty_by_symbol = {s: 0 for s in self.symbols}
+            for symbol in list(self.broker_position_qty_by_symbol.keys()):
+                self.broker_position_qty_by_symbol[symbol] = 0
 
             if not positions.empty and "code" in positions.columns:
                 for _, row in positions.iterrows():
@@ -1995,7 +2523,13 @@ class LiveTradingLoop:
                             matched_symbol = sym
                             break
                     if matched_symbol is None:
-                        continue
+                        matched_symbol = self._normalize_broker_code_to_symbol(code)
+                        self._ensure_tracking_symbol(matched_symbol)
+                        self.logger.warning(
+                            "[POSITION_SYNC_REPAIR][%s] broker position not in configured universe; normalized_from=%s",
+                            matched_symbol,
+                            code,
+                        )
 
                     qty = int(float(row.get("qty", 0)))
                     side = str(row.get("position_side", "LONG")).upper()
@@ -2016,7 +2550,11 @@ class LiveTradingLoop:
                             continue
 
                     if side == "LONG":
-                        self.position_qty_by_symbol[matched_symbol] = max(0, qty)
+                        normalized_qty = max(0, int(qty))
+                        self.broker_position_qty_by_symbol[matched_symbol] = normalized_qty
+                        self.position_qty_by_symbol[matched_symbol] = normalized_qty
+                        if matched_symbol in getattr(self, "sell_retry_required_by_symbol", {}) and normalized_qty <= 0:
+                            self.sell_retry_required_by_symbol.pop(matched_symbol, None)
                         self.logger.info("Position sync [BROKER][LONG]: %s = %d", matched_symbol, qty)
                     elif side == "SHORT":
                         self.short_position_qty_by_symbol[matched_symbol] = max(0, abs(qty))
@@ -2070,6 +2608,11 @@ class LiveTradingLoop:
             self.logger.debug("market_contexts sync skipped: %s", exc)
 
         active_positions = {s: q for s, q in self.position_qty_by_symbol.items() if q > 0}
+        broker_active_positions = {
+            s: q for s, q in getattr(self, "broker_position_qty_by_symbol", {}).items() if q > 0
+        }
+        if broker_active_positions:
+            self.logger.info("[BROKER_POSITION_SYNC] active_longs=%s", broker_active_positions)
         active_markets = list(self.market_contexts.keys())
 
         # Include account routing snapshot in broker_sync event (no secrets)
@@ -2137,6 +2680,24 @@ class LiveTradingLoop:
             self.logger.info("SKIP %s %s (lot rounding → qty=0)", symbol, side)
             return
 
+        # Structured trace for exits before any broker dispatch.  SELL exits must
+        # remain auditable because they are safety actions, not entry signals.
+        if side == "SELL":
+            try:
+                self._append_decision_trace({
+                    "event": "exit_order_attempt",
+                    "symbol": symbol,
+                    "side": side,
+                    "qty": int(qty),
+                    "price": float(fill_price),
+                    "reason": reason,
+                    "internal_qty": int(self.position_qty_by_symbol.get(symbol, 0) or 0),
+                    "broker_qty": int(self._broker_long_qty_for_symbol(symbol)),
+                    "paper": bool(self.config.paper_trading),
+                })
+            except Exception:
+                pass
+
         if side == "BUY":
             # ── Pre-execution guard: Check for existing short position ───────────────
             short_qty = int(self.short_position_qty_by_symbol.get(symbol, 0) or 0)
@@ -2145,6 +2706,8 @@ class LiveTradingLoop:
                     "[EXEC_BLOCK][%s] BUY blocked: %d short shares outstanding. Cover short first.",
                     symbol, short_qty,
                 )
+                return
+            if not self._order_rate_limit_guard(symbol, side):
                 return
 
         # Route through execution state machine: PAPER fills locally, LIVE places broker order first
@@ -2159,8 +2722,25 @@ class LiveTradingLoop:
         )
 
         if not accepted:
-            # LIVE broker rejection — position state is unchanged, do not log or persist
+            # LIVE broker rejection — position state is unchanged.  For exits,
+            # keep a retry marker so the next cycle does not silently abandon a
+            # still-open broker position.
+            if side == "SELL":
+                remaining_qty = self._broker_long_qty_for_symbol(symbol)
+                if remaining_qty > 0:
+                    if not hasattr(self, "sell_retry_required_by_symbol"):
+                        self.sell_retry_required_by_symbol = {}
+                    self.sell_retry_required_by_symbol[symbol] = reason
+                    self.logger.warning(
+                        "[SELL_RETRY_REQUIRED][%s] reason=%s remaining_broker_qty=%d broker_status=rejected_or_not_accepted",
+                        symbol,
+                        reason,
+                        remaining_qty,
+                    )
             return
+
+        if side == "BUY":
+            self._record_order_rate_limit_accept(symbol)
 
         # Position was accepted (PAPER fill or LIVE broker accepted) — update secondary state
         if side == "BUY":
@@ -2170,6 +2750,8 @@ class LiveTradingLoop:
             if indicators:
                 self.entry_rsi_by_symbol[symbol] = float(indicators.get("RSI_14", 50.0))
         elif side == "SELL":
+            getattr(self, "sell_retry_required_by_symbol", {}).pop(symbol, None)
+            getattr(self, "_single_order_loss_alerted_by_symbol", {}).pop(symbol, None)
             if self.position_qty_by_symbol.get(symbol, 0) == 0:
                 self.highest_price_since_entry_by_symbol[symbol] = 0.0
                 self.bars_held_by_symbol[symbol] = 0
@@ -2271,6 +2853,7 @@ class LiveTradingLoop:
         prediction_error = abs(entry_pred_price - exit_price) if entry_pred_price > 0 else None
         try:
             from self_learn import on_trade_closed
+            source = "paper_broker" if bool(getattr(self.config, "paper_trading", True)) else "live_broker"
             on_trade_closed(
                 signal_id=sig_id,
                 exit_price=float(exit_price),
@@ -2278,6 +2861,10 @@ class LiveTradingLoop:
                 pnl_pct=float(pnl_pct),
                 hold_minutes=hold_minutes,
                 prediction_error=prediction_error,
+                source=source,
+                broker_order_id=f"{source}:{symbol}:{int(time.time())}",
+                recorded_by="live_loop",
+                provenance_meta=json.dumps({"symbol": symbol, "qty": int(qty), "paper": bool(getattr(self.config, "paper_trading", True))}),
             )
         except Exception:
             pass
@@ -2307,6 +2894,8 @@ class LiveTradingLoop:
         if qty <= 0:
             self.logger.info("SKIP SHORT %s (lot rounding → qty=0)", symbol)
             return
+        if not self._order_rate_limit_guard(symbol, "SHORT"):
+            return
 
         # Record SHORT position state
         self.short_position_qty_by_symbol[symbol] = qty
@@ -2320,6 +2909,8 @@ class LiveTradingLoop:
             self.logger.info("PAPER_SHORT %s qty=%d limit=%.4f type=NORMAL", symbol, qty, fill_price)
         else:
             self.futu_connector.place_order(symbol, qty, "SELL", fill_price)
+
+        self._record_order_rate_limit_accept(symbol)
 
         self.logger.info("EXEC_SHORT %s qty=%d fill=%.4f reason=%s", symbol, qty, fill_price, reason)
 
@@ -2458,6 +3049,83 @@ class LiveTradingLoop:
                     self.logger.info("Sentiment Synced: score=%.2f, summary=%s", self.sentiment_score, self.sentiment_summary)
             except Exception as exc:
                 self.logger.warning("Sentiment sync failed: %s", exc)
+
+    def _get_hk_predictor_v2(self):
+        """Lazy-load the HKAlpha-1 predictor; returns None when disabled/unavailable.
+
+        A failed load is cached (False sentinel) so the live loop does not retry
+        artifact discovery on every cycle.
+        """
+        if not bool(getattr(self.config, "hk_model_v2_enabled", False)):
+            return None
+        cached = getattr(self, "_hk_predictor_v2", None)
+        if cached is not None:
+            return cached or None
+        try:
+            from v3_pipeline.models.hk_predictor_v2 import HKPredictorV2
+            predictor = HKPredictorV2()
+            predictor.load_latest()
+            self._hk_predictor_v2 = predictor
+            self.logger.info("[HK_MODEL_V2] loaded artifact %s", predictor.model_id)
+            return predictor
+        except Exception as exc:
+            self.logger.warning("[HK_MODEL_V2] unavailable (falling back to LSTM): %s", exc)
+            self._hk_predictor_v2 = False
+            return None
+
+    def _maybe_hk_model_v2(self, symbol: str, wfa_frame, lstm_prediction: float, current_price: float):
+        """Run HKAlpha-1 on an HK symbol and emit its structured event.
+
+        Returns the HKPredictionV2 (caller decides shadow vs enforce), or None
+        when the model is disabled, not HK, or inference failed.
+        """
+        if not str(symbol).upper().endswith(".HK"):
+            return None
+        predictor = self._get_hk_predictor_v2()
+        if predictor is None:
+            return None
+        try:
+            context = {
+                "lstm_pred_move": (float(lstm_prediction) - float(current_price))
+                / max(float(current_price), 1e-9),
+            }
+            v2 = predictor.predict(wfa_frame, symbol=symbol, context=context)
+        except Exception as exc:
+            self.logger.warning("[HK_MODEL_V2][%s] predict failed: %s", symbol, exc)
+            return None
+
+        mode = str(getattr(self.config, "hk_model_v2_mode", "shadow")).strip().lower()
+        self.logger.info(
+            "[HK_MODEL_V2][%s] mode=%s pred_v2=%.4f ret=%.4f prob_up=%.4f conf=%.4f lstm_pred=%.4f model=%s",
+            symbol, mode, v2.predicted_price, v2.expected_return,
+            v2.prob_up, v2.confidence, float(lstm_prediction), v2.model_id,
+        )
+        self._emit_structured(
+            "hk_model_v2",
+            symbol=symbol,
+            mode=mode,
+            pred=round(float(v2.predicted_price), 6),
+            expected_return=round(float(v2.expected_return), 6),
+            prob_up=round(float(v2.prob_up), 4),
+            confidence=round(float(v2.confidence), 4),
+            lstm_pred=round(float(lstm_prediction), 6),
+            price=round(float(current_price), 6),
+            horizon_bars=int(v2.horizon_bars),
+            model_id=v2.model_id,
+        )
+        # Record the V2 prediction with its artifact id so the health report can
+        # split V2 vs LSTM accuracy during the shadow period.
+        try:
+            from self_learn.models import save_prediction
+            save_prediction(
+                symbol,
+                predicted_price=float(v2.predicted_price),
+                confidence=float(v2.confidence),
+                model_version_id=v2.model_id,
+            )
+        except Exception as exc:
+            self.logger.warning("[HK_MODEL_V2][%s] save_prediction failed: %s", symbol, exc)
+        return v2
 
     def _emit_structured(self, event_type: str, **fields) -> None:
         """Emit one structured JSON event to logs/decisions.jsonl (best-effort, never raises)."""

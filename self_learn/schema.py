@@ -42,6 +42,11 @@ CREATE TABLE IF NOT EXISTS outcomes (
     pnl REAL,
     pnl_pct REAL,
     hold_minutes INTEGER,
+    prediction_error REAL,
+    source TEXT DEFAULT 'synthetic_seed',
+    broker_order_id TEXT,
+    recorded_by TEXT,
+    provenance_meta TEXT,
     closed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

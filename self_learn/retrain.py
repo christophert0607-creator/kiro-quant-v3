@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import pickle
+import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -300,12 +301,89 @@ def predict_profitable(model: xgb.XGBClassifier, features: np.ndarray) -> float:
     return float(proba[0][1])
 
 
+# ─── Model Promotion Guard ─────────────────────────────────────────────────────
+
+_REQUIRED_OUTCOME_PROVENANCE_COLUMNS = {"source", "broker_order_id", "recorded_by", "provenance_meta"}
+_ELIGIBLE_OUTCOME_SOURCES = {"paper_broker", "live_broker"}
+
+
+def _eligible_real_source_count(db_path: Path) -> tuple[bool, int]:
+    """Return (schema_ready, eligible paper/live broker outcome count)."""
+    if not db_path.exists():
+        return False, 0
+    uri = f"file:{db_path}?mode=ro"
+    with sqlite3.connect(uri, uri=True) as conn:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(outcomes)").fetchall()}
+        if not _REQUIRED_OUTCOME_PROVENANCE_COLUMNS.issubset(cols):
+            return False, 0
+        count = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM outcomes
+            WHERE source IN ('paper_broker', 'live_broker')
+              AND (
+                (broker_order_id IS NOT NULL AND broker_order_id != '')
+                OR (provenance_meta IS NOT NULL AND provenance_meta != '')
+              )
+            """
+        ).fetchone()[0]
+    return True, int(count or 0)
+
+
+def validate_meta_model_promotion(
+    X,
+    y=None,
+    metrics: dict | None = None,
+    db_path: Path | str | None = None,
+    min_eligible_outcomes: int = 100,
+    min_accuracy: float = 0.60,
+    min_symbol_coverage: int = 1,
+) -> dict:
+    """Validate whether a freshly trained meta model may be persisted/promoted.
+
+    This guard deliberately runs *after* in-memory training and *before* any model
+    artifact, model_versions row, or training_log.jsonl write. Synthetic/seeded
+    outcomes are never eligible evidence for promotion.
+    """
+    metrics = dict(metrics or {})
+    db_path = Path(db_path) if db_path is not None else Path(__file__).parent / "trading_bot.db"
+    X_arr = np.asarray(X)
+    y_arr = np.asarray(y if y is not None else [])
+    schema_ready, eligible_count = _eligible_real_source_count(db_path)
+    accuracy = float(metrics.get("accuracy", 0.0) or 0.0)
+
+    checks = {
+        "feature_shape_valid": X_arr.ndim == 2 and X_arr.shape[0] > 0 and X_arr.shape[1] in {6, 9},
+        "finite_matrix": bool(X_arr.size) and bool(np.isfinite(X_arr).all()),
+        "label_shape_valid": y_arr.ndim == 1 and len(y_arr) == len(X_arr),
+        "real_source_verified": schema_ready and eligible_count >= int(min_eligible_outcomes),
+        "holdout_accuracy_ok": accuracy >= float(min_accuracy),
+        # Symbol coverage is conservatively passed when no richer per-symbol metadata
+        # is available in this legacy training function. The provenance count remains
+        # the binding promotion gate until outcome-head training supplies coverage.
+        "symbol_coverage_ok": int(min_symbol_coverage) <= 1,
+    }
+    result = {
+        "status": "pass" if all(checks.values()) else "blocked",
+        "reason": None if all(checks.values()) else "meta_model_promotion_guard",
+        "schema_ready": schema_ready,
+        "eligible_real_source_count": eligible_count,
+        "required_eligible_outcomes": int(min_eligible_outcomes),
+        "real_source_verified": checks["real_source_verified"],
+        "accuracy": accuracy,
+        "required_accuracy": float(min_accuracy),
+        **checks,
+    }
+    return result
+
+
 # ─── Main Retrain Pipeline ─────────────────────────────────────────────────────
 
 def retrain_pipeline() -> dict:
-    """Full retrain pipeline: build data → train → save → log.
+    """Full retrain pipeline: build data → train → guard → save → log.
 
-    Returns a summary dict.
+    Returns a summary dict. The promotion guard must pass before any persistence
+    write, so synthetic-only training can still be measured without being promoted.
     """
     try:
         # 1. Build training data
@@ -313,19 +391,25 @@ def retrain_pipeline() -> dict:
         if len(X) < 10:
             return {"status": "skip", "reason": f"Only {len(X)} samples, need ≥10"}
 
-        # 2. Train
+        # 2. Train in memory
         model, metrics = train_xgboost_model(X, y)
 
-        # 3. Save
+        # 3. Promotion guard — no writes before this point
+        guard = validate_meta_model_promotion(X, y=y, metrics=metrics)
+        if guard["status"] != "pass":
+            return {"status": "blocked", **guard, "metrics": metrics}
+
+        # 4. Save
         model_dir = Path(__file__).parent / "models"
         version_id, model_path = save_trained_model(model, metrics, model_dir)
 
-        # 4. Write training log
+        # 5. Write training log
         log_entry = {
             "version_id": version_id,
             "model_path": str(model_path),
             "trained_at": datetime.now(timezone.utc).isoformat(),
             "metrics": metrics,
+            "promotion_guard": guard,
             "sample_breakdown": {
                 "total": len(y),
                 "profitable": sum(y),
@@ -341,6 +425,7 @@ def retrain_pipeline() -> dict:
             "version_id": version_id,
             "model_path": str(model_path),
             "metrics": metrics,
+            "promotion_guard": guard,
         }
 
     except Exception as exc:
