@@ -214,29 +214,6 @@ class FutuConnector:
             return None
         return cached
 
-    def _coerce_positive_float(self, value: Any) -> Optional[float]:
-        """Return a finite positive float, or None for broker/data sentinels.
-
-        Futu/Yahoo occasionally return strings such as 'N/A', '--', or empty
-        values during pre/after-market.  Those must never be passed straight to
-        float() on the order path because they mask a market-data issue as a
-        broker rejection.
-        """
-        if value is None:
-            return None
-        if isinstance(value, str):
-            text = value.strip()
-            if not text or text.upper() in {"N/A", "NA", "NULL", "NONE", "--", "-"}:
-                return None
-            value = text.replace(",", "")
-        try:
-            number = float(value)
-        except (TypeError, ValueError):
-            return None
-        if not math.isfinite(number) or number <= 0:
-            return None
-        return number
-
     def _normalize_quote(self, close: float, open_p: float, high_p: float, low_p: float, volume: float, source: str) -> dict:
         return {
             "Date": pd.Timestamp.now(),
@@ -357,12 +334,37 @@ class FutuConnector:
             self.ft = ft
             self.quote_ctx = ft.OpenQuoteContext(host=self.config.host, port=self.config.port)
 
-            # Open US trade context (always required)
-            self.trade_ctxs["US"] = ft.OpenUSTradeContext(host=self.config.host, port=self.config.port)
+            def _open_trade_context(market: str) -> Any:
+                """Open a market-specific trade context across Futu SDK versions.
 
-            # Open HK trade context if the SDK supports it (optional — non-fatal if missing)
+                Some installed Futu SDK builds only expose OpenSecTradeContext
+                (with filter_trdmarket) and do not provide OpenUSTradeContext /
+                OpenHKTradeContext.  Use the market-specific classes when
+                available, otherwise fall back to OpenSecTradeContext.
+                """
+                market = market.upper()
+                class_name = f"Open{market}TradeContext"
+                ctx_cls = getattr(ft, class_name, None)
+                if ctx_cls is not None:
+                    return ctx_cls(host=self.config.host, port=self.config.port)
+                trd_market = getattr(ft.TrdMarket, market, ft.TrdMarket.NONE)
+                self.logger.info(
+                    "%s unavailable; using OpenSecTradeContext(filter_trdmarket=%s)",
+                    class_name,
+                    trd_market,
+                )
+                return ft.OpenSecTradeContext(
+                    host=self.config.host,
+                    port=self.config.port,
+                    filter_trdmarket=trd_market,
+                )
+
+            # Open US trade context (always required)
+            self.trade_ctxs["US"] = _open_trade_context("US")
+
+            # Open HK trade context if possible (optional — non-fatal if unavailable)
             try:
-                self.trade_ctxs["HK"] = ft.OpenHKTradeContext(host=self.config.host, port=self.config.port)
+                self.trade_ctxs["HK"] = _open_trade_context("HK")
             except Exception as hk_exc:
                 self.logger.warning("HK trade context unavailable (non-fatal): %s", hk_exc)
 
@@ -507,15 +509,6 @@ class FutuConnector:
             )
         return msg
 
-    def _trade_call_on_ctx(self, ctx: Any, method_name: str, **kwargs):
-        if ctx is None or self.ft is None:
-            raise RuntimeError("FutuConnector not connected")
-        method = getattr(ctx, method_name)
-        ret, data = method(trd_env=self._resolved_trd_env(), **kwargs)
-        if ret != self.ft.RET_OK:
-            raise RuntimeError(self._build_trade_error(f"{method_name} failed", data))
-        return data
-
     def unlock_trading(self, password: str) -> None:
         """Unlock trading capability before placing real orders."""
         if self.trade_ctx is None or self.ft is None:
@@ -600,63 +593,31 @@ class FutuConnector:
             return {}
         return {"acc_id": int(self.config.target_acc_id)}
 
-    def _resolve_market_account(self, market: str) -> tuple[Optional[int], str]:
-        """Return the account ID and source for a market-specific broker call.
+    def _account_kwargs_for_market(self, market: str) -> dict[str, Any]:
+        """Return acc_id kwargs scoped to a specific market, falling back to global.
 
         Priority:
           1. Explicit config (futu.accounts.{MARKET}.target_acc_id / FUTU_{MARKET}_ACC_ID)
           2. Auto-discovered account for market from broker
-          3. Global legacy futu.target_acc_id only when no explicit per-market
-             account config exists at all.
+          3. Global legacy futu.target_acc_id
         """
         mkt = str(market).upper()
-        configured = self.config_market_accounts.get(mkt)
-        if configured is not None:
-            return int(configured), "config"
-
-        discovered = self.account_ids.get(mkt)
-        if discovered is not None:
-            return int(discovered), "discovered"
-
-        if not self.config_market_accounts and self.config.target_acc_id is not None:
-            return int(self.config.target_acc_id), "fallback"
-
-        return None, "missing"
-
-    def _account_kwargs_for_market(self, market: str) -> dict[str, Any]:
-        """Return acc_id kwargs scoped to a specific market."""
-        acc_id, _source = self._resolve_market_account(market)
+        acc_id = (
+            self.config_market_accounts.get(mkt)
+            or self.account_ids.get(mkt)
+            or self.config.target_acc_id
+        )
         if acc_id is None:
             return {}
-        return {"acc_id": acc_id}
+        return {"acc_id": int(acc_id)}
 
     def _resolve_market_account_id(self, market: str) -> Optional[int]:
         """Return the resolved account ID for *market* using the same priority chain."""
-        acc_id, _source = self._resolve_market_account(market)
-        return acc_id
-
-    def _log_account_route(
-        self,
-        event: str,
-        market: str,
-        symbol: Optional[str],
-        ctx_market: str,
-        acc_id: Optional[int],
-        source: str,
-    ) -> None:
-        self.logger.info(
-            "%s",
-            json.dumps(
-                {
-                    "event": event,
-                    "market": str(market).upper(),
-                    "symbol": symbol,
-                    "context_market": str(ctx_market).upper(),
-                    "acc_id": acc_id,
-                    "source": source,
-                    "trd_env": self.config.trd_env,
-                }
-            ),
+        mkt = str(market).upper()
+        return (
+            self.config_market_accounts.get(mkt)
+            or self.account_ids.get(mkt)
+            or self.config.target_acc_id
         )
 
     def account_mapping_snapshot(self) -> dict[str, Any]:
@@ -671,10 +632,13 @@ class FutuConnector:
         for mkt in markets:
             configured = self.config_market_accounts.get(mkt)
             discovered = self.account_ids.get(mkt)
-            resolved, source = self._resolve_market_account(mkt)
+            resolved = configured or discovered or self.config.target_acc_id
             routing[mkt] = {
                 "resolved_acc_id": resolved,
-                "source": source,
+                "source": (
+                    "config" if configured
+                    else ("discovered" if discovered else "global_fallback")
+                ),
             }
         return {
             "account_routing": routing,
@@ -695,11 +659,7 @@ class FutuConnector:
         is reached.
         """
         try:
-            market = str(self.config.market_prefix or "US").upper()
-            acc_id, source = self._resolve_market_account(market)
-            kwargs = {"acc_id": acc_id} if acc_id is not None else {}
-            self._log_account_route("before_accinfo_query", market, None, market, acc_id, source)
-            _ = self._trade_call_on_ctx(self.get_trade_ctx(market), "accinfo_query", **kwargs)
+            _ = self._safe_trade_call("accinfo_query", **self._account_kwargs())
             if self._conn_state != ConnectionState.RECONNECTING:
                 self._conn_state = ConnectionState.CONNECTED
             self._heartbeat_fail_count = 0
@@ -760,19 +720,20 @@ class FutuConnector:
     def resolve_symbol(self, symbol: str) -> tuple[str, str]:
         """Resolve a logical symbol to a Futu broker code and market prefix.
 
-        HK symbols (ending in '.HK') always use the 'HK' prefix regardless of
-        current market_prefix. All others use self.config.market_prefix.
-
-        Returns:
-            (broker_code, market_prefix), e.g.
-            'AAPL'    -> ('US.AAPL',    'US')
-            '0700.HK' -> ('HK.0700.HK', 'HK')
+        HK stocks must be Futu's five-digit format: 0700.HK -> HK.00700.
+        US stocks use US.<ticker> unless already prefixed.
         """
-        if str(symbol).upper().endswith(".HK"):
-            prefix = "HK"
-        else:
-            prefix = self.config.market_prefix or "US"
-        return f"{prefix}.{symbol}", prefix
+        raw = str(symbol).strip().upper()
+        if raw.endswith(".HK"):
+            code = raw[:-3]
+            return f"HK.{code.zfill(5)}", "HK"
+        if raw.startswith("HK."):
+            code = raw.split(".", 1)[1]
+            return f"HK.{code.zfill(5)}", "HK"
+        if raw.startswith("US."):
+            return raw, "US"
+        prefix = (self.config.market_prefix or "US").upper()
+        return f"{prefix}.{raw}", prefix
 
     def set_market_prefix(self, prefix: str) -> None:
         """Update the active market prefix (called when switching HK ↔ US session)."""
@@ -902,12 +863,8 @@ class FutuConnector:
             f"Quote query failed for {broker_code}. Providers exhausted: {'; '.join(provider_errors)}"
         )
 
-    def get_order_reference_price(self, symbol: str, side: str, fallback_price: float | str = 0.0) -> float:
-        """Get realistic LIMIT reference price: BUY->ask, SELL->bid.
-
-        Returns 0.0 when neither order book, latest quote, nor fallback contain a
-        finite positive price.  Callers can then skip the order safely.
-        """
+    def get_order_reference_price(self, symbol: str, side: str, fallback_price: float = 0.0) -> float:
+        """Get realistic LIMIT reference price: BUY->ask, SELL->bid."""
         code, _ = self.resolve_symbol(symbol)
         side_upper = side.upper()
 
@@ -915,35 +872,38 @@ class FutuConnector:
             try:
                 ret, data = self.quote_ctx.get_order_book(code, num=1)
                 if ret == self.ft.RET_OK and isinstance(data, dict):
-                    levels = data.get("Ask", []) if side_upper == "BUY" else data.get("Bid", [])
-                    if levels:
-                        order_book_price = self._coerce_positive_float(levels[0][0])
-                        if order_book_price is not None:
-                            return order_book_price
-                        self.logger.warning("Order book reference for %s is not numeric: %r", code, levels[0][0])
+                    if side_upper == "BUY":
+                        asks = data.get("Ask", [])
+                        if asks:
+                            ask = self._coerce_positive_float(asks[0][0])
+                            if ask is not None:
+                                return ask
+                    else:
+                        bids = data.get("Bid", [])
+                        if bids:
+                            bid = self._coerce_positive_float(bids[0][0])
+                            if bid is not None:
+                                return bid
             except Exception as exc:
                 self.logger.warning("Order book reference failed for %s: %s", code, exc)
 
         try:
             quote = self.get_latest_quote(symbol)
-            quote_price = self._coerce_positive_float(quote.get("Close", fallback_price))
-            if quote_price is not None:
-                return quote_price
-        except Exception as exc:
-            self.logger.warning("Latest quote reference failed for %s: %s", symbol, exc)
-
+            close = self._coerce_positive_float(quote.get("Close", fallback_price))
+            if close is not None:
+                return close
+        except Exception:
+            pass
         fallback = self._coerce_positive_float(fallback_price)
-        return fallback if fallback is not None else 0.0
+        if fallback is not None:
+            return fallback
+        raise RuntimeError(f"invalid_order_reference_price: symbol={symbol} side={side}")
 
     def get_sync_assets(self) -> dict:
         if self._futu_degraded:
             self.logger.debug("get_sync_assets: degraded mode — returning empty assets")
             return {"total_assets": 0.0, "cash": 0.0, "power": 0.0}
-        market = str(self.config.market_prefix or "US").upper()
-        acc_id, source = self._resolve_market_account(market)
-        kwargs = {"acc_id": acc_id} if acc_id is not None else {}
-        self._log_account_route("before_accinfo_query", market, None, market, acc_id, source)
-        data = self._trade_call_on_ctx(self.get_trade_ctx(market), "accinfo_query", **kwargs)
+        data = self._safe_trade_call("accinfo_query", **self._account_kwargs())
         if data is None or data.empty:
             raise RuntimeError("accinfo_query returned empty dataset")
         row = data.iloc[0]
@@ -958,10 +918,8 @@ class FutuConnector:
         ctx = self.trade_ctxs.get(mkt)
         if ctx is None:
             return self.get_sync_assets()
-        acc_id, source = self._resolve_market_account(mkt)
-        kwargs = {"acc_id": acc_id} if acc_id is not None else {}
+        kwargs = self._account_kwargs_for_market(mkt)
         kwargs["trd_env"] = self._resolved_trd_env()
-        self._log_account_route("before_accinfo_query", mkt, None, mkt, acc_id, source)
         try:
             ret, data = ctx.accinfo_query(**kwargs)
             if ret != (self.ft.RET_OK if self.ft else 0) or data is None or data.empty:
@@ -980,10 +938,7 @@ class FutuConnector:
         if self._futu_degraded:
             self.logger.debug("get_sync_positions: degraded mode — returning empty positions")
             return pd.DataFrame()
-        market = str(self.config.market_prefix or "US").upper()
-        acc_id, _source = self._resolve_market_account(market)
-        kwargs = {"acc_id": acc_id} if acc_id is not None else {}
-        data = self._trade_call_on_ctx(self.get_trade_ctx(market), "position_list_query", **kwargs)
+        data = self._safe_trade_call("position_list_query", **self._account_kwargs())
         return pd.DataFrame() if data is None else data.copy()
 
     def get_sync_positions_for_market(self, market: str) -> pd.DataFrame:
@@ -995,8 +950,7 @@ class FutuConnector:
         ctx = self.trade_ctxs.get(mkt)
         if ctx is None:
             return self.get_sync_positions()
-        acc_id, _source = self._resolve_market_account(mkt)
-        kwargs = {"acc_id": acc_id} if acc_id is not None else {}
+        kwargs = self._account_kwargs_for_market(mkt)
         kwargs["trd_env"] = self._resolved_trd_env()
         try:
             ret, data = ctx.position_list_query(**kwargs)
@@ -1059,41 +1013,21 @@ class FutuConnector:
         combined.drop_duplicates(subset=["code"] if "code" in combined.columns else None, keep="last", inplace=True)
         return combined
 
-    def get_order_status(self, order_id: str, market: Optional[str] = None) -> dict[str, Any]:
+    def get_order_status(self, order_id: str) -> dict[str, Any]:
         """Poll single-order status from broker and normalize key fields."""
         order_id_str = str(order_id).strip()
         if not order_id_str:
             raise ValueError("order_id is required")
 
-        markets = [str(market).upper()] if market else list(self.trade_ctxs.keys())
-        if not markets:
-            markets = [str(self.config.market_prefix or "US").upper()]
-        last_error: Optional[Exception] = None
-        data = None
-        for mkt in markets:
-            acc_id, _source = self._resolve_market_account(mkt)
-            kwargs = {"order_id": order_id_str}
-            if acc_id is not None:
-                kwargs["acc_id"] = acc_id
-            try:
-                data = self._trade_call_on_ctx(self.get_trade_ctx(mkt), "order_list_query", **kwargs)
-                if data is not None and not data.empty:
-                    break
-            except TypeError as exc:
-                if "trd_env" not in str(exc):
-                    raise
-                ctx = self.get_trade_ctx(mkt)
-                ret, data = getattr(ctx, "order_list_query")(**kwargs)
-                if ret != self.ft.RET_OK:
-                    raise RuntimeError(self._build_trade_error("order_list_query failed", data))
-                if data is not None and not data.empty:
-                    break
-            except Exception as exc:
-                last_error = exc
+        kwargs = {"order_id": order_id_str, **self._account_kwargs()}
+        try:
+            data = self._safe_trade_call("order_list_query", **kwargs)
+        except TypeError as exc:
+            if "trd_env" not in str(exc):
+                raise
+            data = self._safe_trade_call_legacy("order_list_query", **kwargs)
 
         if data is None or data.empty:
-            if last_error is not None:
-                raise RuntimeError(f"order_list_query failed for order_id={order_id_str}: {last_error}") from last_error
             raise RuntimeError(f"order_list_query returned empty dataset for order_id={order_id_str}")
         row = data.iloc[0].to_dict()
         normalized = {str(k).strip().lower(): v for k, v in row.items()}
@@ -1136,27 +1070,14 @@ class FutuConnector:
 
     def get_open_orders(self) -> pd.DataFrame:
         """Retrieve current order list for reconnect-time reconciliation."""
-        markets = list(self.trade_ctxs.keys()) or [str(self.config.market_prefix or "US").upper()]
-        frames: list[pd.DataFrame] = []
-        for mkt in markets:
-            acc_id, _source = self._resolve_market_account(mkt)
-            kwargs = {"acc_id": acc_id} if acc_id is not None else {}
-            try:
-                data = self._trade_call_on_ctx(self.get_trade_ctx(mkt), "order_list_query", **kwargs)
-            except TypeError as exc:
-                if "trd_env" not in str(exc):
-                    raise
-                ctx = self.get_trade_ctx(mkt)
-                ret, data = getattr(ctx, "order_list_query")(**kwargs)
-                if ret != self.ft.RET_OK:
-                    raise RuntimeError(self._build_trade_error("order_list_query failed", data))
-            if data is not None and not data.empty:
-                frames.append(data.copy())
-        if not frames:
-            return pd.DataFrame()
-        if len(frames) == 1:
-            return frames[0]
-        return pd.concat(frames, ignore_index=True)
+        kwargs = self._account_kwargs()
+        try:
+            data = self._safe_trade_call("order_list_query", **kwargs)
+        except TypeError as exc:
+            if "trd_env" not in str(exc):
+                raise
+            data = self._safe_trade_call_legacy("order_list_query", **kwargs)
+        return pd.DataFrame() if data is None else data.copy()
 
     def extract_order_id(self, order_result: object) -> str:
         if order_result is None:
@@ -1201,22 +1122,14 @@ class FutuConnector:
         return False
 
     def validate_trading_ready(self, symbol: str, qty: int, side: str, est_price: float) -> None:
-        if self.ft is None:
+        if self.trade_ctx is None or self.ft is None:
             raise RuntimeError("FutuConnector not connected")
 
         side_upper = side.upper()
         if qty <= 0:
             raise ValueError("qty must be > 0")
 
-        _broker_code, market = self.resolve_symbol(symbol)
-        trade_ctx = self.get_trade_ctx(market)
-        acc_id, source = self._resolve_market_account(market)
-        kwargs = {"acc_id": acc_id} if acc_id is not None else {}
-        kwargs["trd_env"] = self._resolved_trd_env()
-        self._log_account_route("before_accinfo_query", market, symbol, market, acc_id, source)
-        ret, data = trade_ctx.accinfo_query(**kwargs)
-        if ret != self.ft.RET_OK:
-            raise RuntimeError(self._build_trade_error("account_precheck_failed: accinfo_query failed", data))
+        data = self._safe_trade_call("accinfo_query", **self._account_kwargs())
         if data is None or data.empty:
             raise RuntimeError("account_precheck_failed: accinfo_query returned empty dataset")
 
@@ -1226,13 +1139,10 @@ class FutuConnector:
             raise RuntimeError("account_disabled: current account is disabled/restricted for order placement")
 
         if side_upper == "BUY":
-            est_cost = (self._coerce_positive_float(est_price) or 0.0) * int(qty)
+            est_cost = float(max(est_price, 0.0)) * int(qty)
             
             # ── Buying Power Guard (smart preflight) ──
-            # Use max_buying_power if available, fall back to cash / available_funds.
-            # Futu can return sentinel strings (for example 'N/A') for some buying
-            # power fields outside regular market hours; treat those as unavailable
-            # instead of crashing the live order path.
+            # Use max_buying_power if available, fall back to cash / available_funds
             cash = self._coerce_positive_float(row.get("cash", 0.0)) or 0.0
             available_funds = self._coerce_positive_float(row.get("available_funds", 0.0)) or 0.0
             power = self._coerce_positive_float(row.get("power", 0.0)) or 0.0
@@ -1261,6 +1171,18 @@ class FutuConnector:
                     f"(cash={cash:.2f}, power={power:.2f}, max_bp={max_buying_power:.2f})"
                 )
 
+    @staticmethod
+    def _coerce_positive_float(value: object) -> float | None:
+        try:
+            if value is None:
+                return None
+            if isinstance(value, str) and value.strip().upper() in {"", "N/A", "NA", "--", "NULL", "NONE"}:
+                return None
+            out = float(value)  # type: ignore[arg-type]
+        except Exception:
+            return None
+        return out if math.isfinite(out) and out > 0 else None
+
     def _round_price(self, price: float, symbol: str) -> float:
         """Round price to the precision Futu API requires.
 
@@ -1270,7 +1192,7 @@ class FutuConnector:
         decimals = 3 if symbol.endswith(".HK") or self.config.market_prefix == "HK" else 2
         return round(price, decimals)
 
-    def place_order(self, symbol: str, qty: int, side: str, price: Optional[float | str] = None) -> object:
+    def place_order(self, symbol: str, qty: int, side: str, price: Optional[float] = None) -> object:
         if self.ft is None:
             raise RuntimeError("FutuConnector not connected")
         if qty <= 0:
@@ -1299,27 +1221,13 @@ class FutuConnector:
                 f"account_route_error: no account configured for market {market} (symbol={symbol})"
             )
 
-        raw_price = self._coerce_positive_float(price)
+        raw_price = self._coerce_positive_float(price) if price is not None else None
         if raw_price is None:
             raw_price = self.get_order_reference_price(symbol, side, fallback_price=0.0)
-        if raw_price is None or raw_price <= 0:
-            raise RuntimeError(
-                f"invalid_order_price: no finite positive reference price for {symbol} {side}; "
-                f"raw_price={price!r}"
-            )
         limit_price = self._round_price(raw_price, symbol)
         if limit_price != raw_price:
             self.logger.debug("Price rounded for %s: %.6f -> %.4f", symbol, raw_price, limit_price)
         self.validate_trading_ready(symbol=symbol, qty=qty, side=side, est_price=limit_price)
-        account_kwargs = self._account_kwargs_for_market(market)
-        self._log_account_route(
-            "before_place_order",
-            market,
-            symbol,
-            market,
-            account_kwargs.get("acc_id"),
-            self._resolve_market_account(market)[1],
-        )
         ret, data = trade_ctx.place_order(
             price=limit_price,
             qty=qty,
@@ -1327,7 +1235,7 @@ class FutuConnector:
             trd_side=self.ft.TrdSide.BUY if side.upper() == "BUY" else self.ft.TrdSide.SELL,
             order_type=self.ft.OrderType.NORMAL,
             trd_env=self._resolved_trd_env(),
-            **account_kwargs,
+            **self._account_kwargs_for_market(market),
         )
         if ret != self.ft.RET_OK:
             raise RuntimeError(self._build_trade_error("Order placement failed", data))

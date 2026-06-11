@@ -358,12 +358,15 @@ class AttentiveKiroLSTM(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.fc = nn.Linear(hidden_dim, output_dim)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, return_hidden: bool = False) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         seq, _ = self.lstm(x)
         attn_out, _ = self.attn(seq, seq, seq, need_weights=False)
         fused = self.norm(seq + attn_out)
         last = fused[:, -1, :]
-        return self.fc(self.dropout(last))
+        out = self.fc(self.dropout(last))
+        if return_hidden:
+            return out, last
+        return out
 
 
 class ModelManager:

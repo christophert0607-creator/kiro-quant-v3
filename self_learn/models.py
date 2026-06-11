@@ -28,6 +28,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     func,
+    text,
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -127,6 +128,10 @@ class Outcome(Base):
     pnl_pct: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     hold_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     prediction_error: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 2026-04-23: |pred - exit| for rolling MAE
+    source: Mapped[str] = mapped_column(String(32), nullable=False, default="synthetic_seed")
+    broker_order_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    recorded_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    provenance_meta: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
     closed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -191,9 +196,24 @@ def get_session() -> Session:
 
 
 def init_db() -> None:
-    """Create all tables in the database."""
+    """Create all tables in the database and add provenance columns if missing."""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    Base.metadata.create_all(get_engine())
+    engine = get_engine()
+    Base.metadata.create_all(engine)
+    # SQLite create_all() does not migrate existing tables. Add nullable/default
+    # provenance columns so meta-label training can distinguish real broker
+    # outcomes from synthetic_seed rows.
+    with engine.begin() as conn:
+        cols = {row[1] for row in conn.execute(text("PRAGMA table_info(outcomes)")).fetchall()}
+        migrations = {
+            "source": "ALTER TABLE outcomes ADD COLUMN source VARCHAR(32) NOT NULL DEFAULT 'synthetic_seed'",
+            "broker_order_id": "ALTER TABLE outcomes ADD COLUMN broker_order_id VARCHAR(64)",
+            "recorded_by": "ALTER TABLE outcomes ADD COLUMN recorded_by VARCHAR(64)",
+            "provenance_meta": "ALTER TABLE outcomes ADD COLUMN provenance_meta VARCHAR(1024)",
+        }
+        for col, stmt in migrations.items():
+            if col not in cols:
+                conn.execute(text(stmt))
 
 
 # ─── Context Manager for Sessions ────────────────────────────────────────────
@@ -280,6 +300,10 @@ def record_outcome(
     pnl_pct: Optional[float] = None,
     hold_minutes: Optional[int] = None,
     prediction_error: Optional[float] = None,  # 2026-04-23: |pred_price - exit_price| for MAE
+    source: str = "synthetic_seed",
+    broker_order_id: Optional[str] = None,
+    recorded_by: Optional[str] = None,
+    provenance_meta: Optional[str] = None,
 ) -> None:
     """Record the outcome of a closed signal."""
     with session_scope() as session:
@@ -290,6 +314,10 @@ def record_outcome(
             pnl_pct=pnl_pct,
             hold_minutes=hold_minutes,
             prediction_error=prediction_error,
+            source=source,
+            broker_order_id=broker_order_id,
+            recorded_by=recorded_by,
+            provenance_meta=provenance_meta,
         )
         # Also close the signal
         signal = session.query(Signal).filter_by(id=signal_id).first()
