@@ -1,17 +1,14 @@
 {
     "version": "2.0",
-    "date": "2026-05-22 08:00:13",
+    "date": "2026-06-11 08:00:06",
     "expanded_universe": false,
     "tiers": {
         "tier1": {
             "description": "Active trading \u2014 screener picks, model evaluation, order execution",
             "max_size": 20,
             "symbols": [
-                "MSFT",
-                "NVDA",
                 "GOOGL",
                 "AMD",
-                "AVGO",
                 "TSM"
             ]
         },
@@ -37,73 +34,43 @@
             "max_pe": 50.0,
             "min_eps_growth": 0.15
         },
-        "last_screened_at": "2026-05-22 08:00:13",
+        "last_screened_at": "2026-06-11 08:00:06",
         "last_screener": "V3FunnelScreener",
-        "picks_count": 6,
+        "picks_count": 3,
         "failed_count": 0
     },
     "picks": [
-        "MSFT",
-        "NVDA",
         "GOOGL",
         "AMD",
-        "AVGO",
         "TSM"
     ],
     "details": [
         {
-            "symbol": "MSFT",
-            "pe": 21.67214,
-            "eps_growth": 0.231,
-            "rev_growth": 0.183,
-            "peg": 1.3,
-            "price": 419.09,
-            "ma50": 399.8226
-        },
-        {
-            "symbol": "NVDA",
-            "pe": 18.846476,
-            "eps_growth": 0.945,
-            "rev_growth": 0.732,
-            "peg": 0.71,
-            "price": 219.51,
-            "ma50": 195.4944
-        },
-        {
             "symbol": "GOOGL",
-            "pe": 26.825176,
+            "pe": 24.63638,
             "eps_growth": 0.812,
             "rev_growth": 0.218,
-            "peg": 1.53,
-            "price": 387.66,
-            "ma50": 337.9726
+            "peg": 1.43,
+            "price": 356.38,
+            "ma50": 356.15
         },
         {
             "symbol": "AMD",
-            "pe": 34.69182,
+            "pe": 34.596123,
             "eps_growth": 0.951,
             "rev_growth": 0.378,
-            "peg": 1.08,
-            "price": 449.59,
-            "ma50": 292.8982
-        },
-        {
-            "symbol": "AVGO",
-            "pe": 22.704918,
-            "eps_growth": 0.335,
-            "rev_growth": 0.295,
-            "peg": 0.91,
-            "price": 414.57,
-            "ma50": 374.0174
+            "peg": 1.14,
+            "price": 452.4,
+            "ma50": 364.4546
         },
         {
             "symbol": "TSM",
-            "pe": 20.86159,
+            "pe": 20.93054,
             "eps_growth": 0.583,
             "rev_growth": 0.351,
-            "peg": 1.25,
-            "price": 407.15,
-            "ma50": 370.7026
+            "peg": 1.33,
+            "price": 408.75,
+            "ma50": 391.0422
         }
     ],
     "failed_symbols": []

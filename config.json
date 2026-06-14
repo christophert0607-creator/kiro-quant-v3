@@ -119,9 +119,9 @@
     "max_idle_hours_per_day": 6,
     "stop_before_open_min": 30
   },
-  "posture": "neutral",
-  "posture_timestamp": null,
-  "posture_rationale": "clean PR default; live market pulse should update runtime state, not baseline config",
+  "posture": "risk_off",
+  "posture_timestamp": "2026-06-11T04:02:55.359083+00:00",
+  "posture_rationale": "HK Market Pulse via pulse_momentum.py fallback（pulse_check.py 不存在/不可用）: 2800.HK 30m_momentum=-0.011309, 3033.HK 30m_momentum=-0.021148 -> risk_off",
   "hk_live": {
     "auto_trade": true,
     "per_position_cap_fraction": 0.1,

@@ -795,121 +795,1392 @@ CRON_JSON_PARSE_FAIL: Expecting value: line 1 column 1 (char 0)
 **Should Retrain:** True | **Retrain Done:** True
 **Retrain:** accuracy=0.8000 | win_rate=0.3800 | samples=500
 
-## [2026-05-17 04:00 UTC]
-**Stats:** 0 predictions | 0 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-17 08:00 UTC]
-**Stats:** 0 predictions | 0 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-17 12:00 UTC]
-**Stats:** 0 predictions | 0 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-17 16:00 UTC]
-**Stats:** 0 predictions | 0 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-17 20:00 UTC]
-**Stats:** 0 predictions | 0 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-18 00:00 UTC]
-**Stats:** 0 predictions | 0 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-18 04:00 UTC]
-**Stats:** 0 predictions | 0 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-18 08:00 UTC]
-**Stats:** 0 predictions | 0 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-18 12:00 UTC]
-**Stats:** 0 predictions | 0 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-18 16:00 UTC]
-**Stats:** 0 predictions | 0 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-18 20:00 UTC]
-**Stats:** 0 predictions | 0 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-19 00:00 UTC]
-**Stats:** 0 predictions | 0 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-19 04:00 UTC]
-**Stats:** 12218 predictions | 3 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-19 08:00 UTC]
-**Stats:** 14070 predictions | 5 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-19 12:00 UTC]
-**Stats:** 14070 predictions | 5 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-19 16:00 UTC]
-**Stats:** 19870 predictions | 5 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-19 20:00 UTC]
-**Stats:** 29170 predictions | 5 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-20 00:00 UTC]
-**Stats:** 29170 predictions | 5 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-20 04:00 UTC]
-**Stats:** 30656 predictions | 5 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-20 08:00 UTC]
-**Stats:** 32447 predictions | 5 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-20 12:00 UTC]
-**Stats:** 32466 predictions | 5 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-20 16:00 UTC]
-**Stats:** 38166 predictions | 1965 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-21 16:00 UTC]
-**Stats:** 57790 predictions | 5066 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-21 20:00 UTC]
-**Stats:** 67140 predictions | 5254 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-22 00:00 UTC]
-**Stats:** 67140 predictions | 5254 signals | 0 closed | PnL=0.0
-**Should Retrain:** False | **Retrain Done:** False
-
-## [2026-05-22 04:00 UTC]
-**Stats:** 68898 predictions | 5385 signals | 100 closed | PnL=-29877.74
+## [2026-06-03 08:00 UTC]
+**Stats:** 244993 predictions | 10990 signals | 100 closed | PnL=-29877.74
 **Should Retrain:** True | **Retrain Done:** True
 **Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
 
-## [2026-05-22 08:00 UTC]
-**Stats:** 70815 predictions | 5545 signals | 100 closed | PnL=-29877.74
+## [2026-06-03 12:00 UTC]
+**Stats:** 244993 predictions | 10990 signals | 100 closed | PnL=-29877.74
 **Should Retrain:** True | **Retrain Done:** True
 **Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
 
-## [2026-05-22 12:00 UTC]
-**Stats:** 70815 predictions | 5545 signals | 100 closed | PnL=-29877.74
+## [2026-06-03 16:00 UTC]
+**Stats:** 253713 predictions | 11240 signals | 100 closed | PnL=-29877.74
 **Should Retrain:** False | **Retrain Done:** False
 
-## [2026-05-22 16:00 UTC]
-**Stats:** 76465 predictions | 5612 signals | 100 closed | PnL=-29877.74
+## [2026-06-03 20:00 UTC]
+**Stats:** 267793 predictions | 11730 signals | 100 closed | PnL=-29877.74
 **Should Retrain:** True | **Retrain Done:** True
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-04 00:00 UTC]
+**Stats:** 267793 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** False | **Retrain Done:** False
+
+## [2026-06-04 04:00 UTC]
+**Stats:** 269052 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-04 08:00 UTC]
+**Stats:** 271222 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-04 12:00 UTC]
+**Stats:** 271222 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-04 16:00 UTC]
+**Stats:** 276072 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-04 20:00 UTC]
+**Stats:** 285372 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-05 00:00 UTC]
+**Stats:** 285372 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-05 04:00 UTC]
+**Stats:** 286936 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-05 08:00 UTC]
+**Stats:** 288717 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-05 12:00 UTC]
+**Stats:** 288717 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-05 16:00 UTC]
+**Stats:** 294567 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-05 20:00 UTC]
+**Stats:** 303767 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-06 00:00 UTC]
+**Stats:** 303767 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-06 04:00 UTC]
+**Stats:** 303767 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-06 14:14 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 14:14 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** progress
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok, prediction_health=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 14:14 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** deep
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 14:14 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 14:14 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** deep
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** live_runtime_busy
+
+## [2026-06-06 14:15 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** deep
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 14:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 15:01 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 15:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 16:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 16:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** progress
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok, prediction_health=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 08:00 UTC]
+**Stats:** 303767 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-06 16:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 17:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 17:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 18:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 18:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** deep
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 18:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** progress
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok, prediction_health=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 18:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 19:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 19:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 12:00 UTC]
+**Stats:** 303767 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-06 20:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 20:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** progress
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok, prediction_health=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 20:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 21:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 21:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 22:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 22:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** progress
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok, prediction_health=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 22:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 23:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 23:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 23:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** summary
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok, prediction_health=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 16:00 UTC]
+**Stats:** 303767 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-07 00:01 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** deep
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 00:01 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 00:01 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** progress
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok, prediction_health=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 00:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 01:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 01:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 02:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 02:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** progress
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok, prediction_health=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 02:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 03:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 03:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-06 20:00 UTC]
+**Stats:** 303767 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-07 04:01 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 04:01 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** progress
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok, prediction_health=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 04:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 05:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 05:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 06:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 06:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** deep
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 06:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** progress
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok, prediction_health=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 06:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 07:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 07:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 00:00 UTC]
+**Stats:** 303767 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-07 08:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 08:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** progress
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok, prediction_health=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 08:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 09:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 09:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 10:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 10:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** progress
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok, prediction_health=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 10:31 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 11:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 11:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 12:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 12:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** deep
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 12:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** progress
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok, prediction_health=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 04:00 UTC]
+**Stats:** 303767 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-07 12:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 13:01 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 13:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 14:01 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 14:01 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** progress
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok, prediction_health=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 14:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 15:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 15:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 08:00 UTC]
+**Stats:** 303767 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-07 16:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 16:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** progress
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok, prediction_health=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 16:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 17:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 17:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 18:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 18:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** deep
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 18:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** progress
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok, prediction_health=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 18:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 19:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 19:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 12:00 UTC]
+**Stats:** 303767 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-07 20:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 20:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** progress
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok, prediction_health=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 20:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 21:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 21:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=303767 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 22:01 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=304867 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 22:01 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** progress
+**DB:** predictions=304867 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok, prediction_health=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 22:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=305967 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 23:00 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=306863 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 23:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** collector
+**DB:** predictions=307913 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 23:30 CST] Weekend Training Cycle
+**Mode:** weekend_training_24h
+**Cycle:** summary
+**DB:** predictions=307913 | signals=11730 | closed=100 | outcomes=100
+**Real Eligible Outcomes:** 0 / required=100 | source_verified=false
+**Retrain Guard:** blocked | reason=insufficient_real_broker_outcomes
+**Metrics:** accuracy=0.6000 | win_rate=0.5000 | samples=100 | iterations=3 | early_stopped=True
+**Artifacts:** written=false
+**Steps:** status=ok, prediction_health=ok
+**Risk:** synthetic_only
+**Next:** insufficient_real_broker_outcomes
+
+## [2026-06-07 16:00 UTC]
+**Stats:** 308813 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-07 20:00 UTC]
+**Stats:** 317413 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-08 00:00 UTC]
+**Stats:** 317413 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-08 04:00 UTC]
+**Stats:** 320241 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-08 08:00 UTC]
+**Stats:** 323502 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-08 12:00 UTC]
+**Stats:** 323502 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-08 16:00 UTC]
+**Stats:** 328611 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-08 20:00 UTC]
+**Stats:** 337869 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-09 00:00 UTC]
+**Stats:** 337869 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-09 04:00 UTC]
+**Stats:** 341356 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-09 08:00 UTC]
+**Stats:** 344025 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-09 12:00 UTC]
+**Stats:** 344051 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-09 16:00 UTC]
+**Stats:** 349865 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-09 20:00 UTC]
+**Stats:** 359466 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-10 00:00 UTC]
+**Stats:** 359466 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-10 04:00 UTC]
+**Stats:** 363627 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-10 08:00 UTC]
+**Stats:** 365652 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-10 12:00 UTC]
+**Stats:** 365652 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-10 16:00 UTC]
+**Stats:** 371216 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-10 20:00 UTC]
+**Stats:** 380040 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-11 00:00 UTC]
+**Stats:** 380040 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
+**Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100
+
+## [2026-06-11 04:00 UTC]
+**Stats:** 383270 predictions | 11730 signals | 100 closed | PnL=-29877.74
+**Should Retrain:** True | **Retrain Done:** False
 **Retrain:** accuracy=0.6000 | win_rate=0.5000 | samples=100

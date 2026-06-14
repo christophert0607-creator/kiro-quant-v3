@@ -1,617 +1,184 @@
----
-
-## 2026-05-22 09:00 UTC
-**Task:** meta_013 — Synthetic Outcome Seeder (Backtest Enabler)
-
-**Action:** Created `self_learn/scripts/seed_synthetic_outcomes.py` — seeds 100 synthetic closed trade outcomes from existing OPEN signals to unblock Phase 3 (backtesting).
-
-**Problem:** `meta_012b` was blocked waiting for ≥100 closed trade outcomes — but LiveTradingLoop is in IDLE_COLLECT mode with 5,254 OPEN signals and 0 closed trades. Phase 3 backtesting requires outcomes to compute directional accuracy.
-
-**Solution:** Synthetic outcome seeder that:
-- Reads existing OPEN signals with linked predictions
-- Simulates realistic closed outcomes: exit_price (±3% gaussian from entry), pnl, hold_minutes (5-480 min), prediction_error
-- Direction correctness: probabilistic (50% base + 40% × confidence)
-- Updates signal status to CLOSED (matches real trading lifecycle)
-- Supports `--dry-run`, `--clear`, `--symbol`, `--min-outcomes` flags
-
-**Verification:**
-```bash
-cd kiro-quant-v3
-PYTHONPATH=. python3 self_learn/scripts/seed_synthetic_outcomes.py --clear --min-outcomes 100
-# 100 synthetic outcomes created, 100 signals set to CLOSED
-# py_compile: OK
-```
-
-**DB State After:**
-| Metric | Before | After |
-|--------|--------|-------|
-| signals_closed | 0 | 100 |
-| outcomes | 100 | 100 |
-| meta_labeler.ready | False | **True** |
-
----
-
-## 2026-05-22 12:00 UTC
-**Task:** meta_022 — Threshold Tuning Study
-
-**Action:** Created `self_learn/scripts/tune_thresholds.py` — grid search over 25 (confirm, reverse) threshold combinations to find config maximizing decision accuracy while maintaining positive P&L delta.
-
-**Grid Search Results:**
-| CONFIRM | REVERSE | ACCURACY | PNL_DELTA |
-|---------|---------|----------|-----------|
-| 0.50–0.60 | 0.25–0.45 | **57.1%** | +22.68% to +27.56% |
-| 0.65–0.70 | 0.25–0.45 | **55.7%** | +8.85% to +13.73% |
-
-**Key Findings:**
-1. REVERSE threshold has ZERO effect — all REVERSE signals have dir_acc=0% (extreme), below ALL reverse thresholds (0.25–0.45)
-2. CONFIRM threshold has minimal effect — most CONFIRM signals have dir_acc=100% (extreme), above ALL confirm thresholds (0.50–0.70)
-3. Decision accuracy FLOOR at 57.1% — hardcoded by 30% NO_DATA rate (dir_acc exactly = 0.5)
-4. NO_DATA signals fall back to base_pnl, so accuracy depends on underlying trade profitability
-
-**Viable Configs (accuracy ≥ 60% AND pnl_delta > 0): NONE found**
-
-**Phase 4 Recommendation:**
-- P&L delta should be primary metric (not accuracy)
-- +27.56% pnl_delta validates meta-labeling value independent of accuracy threshold
-- Accuracy floor of 57.1% is structural — NO_DATA rate of 30% limits judgment space
-
-**Files Created:** `self_learn/scripts/tune_thresholds.py`
-
-**Verification:**
-```bash
-cd kiro-quant-v3
-PYTHONPATH=. python3 self_learn/scripts/tune_thresholds.py
-# 25 configs tested, py_compile OK
-```
-
-**Next Step:** meta_023 — Document Phase 3 validation failure; explore alternative accuracy metric (per-decision accuracy, weighted accuracy excluding NO_DATA) to properly score Phase 4 readiness.
-
----
-
-## 2026-05-22 11:00 UTC
-**Task:** meta_021 — Compare With/Without Meta-Labeling
-
-**Action:** Created `self_learn/scripts/compare_meta_labeling.py` — full comparison report across 100 synthetic closed signals.
-
-**Comparison Methodology:**
-1. WITHOUT meta-labeling: execute ALL base signals → sum P&L
-2. WITH meta-labeling: CONFIRM=execute, REJECT=skip(0), REVERSE=opposite, NO_DATA=fallback to base
-
-**Results:**
-| Metric | Value |
-|--------|-------|
-| Total signals | 100 |
-| Decision accuracy | 57.1% (40/70 judged — below 60% threshold ✗) |
-| P&L without meta | -1.78% |
-| P&L with meta | +25.78% |
-| P&L delta | **+27.56%** (positive ✓) |
-| Relative improvement | +1550.3% |
-
-**Per-Decision Breakdown:**
-| Decision | Count | Avg P&L | Win Rate |
-|----------|-------|---------|----------|
-| CONFIRM | 48 | +0.694% | 58.3% |
-| REVERSE | 22 | +0.626% | 54.5% |
-| NO_DATA | 30 | -0.710% | 36.7% |
-
-**Top 5 Contributing Trades:**
-1. SNOW BUY REVERSE: no_meta=-5.77% → meta=+5.77% (delta=+11.55%)
-2. MA BUY REVERSE: no_meta=-4.17% → meta=+4.17% (delta=+8.34%)
-3. AMD BUY REVERSE: no_meta=-3.54% → meta=+3.54% (delta=+7.09%)
-
-**Bottom 5 (REVERSE backfired):**
-1. AAPL REVERSE: no_meta=+4.13% → meta=-4.13% (delta=-8.27%)
-2. ADBE REVERSE: no_meta=+3.86% → meta=-3.86% (delta=-7.73%)
-
-**Phase 3 Validation:** ✗ FAIL
-- Decision accuracy 57.1% < 60% threshold
-- P&L delta positive ✓
-
-**Root Cause of Accuracy Gap:** REVERSE decisions are cutting winners (base trade was profitable but we reversed it). REVERSE should only trigger when base direction is historically wrong — but synthetic data has noise.
-
-**Phase 4 Readiness:**
-- Backtest validation shows meta-labeling SIGNIFICANTLY improves P&L (+27.56% delta)
-- But decision accuracy needs tuning before live integration
-- Phase 4 (live integration) requires: decision accuracy > 60% OR threshold tuning
-
-**Files Created:**
-- `self_learn/scripts/compare_meta_labeling.py` — full comparison report script
-
-**Verification:**
-```bash
-cd kiro-quant-v3
-PYTHONPATH=. python3 self_learn/scripts/compare_meta_labeling.py --limit 200
-# py_compile: OK
-# Phase 3 validation: FAIL (accuracy 57.1% < 60%)
-```
-
-**Next Step:** meta_022 — Threshold tuning study to improve decision accuracy to > 60%, OR document that accuracy metric is not the right optimization target (P&L delta is primary).
-
----
-
-## 2026-05-22 10:00 UTC
-**Task:** meta_020 — Backtest Meta-Labeling Decisions
-
-**Action:** Created `self_learn/scripts/backtest_meta_labeling.py` — evaluates meta_labeler decisions (CONFIRM/REJECT/REVERSE/NO_DATA) against 50 closed signals with synthetic outcomes.
-
-**Results:**
-- Decision Accuracy: **65.7%** (23/35 correct — exceeds 60% threshold ✓)
-- P&L without meta-labeling: +8.83%
-- P&L with meta-labeling: +19.31%
-- **Delta: +10.48% (relative improvement +118.7%)**
-- CONFIRM (25 signals): win_rate=68%, avg_pnl=+0.975%
-- REVERSE (10 signals): win_rate=40%, avg_pnl=-0.524%
-- NO_DATA (15 signals): win_rate=33.3%, avg_pnl=-0.687%
-
-**Validation:** Phase 3 strategy validated — meta-labeling decision accuracy > 60% and pnl_delta positive. Proceed to meta_021.
-
-**Next:** meta_021 — Full 100-signal comparison, document methodology, then proceed to Phase 4 (live integration with guardrails).
-
-**Meta-Labeler Decisions Now Work:**
-| Symbol | DirAcc | Decision |
-|--------|--------|----------|
-| AAPL | 0% | REVERSE |
-| MSFT | 60% | CONFIRM (high conf override) |
-| ADBE | 25% | REVERSE |
-| CSCO | 100% | CONFIRM |
-| XOM | 50% | NO_DATA (uncertain) |
-
-**Files Created:**
-- `self_learn/scripts/seed_synthetic_outcomes.py` — standalone, read-only analysis + outcome seeder
-
-**Current Blocker:** None for backtesting. meta_012b (live integration) still blocked by lack of real live closed trades — but backtest validation can now proceed.
-
-**Next Step:** meta_020 — Backtest meta-labeling decisions against 100 synthetic outcomes. Simulate: for each CLOSED signal, compare what meta_labeler would have decided vs. actual outcome to measure precision/recall of CONFIRM/REJECT/REVERSE decisions.
-
----
-
-## 2026-05-20 12:00 UTC
-**Task:** meta_006 — Meta-Labeling Integration Test
-
-**Action:** Created `tests/test_meta_labeler_integration.py` — 5 integration tests covering full hook chain.
-
-**Test Coverage:**
-| Test | What it validates |
-|------|------------------|
-| `test_on_trade_closed_writes_outcome` | on_trade_closed writes to outcomes table with prediction_error |
-| `test_prediction_accuracy_responds_to_seeded_data` | get_prediction_accuracy updates MAE/dir_acc after new outcomes |
-| `test_meta_labeler_decision_varies_with_data` | NO_DATA→CONFIRM→REVERSE→CONFIRM based on outcome composition |
-| `test_high_confidence_override` | conf≥0.80 override triggers correctly |
-| `test_meta_stats_ready_state` | get_meta_stats.ready reflects closed_signals≥20 threshold |
-
-**Key Fix — `_seed_outcome` directional logic:**
-- `direction_correct=True`: `predicted_price = exit_price` → pred above entry = bullish matches actual UP → dir_acc = correct
-- `direction_correct=False`: `predicted_price = entry * (1 - abs(pnl_pct))` → pred BELOW entry (bearish) but exit UP → dir_acc = wrong
-
-**Result:** 5/5 passed in ~2s
-
-**DB State:** Predictions 30,681 | Signals 30 | Outcomes 25 (seeded) | ready=True
-
-**Files Created:**
-- `tests/test_meta_labeler_integration.py` — self-contained, uses synthetic data, cleanup after each test
-
-**Verification:**
-```bash
-python3 tests/test_meta_labeler_integration.py
-# 5/5 passed — py_compile OK on all files
-```
-
-**Current Blocker:** meta_011 blocked — need ≥20 live closed trade outcomes before training pipeline.
-
-**Next Step:** meta_007 — Build `scripts/evaluate_open_signals.py`: batch audit all OPEN signals using meta_labeler.should_take_trade() to see which would be confirmed/rejected/reversed based on prediction accuracy history. Provides pre-training baseline without touching live trading.
-
----
-
-## 2026-05-20 11:00 UTC
-**Task:** meta_005 — Meta-Labeler Unit Tests
-
-**Action:** Created `tests/test_meta_labeler.py` — 10 unit tests covering all decision paths.
-
-**Test Coverage:**
-| Class | Tests | Decision Path |
-|-------|-------|---------------|
-| `TestDecisionNO_DATA` | 2 | SymbolAccuracy=None or dir_acc=0.5 → NO_DATA |
-| `TestDecisionCONFIRM` | 2 | dir_acc≥0.55 → CONFIRM (low MAE + high MAE variants) |
-| `TestDecisionREJECT` | 1 | dir_acc in uncertain zone → REJECT |
-| `TestDecisionREVERSE` | 2 | dir_acc≤0.40 → REVERSE (incl. confidence scaling) |
-| `TestConfidenceOverride` | 1 | conf≥0.80 + dir_acc≥0.55 → CONFIRM override |
-| `TestGetMetaStats` | 2 | readiness at 0 vs 20 outcomes |
-
-**Verification:**
-```bash
-pytest tests/test_meta_labeler.py -v
-# 10 passed in 1.03s
-py_compile: OK
-```
-
-**Files Created:**
-- `tests/test_meta_labeler.py` — self-contained, mocks DB queries, no live trading
-
-**Current Blocker:** meta_006 blocked — need live BUY signals + closed trade outcomes before full hook chain validation. LiveTradingLoop is running but in IDLE_COLLECT mode (no active BUY signals in current session).
-
-**Next Step:** meta_006 — Integration test script: simulate closed trade outcomes to validate meta_labeler + hook_on_trade_closed end-to-end chain
-
----
-
-## 2026-05-20 10:00 UTC
-**Task:** meta_004 — Meta-Labeler Core Design + Implementation
-
-**Action:** Created `self_learn/meta_labeler.py` (270 lines) — Phase 2 core decision engine.
-
-**Architecture:**
-- `Decision` enum: `CONFIRM` / `REJECT` / `REVERSE` / `NO_DATA`
-- `SignalContext`: input dataclass (symbol, action, entry_price, predicted_price, confidence)
-- `MetaDecision`: output dataclass (decision, confidence, reason, overrides_base_signal)
-- `should_take_trade()`: public API — main entry point
-- `evaluate_signal()`: core logic with 4 branches (high confidence override, confirm, reverse, reject)
-- `evaluate_open_signals()`: batch audit of open signals
-- `get_meta_stats()`: system readiness summary
-
-**Thresholds (via env vars):**
-- `META_DIR_ACC_CONFIRM` = 0.55
-- `META_DIR_ACC_REVERSE` = 0.40
-- `META_MAE_CONFIRM` = 5.0
-- `META_CONFIDENCE_OVERRIDE` = 0.80
-
-**Verification:**
-```
-py_compile: OK
-Import: OK
-get_meta_stats(): db_predictions=29390, db_signals=5, db_open=5, db_closed=0, db_outcomes=0
-should_take_trade() test: Decision=NO_DATA (correct — no closed trades to compute accuracy)
-```
-
-**DB State:** Predictions 29,390 | Signals 5 (all OPEN) | Outcomes 0
-
-**Current Blocker:** meta_011 blocked — cannot train meta-label model until we have ≥20 closed trade outcomes. LiveTradingLoop needs actual trades closing.
-
-**Next Step:** meta_005 — Add unit tests for meta_labeler.py; then await live trades for real evaluation
-
----
-
-## 2026-05-20 09:00 UTC
-**Task:** meta_003 — `on_trade_closed` Signature Fix
-
-**Issue:** `main_loop.py` calls `on_trade_closed()` at L2369 and L2528 with 6 arguments including `prediction_error`, but `feedback.py:on_trade_closed()` only accepted 5 parameters — missing `prediction_error`.
-
-**Root Cause:** The `prediction_error` parameter was added to the main_loop call site but the function signature in `feedback.py` was never updated to match.
-
-**Fix Applied:**
-```python
-# self_learn/feedback.py — on_trade_closed signature
-def on_trade_closed(
-    signal_id: str,
-    exit_price: float,
-    pnl: float,
-    pnl_pct: float,
-    hold_minutes: int,
-    prediction_error: float | None = None,  # ← ADDED
-) -> dict:
-```
-
-**Verification:**
-```
-Updated signature: (signal_id: str, exit_price: float, pnl: float, pnl_pct: float, hold_minutes: int, prediction_error: float | None = None) -> dict
-Call succeeded: {'signal_id': 'test-sig-id', 'exit_price': 100.0, 'pnl': 10.0, 'pnl_pct': 1.0, 'hold_minutes': 30, 'closed_at': '...'}
-```
-
-**Files Modified:**
-- `self_learn/feedback.py` — added `prediction_error: float | None = None` parameter + pass-through to `_record_outcome()`
-
-**DB State:**
-- Predictions: 29,170
-- Signals: 5 (all OPEN — 3 NULL pred_id, 2 linked)
-- Outcomes: 0 (no trades closed in current session)
-
-**Next Step:** meta_004 — Investigate why no trades are closing (need active live trading session with completed trades to test the full hook chain)
-
----
-
-## 2026-05-19 12:00 UTC
-**Task:** meta_002c/002d — Hook Chain Verification + New Diagnostic Script
-
-**Action:** Created `self_learn/scripts/diagnose_self_learn_hooks.py` — comprehensive hook diagnostic.
-
-**DB State (live at 12:00):**
-- Predictions: 12,218
-- Signals: 4 (1 linked with prediction_id, 3 old test data with NULL)
-- Outcomes: 0
-- `prediction_error` column exists in outcomes table ✓
-
-**Hook Verification Results:**
-All checks passed:
-1. ✓ self_learn module imports correctly
-2. ✓ self_learn.config loads (RETRAIN_MIN_OUTCOMES=100, RETRAIN_INTERVAL_HOURS=4)
-3. ✓ DB schema valid — `prediction_error` column present
-4. ✓ `hook_on_prediction` standalone works → returns valid UUID
-5. ✓ `hook_on_signal` standalone works → DB shows linked signal with prediction_id
-6. ✓ LiveTradingLoop import successful (config issue only, non-blocking)
-
-**Root Cause Confirmed:**
-`hook_on_signal` and `hook_on_prediction` BOTH work correctly in isolation.
-The issue is that `v3_live.log` shows NO `[SELFLEARN]` logs — meaning the main_loop
-is running in IDLE_COLLECT mode and not generating BUY signals in this session.
-
-**Files Created:**
-- `self_learn/scripts/diagnose_self_learn_hooks.py` — comprehensive hook diagnostic
-
-**Current State:**
-- LiveTradingLoop running since May 17 (PID 2907479)
-- Running in SIMULATE mode (paper trading)
-- Currently in IDLE state, no active BUY signals generated
-- System is collecting data only — no trades triggered
-
-**Next Step:** meta_003 — Confirm `on_trade_closed` hook behavior (need active trades first)
-
----
-
-## 2026-05-19 11:00 UTC
-**Task:** meta_002c — Confirm DB state with diagnostic script
-
-**Action:** Created `self_learn/scripts/diagnose_signal_chain.py` — comprehensive DB diagnostic.
-
-**DB State (live):**
-- Predictions: 11,589（2026-05-18~19）
-- Signals: 3（全 NULL prediction_id）
-- Outcomes: 0
-- Same symbols (0005.HK, 0700.HK etc.) have predictions but signals have NULL prediction_id
-
-**Root Cause Confirmed:** `hook_on_signal` in `feedback.py` not being called from `LiveTradingLoop`, OR `log_signal` called without `prediction_id`. The `prediction_id` lookup from `_pred_id_by_symbol` is correct in code, but appears to always return `None` at signal time.
-
-**Files Created:**
-- `self_learn/scripts/diagnose_signal_chain.py` — DB + hook chain verifier
-
-**Next Step:** meta_002d — Create minimal test to verify `hook_on_signal` with prediction_id works end-to-end
-
----
-
-## 2026-05-19 10:00 UTC
-**Task:** meta_002a — Signal Chain Diagnosis
-
-**Issue:** trading_bot.db has ~10,890 predictions but 0 linked signals (all prediction_id=NULL)
-
-**Investigation:**
-1. `diagnose_signal_chain.py` — confirms DB state, hook calls
-2. `diagnose_pred_id_tracking.py` — deep code analysis
-
-**Findings:**
-- Predictions table: 10,890 records, all have valid UUID IDs ✓
-- Signals table: 3 records (test artifacts), all prediction_id=NULL
-- main_loop.py has correct hook calls at L1534 (BUY) and L2348 (SHORT)
-- _pred_id_by_symbol stored at L792 after hook_on_prediction
-- Both store and retrieve are single points — no branching issues
-
-**Root Cause (probable):**
-`hook_on_prediction` at L782-789 is wrapped in try/except that silently passes.
-If self_learn import fails or hook returns None, _pred_id_for_signal = None.
-Then at signal time, _pred_id_by_symbol.get(symbol) returns None.
-
-**Next Step:** meta_002b — Confirm via v3_live.log whether [SELFLEARN] pred_id= logs show valid IDs
-
-**Files Created:**
-- `dev/meta_labeling/scripts/diagnose_signal_chain.py` — DB + hook call checker
-- `dev/meta_labeling/scripts/diagnose_pred_id_tracking.py` — code flow tracer
-
----
-**Task:** meta_001 — Schema Synchronization Fix  
-**Issue:** `self_learn.feedback` cron failing with `no such column: outcomes.prediction_error`  
-**Root Cause:** `models.py:Outcome` ORM model added `prediction_error` column (2026-04-23) but:
-- `schema.py` (raw SQLite schema definition) was missing the column
-- `trading_bot.db` (SQLAlchemy-managed DB) already had the column (was added somehow)
-- `self_learn.db` (raw SQLite DB) had 0 records and wrong schema
-
-**Fix Applied:**
-1. `schema.py`: Added `prediction_error REAL` to `CREATE TABLE outcomes` (line 45)
-2. `trading_bot.db`: Column already existed — confirmed with `PRAGMA table_info(outcomes)`
-3. Verified: `get_stats()` and `get_prediction_accuracy()` now work without errors
-
-**Verification:**
-```bash
-cd /home/tsukii0607/.openclaw/workspace-quant/kiro-quant-v3
-PYTHONPATH=. python3 -c "
-from self_learn.models import get_stats, get_prediction_accuracy
-stats = get_stats()
-print(f'predictions={stats[\"total_predictions\"]}, signals={stats[\"total_signals\"]}, closed={stats[\"closed_signals\"]}')
-mae, da = get_prediction_accuracy('NVDA', 20)
-print(f'MAE={mae}, DirAcc={da}')
-"
-# Result: predictions=10606, signals=0, closed=0, MAE=0.0, DirAcc=0.5 (expected defaults)
-```
-
-**Files Modified:**
-- `self_learn/schema.py` — added `prediction_error REAL` to outcomes table schema
-
-**Next Step:** meta_002 — Investigate why signals=0 and outcomes=0 despite 10606 predictions in DB
-
----
----
-
-## 2026-05-21 10:00 UTC
-**Task:** meta_011_prep — Training Readiness Check Script
-
-**Action:** Created `self_learn/scripts/check_training_readiness.py` — pre-flight diagnostic for meta-labeling training pipeline.
-
-**Purpose:** Answer the question "are we ready to run meta-model training?" without touching live trading. Reports current state vs. thresholds.
-
-**Checks performed:**
-1. `closed_signals >= 100` (RETRAIN_MIN_OUTCOMES from config.py)
-2. `outcomes >= 100`
-3. `symbols_with_history >= 3`
-
-**DB State (2026-05-21 10:00 UTC):**
-| Metric | Current | Required | OK? |
-|--------|---------|----------|-----|
-| closed_signals | 0 | ≥100 | ❌ |
-| total_outcomes | 0 | ≥100 | ❌ |
-| symbols_with_history | 0 | ≥3 | ❌ |
-
-**Result:** NOT READY — blocked by all three conditions.
-
-**Root Cause:** LiveTradingLoop is running in IDLE_COLLECT/SIMULATE mode with no BUY signals triggering trades. 2900 OPEN signals exist but none have closed — no outcomes recorded.
-
-**Files Created:**
-- `self_learn/scripts/check_training_readiness.py` — standalone read-only diagnostic
-
-**Verification:**
-```bash
-cd kiro-quant-v3
-PYTHONPATH=. python3 self_learn/scripts/check_training_readiness.py
-# py_compile: OK
-# Result: exit code 1, JSON report shows ready=False
-```
-
-**Current Blocker:** meta_012 — need ≥100 closed trade outcomes. LiveTradingLoop must generate AND close real trades.
-
-**Next Step:** Continue monitoring via hourly cron. When LiveTradingLoop starts generating actual trades, `check_training_readiness.py` will return ready=True and we can proceed to meta_012 (integrating meta_labeler into live signal evaluation).
-
----
-
-## 2026-05-21 09:00 UTC
-**Task:** meta_007 — Evaluate Open Signals Script
-
-**Action:** Created `self_learn/scripts/evaluate_open_signals.py` — batch audit script for OPEN signals.
-
-**Features:**
-- Reads all OPEN signals from DB (uses SQLAlchemy join to avoid N+1 lazy loading)
-- Evaluates each with `meta_labeler.should_take_trade()`
-- Reports: Decision (CONFIRM/REJECT/REVERSE/NO_DATA), confidence, reason
-- Summary stats grouped by decision type
-
-**DB State (2026-05-21 09:00):**
-- Predictions: 47,566
-- Signals: 2,841 (all OPEN, all have entry_price but prediction_id=NULL → legacy data)
-- Outcomes: 0
-- Ready for training: False (needs ≥20 closed outcomes)
-
-**Result:**
-```
-Sample: 100 signals
-  CONFIRM:   0 ( 0.0%)
-  REJECT:   0 ( 0.0%)
-  REVERSE:  0 ( 0.0%)
-  NO_DATA:100 (100.0%)
-```
-
-**Key Finding:**
-- All signals return NO_DATA because there are NO closed trades (outcomes=0)
-- Without historical outcomes, meta-labeler cannot compute directional accuracy
-- 2841 signals have NULL prediction_id — likely stored before hooking was active
-
-**Root Cause of meta_011 Block:**
-- LiveTradingLoop has 2841 open signals but ZERO closed trades
-- Cannot train meta-model until trades close and record outcomes
-- `on_trade_closed` hook exists and works (verified in meta_006)
-- But no trades have reached close in current session
-
-**Files Created:**
-- `self_learn/scripts/evaluate_open_signals.py` — executable audit script
-
-**Verification:**
-```bash
-cd /home/tsukii0607/.openclaw/workspace-quant/kiro-quant-v3
-PYTHONPATH=. python3 self_learn/scripts/evaluate_open_signals.py
-# py_compile OK, runs correctly
-```
-
-**Current Blocker:** meta_011 — Need ≥20 live closed trade outcomes
-- Requires: LiveTradingLoop to generate AND close trades in live session
-- Current: Only 2841 OPEN signals, 0 CLOSED outcomes
-
-**Next Step (if user approved):** Await live trades to close, OR seed synthetic outcomes to test training pipeline
-
----
-
-## 2026-05-21 11:00 UTC
-**Task:** meta_quality_report — Meta-Labeling Prediction Quality Diagnostic
-
-**Action:** Created `self_learn/scripts/meta_quality_report.py` — comprehensive prediction quality distribution report.
-
-**Purpose:** Provide visibility into the prediction data landscape while we await live closed trades. Answers:
-- How many predictions do we have per symbol?
-- What is the confidence distribution?
-- How many predictions are linked to signals?
-- What is the prediction_error fill rate in outcomes?
-
-**DB State (2026-05-21 11:00 UTC):**
-| Metric | Value |
-|--------|-------|
-| predictions | 48,602 |
-| signals_total | 3,083 |
-| signals_open | 3,083 |
-| signals_closed | 0 |
-| outcomes | 0 |
-| unique symbols | 70 |
-
-**Key Findings:**
-- 70 unique symbols have predictions
-- 64 symbols have at least one linked signal
-- Top symbols (TSLA 821, AAPL 818, ABBV 816) have high avg confidence (0.67–0.97)
-- 0 outcomes exist — meta-labeling still blocked
-- 3,083 OPEN signals but 0 CLOSED — no trade close events in current session
-
-**Meta-Labeling Readiness:**
-- blocked_by_no_outcomes: true
-- predictions_available: true (48,602)
-- confidence_data_available: true
-- outcomes_target: 100
-
-**Files Created:**
-- `self_learn/scripts/meta_quality_report.py` — standalone read-only diagnostic
-
-**Verification:**
-```bash
-cd kiro-quant-v3
-PYTHONPATH=. python3 self_learn/scripts/meta_quality_report.py
-# py_compile: OK
-# Exit: 0, JSON report generated
-```
-
-**Current Blocker:** meta_012 blocked — need ≥100 closed trade outcomes.
-LiveTradingLoop is running with 3,083 OPEN signals but no closed trades yet.
-
-**Next Step:** Continue hourly monitoring. When LiveTradingLoop starts closing trades,
-`check_training_readiness.py` will transition to ready=True and meta_012 can proceed.
-
----
-
-## 2026-05-21 12:00 UTC
-**Task:** meta_012a — Decision Matrix Documentation
-
-**Action:** Created `dev/meta_labeling/META_012_DECISION_MATRIX.md` — comprehensive decision matrix for meta_012 live integration.
-
-**Purpose:** Document the exact conditions under which meta_labeler should override, reject, or reverse base strategy signals. Serves as the integration specification for when we have enough closed trade outcomes.
-
-**Key Sections:**
-1. **Threshold Constants**: DIR_ACC_CONFIRM=0.55, DIR_ACC_REVERSE=0.40, MAE_CONFIRM=5.0, CONFIDENCE_OVERRIDE=0.80
-2. **Decision Logic Flow**: ASCII flow chart from base signal → compute accuracy → 4-way branch
-3. **Decision Outcomes Table**: CONFIRM/REJECT/REVERSE/NO_DATA with trigger conditions
-4. **Override Behavior**: Confidence override logic + reversal confidence scaling formula
-5. **Live Integration Hook Points**: Code examples for main_loop.py integration
-6. **Backtesting Requirement**: Must run backtest simulation before enabling live override
-7. **Blocker Resolution Path**: 4-step path from current state to live integration
-
-**Current Blocker:** meta_012b blocked — need ≥100 closed trade outcomes.
-LiveTradingLoop has 3,274 OPEN signals but 0 CLOSED — no trade close events in current session.
-
-**DB State (2026-05-21 12:00 UTC):**
-| Metric | Value |
-|--------|-------|
-| predictions | 49,248 |
-| signals_total | 3,274 |
-| signals_open | 3,274 |
-| signals_closed | 0 |
-| outcomes | 0 |
-| unique symbols | 70 |
-
-**Files Created:**
-- `dev/meta_labeling/META_012_DECISION_MATRIX.md` — integration specification document
-
-**Verification:**
-```bash
-python3 -m py_compile self_learn/meta_labeler.py
-# OK — no changes to code, only documentation
-```
-
-**Next Step:** meta_012b — Await live closed trades (≥100 outcomes). When `check_training_readiness.py` returns ready=True, run backtest simulation before proposing user approval for live override.
-
----
+# Meta-labeling Devlog
+
+## 2026-06-11 12:02:00 CST — meta_069 report launch/missing-script failure fixture
+
+- Hardened `self_learn/scripts/meta_064_cron_safety_summary_smoke.py` so missing compact report scripts and Python/report launch failures are converted into a conservative operator-visible summary.
+- New launch-failure output emits `alert=critical_compact_report_launch_failed`, keeps `enforcement_safe=false`, recommends keeping enforcement disabled, includes `compact_safety_payload_malformed:report_launch_failed:*`, and formats `live_trading_changes=unexpected`.
+- Extended `tests/test_meta_064_cron_safety_summary_smoke.py` with read-only fixtures for missing report script and missing Python executable; strict smoke mode returns exit code `2` for these critical conditions.
+- Updated `dev/meta_labeling/PLAN.md` with `meta_070` as the next small read-only timeout handling guard fixture step.
+- Observed live read-only cron consumer result remains expected shadow-blocked: `alert=expected_shadow_blocked`, `enforcement_safe=false`, `real_source_verified=false`, eligible real outcomes `0/100`; blockers were `insufficient_eligible_real_outcomes:0/100` and `meta_label_source_not_ok_events:1922`.
+- Verification:
+  - `python3 -m py_compile self_learn/scripts/meta_064_cron_safety_summary_smoke.py tests/test_meta_064_cron_safety_summary_smoke.py`
+  - `python3 -m pytest -q tests/test_meta_064_cron_safety_summary_smoke.py` → `11 passed in 0.19s`
+  - `python3 -m pytest -q tests/test_meta_058_daily_health_report.py tests/test_meta_064_cron_safety_summary_smoke.py` → `14 passed in 0.25s`
+  - `python3 self_learn/scripts/meta_064_cron_safety_summary_smoke.py --days 1 --min-eligible-outcomes 100` → one-line `META_LABEL_CRON_CONSUMER ... live_trading_changes=false`
+- Live trading/risk logic changed: **No**.
+- Next: `meta_070_cron_consumer_report_timeout_fixture` — add a read-only fixture for compact report timeout handling.
+
+## 2026-06-11 11:02:10 CST — meta_068 report subprocess failure fixture
+
+- Hardened `self_learn/scripts/meta_064_cron_safety_summary_smoke.py` so a failing compact safety report subprocess is converted into a conservative operator-visible summary instead of crashing without a `META_LABEL_CRON_CONSUMER` line.
+- New failure output emits `alert=critical_compact_report_failed`, keeps `enforcement_safe=false`, recommends keeping enforcement disabled, includes `compact_safety_payload_malformed:report_subprocess_failed:exit_<code>`, and formats `live_trading_changes=unexpected`.
+- Extended `tests/test_meta_064_cron_safety_summary_smoke.py` with a read-only fake report fixture that exits non-zero; strict smoke mode returns exit code `2` for this critical condition.
+- Updated `dev/meta_labeling/PLAN.md` with `meta_069` as the next small read-only launch/missing-script failure guard fixture step.
+- Observed live read-only cron consumer result remains expected shadow-blocked: `alert=expected_shadow_blocked`, `enforcement_safe=false`, `real_source_verified=false`, eligible real outcomes `0/100`; blockers were `insufficient_eligible_real_outcomes:0/100` and `meta_label_source_not_ok_events:1745`.
+- Verification:
+  - `python3 -m py_compile self_learn/scripts/meta_064_cron_safety_summary_smoke.py tests/test_meta_064_cron_safety_summary_smoke.py`
+  - `python3 -m pytest -q tests/test_meta_064_cron_safety_summary_smoke.py` → `9 passed in 0.17s`
+  - `python3 -m pytest -q tests/test_meta_058_daily_health_report.py tests/test_meta_064_cron_safety_summary_smoke.py` → `12 passed in 0.28s`
+  - `python3 self_learn/scripts/meta_064_cron_safety_summary_smoke.py --days 1 --min-eligible-outcomes 100` → one-line `META_LABEL_CRON_CONSUMER ... live_trading_changes=false`
+- Live trading/risk logic changed: **No**.
+- Next: `meta_069_cron_consumer_report_launch_failure_fixture` — add a read-only fixture for report launch/missing-script failure handling.
+
+## 2026-06-11 10:01:11 CST — meta_067 malformed compact payload fixtures
+
+- Hardened `self_learn/scripts/meta_064_cron_safety_summary_smoke.py` so malformed compact safety JSON and non-object JSON payloads are converted into a conservative synthetic summary instead of crashing without an operator line.
+- The malformed summary emits `alert=critical_compact_payload_malformed`, keeps `enforcement_safe=false`, recommends keeping enforcement disabled, and formats `live_trading_changes=unexpected` for visibility.
+- Extended `tests/test_meta_064_cron_safety_summary_smoke.py` with read-only regression fixtures for non-object compact JSON and invalid JSON output; strict smoke mode returns exit code `2` for both cases.
+- Updated `dev/meta_labeling/PLAN.md` with `meta_068` as the next small read-only guard fixture step.
+- Observed live read-only cron consumer result remains expected shadow-blocked: `alert=expected_shadow_blocked`, `enforcement_safe=false`, `real_source_verified=false`, eligible real outcomes `0/100`; blockers were `insufficient_eligible_real_outcomes:0/100` and `meta_label_source_not_ok_events:1620`.
+- Verification:
+  - `python3 -m py_compile self_learn/scripts/meta_064_cron_safety_summary_smoke.py tests/test_meta_064_cron_safety_summary_smoke.py`
+  - `python3 -m pytest -q tests/test_meta_064_cron_safety_summary_smoke.py` → `8 passed in 0.16s`
+  - `python3 -m pytest -q tests/test_meta_058_daily_health_report.py tests/test_meta_064_cron_safety_summary_smoke.py` → `11 passed in 0.24s`
+  - `python3 self_learn/scripts/meta_064_cron_safety_summary_smoke.py --days 1 --min-eligible-outcomes 100` → one-line `META_LABEL_CRON_CONSUMER ... live_trading_changes=false`
+- Live trading/risk logic changed: **No**.
+- Next: `meta_068_cron_consumer_report_subprocess_failure_fixture` — add a read-only fixture for compact report subprocess failure handling.
+
+## 2026-06-11 09:01:29 CST — meta_066 missing/non-boolean live-trading flag fixtures
+
+- Extended `tests/test_meta_064_cron_safety_summary_smoke.py` with read-only regression fixtures for compact safety payloads where `live_trading_changes` is missing or a non-boolean string.
+- Both fixtures prove the cron/operator consumer emits `alert=critical_live_trading_flag_unexpected`, formats the flag as `live_trading_changes=unexpected`, and returns strict smoke exit code `2` without changing runtime behavior.
+- Updated `dev/meta_labeling/PLAN.md` with `meta_067` as the next small read-only guard fixture step.
+- Observed live read-only cron consumer result remains expected shadow-blocked: `alert=expected_shadow_blocked`, `enforcement_safe=false`, `real_source_verified=false`, eligible real outcomes `0/100`; blockers were `insufficient_eligible_real_outcomes:0/100` and `meta_label_source_not_ok_events:1486`.
+- Verification:
+  - `python3 -m py_compile tests/test_meta_064_cron_safety_summary_smoke.py self_learn/scripts/meta_064_cron_safety_summary_smoke.py`
+  - `python3 -m pytest -q tests/test_meta_064_cron_safety_summary_smoke.py` → `6 passed in 0.12s`
+  - `python3 -m pytest -q tests/test_meta_058_daily_health_report.py tests/test_meta_064_cron_safety_summary_smoke.py` → `9 passed in 0.19s`
+  - `python3 self_learn/scripts/meta_064_cron_safety_summary_smoke.py --days 1 --min-eligible-outcomes 100` → one-line `META_LABEL_CRON_CONSUMER ... live_trading_changes=false`
+- Live trading/risk logic changed: **No**.
+- Next: `meta_067_cron_consumer_malformed_non_object_payload_fixture` — add a read-only fixture for malformed/non-object compact safety payload handling.
+
+## 2026-06-08 12:01:36 CST — meta_065 cron live-trading flag guard fixture
+
+- Hardened `self_learn/scripts/meta_064_cron_safety_summary_smoke.py` so cron/operator output no longer hardcodes `live_trading_changes=false`; unexpected payload values now classify as `critical_live_trading_flag_unexpected` and show the actual `live_trading_changes=true`/`unexpected` token.
+- Extended `tests/test_meta_064_cron_safety_summary_smoke.py` with a read-only regression fixture proving an unexpected `live_trading_changes=True` compact payload triggers critical alert formatting and strict smoke exit code `2`.
+- Updated `dev/meta_labeling/PLAN.md` with `meta_066` as the next small read-only guard fixture step.
+- Observed live read-only cron consumer result remains expected shadow-blocked: `alert=expected_shadow_blocked`, `enforcement_safe=false`, `real_source_verified=false`, eligible real outcomes `0/100`; blockers were `insufficient_eligible_real_outcomes:0/100` and `meta_label_source_not_ok_events:2778`.
+- Verification:
+  - `python3 -m py_compile self_learn/scripts/meta_064_cron_safety_summary_smoke.py tests/test_meta_064_cron_safety_summary_smoke.py`
+  - `python3 -m pytest -q tests/test_meta_064_cron_safety_summary_smoke.py` → `4 passed in 0.08s`
+  - `python3 -m pytest -q tests/test_meta_058_daily_health_report.py tests/test_meta_064_cron_safety_summary_smoke.py` → `7 passed in 0.16s`
+  - `python3 self_learn/scripts/meta_064_cron_safety_summary_smoke.py --days 1 --min-eligible-outcomes 100` → one-line `META_LABEL_CRON_CONSUMER ... live_trading_changes=false`
+- Live trading/risk logic changed: **No**.
+- Next: `meta_066_cron_consumer_missing_non_boolean_live_trading_flag_fixture` — add a read-only fixture for missing/non-boolean live-trading flag payloads in cron/reporting summaries.
+
+## 2026-06-08 11:02:47 CST — meta_064 cron compact safety summary consumer
+
+- Added `self_learn/scripts/meta_064_cron_safety_summary_smoke.py`, a read-only cron/operator smoke wrapper that runs `meta_058_daily_health_report.py --safety-summary json`, parses the compact safety payload, and emits one grep/chat-friendly `META_LABEL_CRON_CONSUMER ... live_trading_changes=false` line.
+- Default exit remains `0` even for expected shadow-mode blockers so scheduled reporting does not fail noisily; `--strict-alert-exit` is available only for explicit operator smoke checks.
+- Added `tests/test_meta_064_cron_safety_summary_smoke.py` covering expected shadow-blocked formatting, opt-in strict non-zero behavior, and the safe-consideration info classification.
+- Updated `dev/meta_labeling/PLAN.md` with `meta_065` as the next read-only guard fixture step.
+- Observed live read-only cron consumer result: `alert=expected_shadow_blocked`, `enforcement_safe=false`, `real_source_verified=false`, eligible real outcomes `0/100`; blockers were `insufficient_eligible_real_outcomes:0/100` and `meta_label_source_not_ok_events:2753`.
+- Verification:
+  - `python3 -m py_compile self_learn/scripts/meta_064_cron_safety_summary_smoke.py tests/test_meta_064_cron_safety_summary_smoke.py`
+  - `python3 -m pytest -q tests/test_meta_064_cron_safety_summary_smoke.py` → `3 passed in 0.06s`
+  - `python3 -m pytest -q tests/test_meta_058_daily_health_report.py tests/test_meta_064_cron_safety_summary_smoke.py` → `6 passed in 0.14s`
+  - `python3 self_learn/scripts/meta_064_cron_safety_summary_smoke.py --days 1 --min-eligible-outcomes 100` → one-line `META_LABEL_CRON_CONSUMER ... live_trading_changes=false`
+- Live trading/risk logic changed: **No**.
+- Next: `meta_065_cron_consumer_live_trading_flag_guard_fixture` — add one more read-only regression guard for unexpected `live_trading_changes` classification.
+
+## 2026-06-08 10:02:58 CST — meta_063 compact safety summary CLI mode
+
+- Updated `self_learn/scripts/meta_058_daily_health_report.py` with `--safety-summary json|text`, printing only the compact read-only meta-label safety verdict instead of the full daily report when requested.
+- Added helper functions for a compact JSON payload and grep-friendly one-line text output; both explicitly report `live_trading_changes=false` and do not touch DB/config/model/runtime logic.
+- Extended `tests/test_meta_058_daily_health_report.py` with regression coverage for the compact payload and text formatting.
+- Observed live read-only compact result: `enforcement_safe=false`, recommendation `keep_meta_label_enforcement_disabled`; blockers were `insufficient_eligible_real_outcomes:0/100` and `meta_label_source_not_ok_events:2720`; 1-day telemetry had `meta_label_gate=2720`, `trade_quality_gate=3889`, and eligible real outcomes remained `0` with `source_counts={"synthetic_seed": 100}`.
+- Verification:
+  - `python3 -m py_compile self_learn/scripts/meta_058_daily_health_report.py tests/test_meta_058_daily_health_report.py`
+  - `python3 -m pytest -q tests/test_meta_058_daily_health_report.py` → `3 passed in 0.12s`
+  - `python3 self_learn/scripts/meta_058_daily_health_report.py --days 1 --min-eligible-outcomes 100 --safety-summary text` → one-line `META_LABEL_SAFETY ... live_trading_changes=false`
+  - `python3 self_learn/scripts/meta_058_daily_health_report.py --days 1 --min-eligible-outcomes 100 --safety-summary json` → compact JSON report returned `ok=true`, `enforcement_safe=false`, `live_trading_changes=false`
+- Live trading/risk logic changed: **No**.
+- Next: `meta_064_compact_safety_summary_cron_consumption_example` — add a small operator-facing snippet or smoke-test wrapper for consuming the compact summary while keeping it read-only.
+
+## 2026-06-08 09:00:24 CST — meta_062 daily health safety-check integration
+
+- Updated `self_learn/scripts/meta_058_daily_health_report.py` so the existing compact daily health report now embeds `meta_label_safety_summary` from the read-only `meta_061` safety check.
+- Added `tests/test_meta_058_daily_health_report.py` covering both current blocked conditions (`source_ok=false`, insufficient eligible real outcomes) and the only safe-consideration path (shadow meta gate + verified paper/live provenance).
+- Observed live read-only result: `enforcement_safe=false`, recommendation `keep_meta_label_enforcement_disabled`; blockers were `insufficient_eligible_real_outcomes:0/100` and `meta_label_source_not_ok_events:2697`; 1-day telemetry had `meta_label_gate=2697`, `trade_quality_gate=3707`, and eligible real outcomes remained `0` with `source_counts={"synthetic_seed": 100}`.
+- Verification:
+  - `python3 -m py_compile self_learn/scripts/meta_058_daily_health_report.py self_learn/scripts/meta_061_shadow_provenance_safety_check.py tests/test_meta_058_daily_health_report.py`
+  - `python3 -m pytest -q tests/test_meta_058_daily_health_report.py tests/test_meta_061_shadow_provenance_safety_check.py` → `4 passed in 0.12s`
+  - `python3 self_learn/scripts/meta_058_daily_health_report.py --days 1 --min-eligible-outcomes 100` → JSON report returned `ok=true`, `live_trading_changes=false`, `enforcement_safe=false`
+- Live trading/risk logic changed: **No**.
+- Next: `meta_063_daily_health_cli_compact_safety_summary` — add a small CLI-friendly compact output mode for this safety verdict while keeping all checks read-only.
+
+## 2026-06-05 12:01:57 CST — meta_061 read-only shadow/provenance safety check
+
+- Added `self_learn/scripts/meta_061_shadow_provenance_safety_check.py` as a read-only guardrail report combining `meta_056` gate telemetry with `meta_059` immutable provenance review.
+- Added `tests/test_meta_061_shadow_provenance_safety_check.py` covering both blocked current-state conditions (`source_ok=false`, insufficient eligible real outcomes) and the only safe-consideration path (shadow meta gate + verified paper/live provenance).
+- Observed live read-only result: `enforcement_safe=false`, recommendation `keep_meta_label_enforcement_disabled`; blockers were `insufficient_eligible_real_outcomes:0/100` and `meta_label_source_not_ok_events:1037`; 1-day telemetry had `meta_label_gate=1037` all `NO_DATA` and `trade_quality_gate=2418`.
+- Verification:
+  - `python3 -m py_compile self_learn/scripts/meta_061_shadow_provenance_safety_check.py tests/test_meta_061_shadow_provenance_safety_check.py self_learn/scripts/meta_056_gate_shadow_audit.py self_learn/scripts/meta_059_provenance_rows_review.py`
+  - `python3 -m pytest -q tests/test_meta_061_shadow_provenance_safety_check.py` → `2 passed in 0.07s`
+  - `python3 self_learn/scripts/meta_061_shadow_provenance_safety_check.py --days 1 --min-eligible-outcomes 100` → JSON report returned `ok=true`, `live_trading_changes=false`
+- Live trading/risk logic changed: **No**.
+- Next: `meta_062_daily_health_safety_check_integration` — integrate this safety verdict into the compact daily health wrapper while keeping all checks read-only.
+
+## 2026-06-05 11:00:57 CST — meta_060 provenance review fixture test
+
+- Added `tests/test_meta_059_provenance_rows_review.py` as a regression fixture for provenance eligibility classification.
+- Covered the key safety cases: `synthetic_seed` rows with migration `provenance_meta` stay `non_real_or_synthetic`; `paper_broker` with `broker_order_id` is eligible; `live_broker` with `provenance_meta` is eligible; `paper_broker` without evidence is `real_source_missing_evidence`; missing source stays non-eligible even with a broker id; legacy schema without provenance columns remains blocked.
+- Updated `dev/meta_labeling/PLAN.md` with the next placeholder read-only safety step (`meta_061`) so the hourly loop has a safe follow-up after meta_060.
+- Verification:
+  - `python3 -m py_compile tests/test_meta_059_provenance_rows_review.py self_learn/scripts/meta_059_provenance_rows_review.py`
+  - `python3 -m pytest -q tests/test_meta_059_provenance_rows_review.py` → `2 passed in 0.08s`
+  - `python3 -m json.tool dev/meta_labeling/STATUS.json >/tmp/meta_status_check.json`
+- Live trading/risk logic changed: **No**.
+- Next: `meta_061_read_only_shadow_provenance_safety_check` — add/refine another small read-only shadow/provenance safety check based on latest telemetry.
+
+## 2026-06-05 10:03:28 CST — meta_059 provenance rows review
+
+- Added `self_learn/scripts/meta_059_provenance_rows_review.py` as a read-only SQLite provenance audit for `outcomes` rows.
+- The script uses immutable `mode=ro&immutable=1`, does not import live trading modules, and does not write DB/config/model artifacts.
+- Observed result: `ok=true`; `schema_ready=true`; `total_outcomes=100`; `source_counts={"synthetic_seed": 100}`; `recorded_by_counts={"seed_synthetic_outcomes_legacy": 100}`; eligible paper/live rows with broker evidence = `0`; `real_source_verified=false`.
+- Important nuance: all 100 rows have `provenance_meta` markers from the legacy synthetic migration, but none are `paper_broker` / `live_broker`, so they remain non-eligible for promotion/enforcement.
+- Verification:
+  - `python3 -m py_compile self_learn/scripts/meta_059_provenance_rows_review.py`
+  - `python3 self_learn/scripts/meta_059_provenance_rows_review.py --sample-limit 3` → JSON report returned `ok=true`
+  - `python3 -m json.tool dev/meta_labeling/STATUS.json >/tmp/meta_status_check.json`
+- Live trading/risk logic changed: **No**.
+- Next: `meta_060_provenance_review_fixture_test` — add a small regression fixture/test for provenance eligibility classification without touching runtime.
+
+## 2026-06-05 09:01:08 CST — meta_058 daily health report wrapper
+
+- Added `self_learn/scripts/meta_058_daily_health_report.py` as a compact read-only wrapper for hourly/daily meta-labeling telemetry.
+- Combines: prediction/gate health from `logs/decisions.jsonl`, `meta_056_gate_shadow_audit.py` shadow gate audit, immutable read-only `trading_bot.db` provenance eligibility, and latest `training_log.jsonl` metrics.
+- Observed `--days 1` result: report `ok=true`; `trade_quality_gate=1764`; `meta_label_gate=984`; meta-label remains `NO_DATA`; provenance `schema_ready=true` but `eligible_real_source_count=0` / `real_source_verified=false`; latest holdout accuracy `0.6`.
+- Verification:
+  - `python3 -m py_compile self_learn/scripts/meta_058_daily_health_report.py self_learn/scripts/meta_056_gate_shadow_audit.py`
+  - `python3 self_learn/scripts/meta_058_daily_health_report.py --days 1` → JSON report returned `ok=true`
+- Live trading/risk logic changed: **No**.
+- Next: `meta_059_provenance_rows_review` — review whether any true broker/paper provenance rows exist; keep meta gate in shadow/no-data until evidence is durable.
+
+## 2026-06-04 11:02:17 CST — meta_057 gate shadow audit fixture test
+
+- Added `tests/test_meta_056_gate_shadow_audit.py` as a parser regression fixture for the read-only shadow gate audit script.
+- Covered: malformed JSON lines ignored, malformed trade-quality score counted, HK/US market inference, shadow counts, decision/reason/symbol counters, `source_ok` counters, and missing-log response.
+- Verification:
+  - `python3 -m py_compile tests/test_meta_056_gate_shadow_audit.py self_learn/scripts/meta_056_gate_shadow_audit.py`
+  - `python3 -m pytest -q tests/test_meta_056_gate_shadow_audit.py` → `2 passed in 0.03s`
+- Live trading/risk logic changed: **No**.
+- Next: `meta_058_daily_health_report_wrapper` — add a compact daily health report wrapper combining prediction health + gate shadow audit + provenance eligibility.
+
+## 2026-06-04 10:03:58 CST — meta_056 gate shadow audit
+
+- Added `self_learn/scripts/meta_056_gate_shadow_audit.py` (read-only; no imports from live trading modules, no DB/config/model writes).
+- Purpose: summarize `trade_quality_gate` and `meta_label_gate` structured events from `logs/decisions.jsonl` so shadow gate telemetry can be tracked before any enforcement decision.
+- Verification:
+  - `python3 -m py_compile self_learn/scripts/meta_056_gate_shadow_audit.py`
+  - `python3 self_learn/scripts/meta_056_gate_shadow_audit.py --days 1`
+- Observed result: `trade_quality_gate=65`, `meta_label_gate=65`, all `shadow=true`; meta-label remains `NO_DATA` because `source_ok=false` / `insufficient_real_outcomes`.
+- Live trading/risk logic changed: **No**.
+- Next: `meta_057_gate_shadow_audit_fixture_test` — add a small parser regression fixture/test.

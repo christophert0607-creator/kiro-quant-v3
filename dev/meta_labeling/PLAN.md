@@ -1,35 +1,21 @@
-# Meta-Labeling Plan
+# Meta-labeling Dev Loop Plan
 
-## 目標
-建立 Meta-Labeling 系統：利用機器學習模型預測誤差（MAE/directional accuracy）來二次確認或否决 base strategy 產生的交易信號，減少假信號。
+Safety scope: only low-risk, reversible dev/test/reporting changes. Do not modify live trading or risk logic without explicit user approval.
 
-## 現況 (as of 2026-05-19)
-- **DB:** `trading_bot.db` (SQLAlchemy) — 10606 predictions, 0 signals, 0 outcomes
-- **Schema Issue:** `prediction_error` column 已修復（models.py vs schema.py 不一致）
-- **信號缺失:** LiveTradingLoop 似乎沒有成功寫入 signals 表
+## Current phase: shadow telemetry and promotion safety
 
-## Task List
-
-### Phase 1: 修復數據流問題
-- [ ] **meta_001** ✅ 修復 schema sync (`prediction_error` column)
-- [ ] **meta_002** 確認 LiveTradingLoop 的 `hook_on_signal` 為何 signals=0
-  - 檢查 `v3_pipeline/core/main_loop.py` 中信號記錄邏輯
-  - 確認信號是否被靜默捕獲（exception pass）
-- [ ] **meta_003** 確認 `on_trade_closed` hook 是否正常寫入 outcomes
-
-### Phase 2: Meta-Labeling 核心邏輯
-- [ ] **meta_010** 設計 meta-labeling 架構
-  - Input: base strategy signal + feature vector + prediction
-  - Output: confirm / reject / reverse
-- [ ] **meta_011** 實現 `meta_labeler.py` — 訓練 meta-label 模型
-  - 使用歷史 prediction_error 和實際 outcomes
-  - 特徵：RSI, MACD, volume, regime, prediction confidence
-- [ ] **meta_012** 實現決策邏輯：何時覆蓋 base signal
-
-### Phase 3: 回測驗證
-- [ ] **meta_020** 在 backtest engine 中模擬 meta-labeling 效果
-- [ ] **meta_021** 對比有/無 meta-labeling 的策略表現
-
-### Phase 4: 實盤整合
-- [ ] **meta_030** 將 meta-labeling 整合進 LiveTradingLoop
-- [ ] **meta_031** 設置監控 dashboard
+- meta_056: Add read-only gate shadow audit script for `trade_quality_gate` / `meta_label_gate` events in `logs/decisions.jsonl`.
+- meta_057: Add regression fixture/test for the gate shadow audit parser so future log-shape changes are caught without touching runtime.
+- meta_058: Add compact daily health report wrapper combining prediction health + gate shadow audit + provenance eligibility.
+- meta_059: Review whether any true broker/paper provenance rows exist; keep meta gate in shadow/no-data until evidence is durable.
+- meta_060: Add a small regression fixture/test for the provenance rows review eligibility classification (synthetic vs paper/live broker evidence) without touching runtime.
+- meta_061: Add a read-only shadow/provenance safety check that combines gate telemetry with immutable provenance review and returns a conservative enforcement verdict.
+- meta_062: Integrate the safety-check summary into the compact daily health report wrapper, keeping it read-only and runtime-neutral.
+- meta_063: Add a small CLI-friendly compact text/JSON summary mode for the daily health safety verdict, without changing enforcement/runtime logic.
+- meta_064: Add a small operator-facing example/snippet or smoke-test wrapper for consuming the compact safety summary in cron/reporting, keeping it read-only.
+- meta_065: Add one more regression guard for cron consumer alert classification when `live_trading_changes` is unexpectedly not false, keeping it read-only.
+- meta_066: Add a read-only regression fixture for missing/non-boolean `live_trading_changes` payload handling in cron/reporting summaries.
+- meta_067: Add a read-only regression fixture for malformed/non-object compact safety payload handling in cron/reporting summaries.
+- meta_068: Add a read-only regression fixture for compact report subprocess failure handling in cron/reporting summaries.
+- meta_069: Add a read-only regression fixture for compact report launch/missing-script failure handling in cron/reporting summaries.
+- meta_070: Add a read-only regression fixture for compact report timeout handling in cron/reporting summaries.

@@ -1,5 +1,5 @@
 {
-  "date": "2026-05-22",
+  "date": "2026-06-11",
   "daily_pnl": 0.0,
   "daily_trades": 0,
   "consecutive_errors": 0,
@@ -16,25 +16,25 @@
     "2018.HK": "BUY 25 @ 33.24 (swing_signal)",
     "2318.HK": "BUY 13 @ 63.03 (swing_signal)",
     "US.META": {
-      "time": 1779111132.9670925,
-      "signal": "SELL",
-      "qty": 362,
-      "price": 606.9299926757812,
-      "reason": "model_signal"
+      "time": 1781116308.3468785,
+      "signal": "BUY",
+      "qty": 16,
+      "price": 575.0999755859375,
+      "reason": "model_signal_conf=0.966"
     },
     "US.NVDA": {
-      "time": 1779460574.7378743,
-      "signal": "BUY",
-      "qty": 1,
-      "price": 216.32479858398438,
-      "reason": "model_signal_conf=1.000"
+      "time": 1780926780.5983913,
+      "signal": "SELL",
+      "qty": 45,
+      "price": 208.3300018310547,
+      "reason": "swing_signal"
     },
     "US.JPM": {
-      "time": 1778769531.6291525,
+      "time": 1780496670.734494,
       "signal": "SELL",
-      "qty": 176,
-      "price": 301.30999755859375,
-      "reason": "model_signal"
+      "qty": 134,
+      "price": 297.260009765625,
+      "reason": "max_hold_5_bars"
     },
     "US.PG": {
       "time": 1778087169.3063364,
@@ -44,11 +44,11 @@
       "reason": "model_signal_confirmed"
     },
     "US.HD": {
-      "time": 1778087169.8150837,
+      "time": 1780587085.2257147,
       "signal": "SELL",
-      "qty": 6,
-      "price": 323.6300048828125,
-      "reason": "model_signal_confirmed"
+      "qty": 320,
+      "price": 310.625,
+      "reason": "model_signal"
     },
     "US.MRK": {
       "time": 1778769301.7075675,
@@ -58,32 +58,32 @@
       "reason": "model_signal"
     },
     "US.INTC": {
-      "time": 1779460732.5118935,
-      "signal": "BUY",
-      "qty": 762,
-      "price": 121.77010345458984,
-      "reason": "model_signal_conf=0.988"
+      "time": 1781021246.754583,
+      "signal": "SELL",
+      "qty": 86,
+      "price": 103.5199966430664,
+      "reason": "quick_take_profit_0.0100"
     },
     "US.MSTR": {
-      "time": 1779111213.4075623,
+      "time": 1780839033.8812854,
       "signal": "SELL",
-      "qty": 5,
-      "price": 167.0,
-      "reason": "model_signal"
+      "qty": 385,
+      "price": 120.56999969482422,
+      "reason": "swing_signal"
     },
     "US.AMD": {
-      "time": 1779370739.7530785,
+      "time": 1780929873.2924552,
       "signal": "SELL",
-      "qty": 74,
-      "price": 445.30999755859375,
-      "reason": "model_signal"
+      "qty": 7,
+      "price": 488.55010986328125,
+      "reason": "max_hold_5_bars"
     },
     "US.QCOM": {
-      "time": 1779373922.0758653,
-      "signal": "SELL",
-      "qty": 17,
-      "price": 206.92999267578125,
-      "reason": "model_signal"
+      "time": 1781111803.0518296,
+      "signal": "BUY",
+      "qty": 46,
+      "price": 190.8115997314453,
+      "reason": "model_signal_conf=1.000"
     },
     "US.JNJ": {
       "time": 1778770232.7117207,
@@ -93,215 +93,364 @@
       "reason": "model_signal"
     },
     "US.AMZN": {
-      "time": 1779456792.919028,
-      "signal": "SELL",
-      "qty": 877,
-      "price": 269.3399963378906,
-      "reason": "model_signal"
+      "time": 1781115365.6925526,
+      "signal": "BUY",
+      "qty": 38,
+      "price": 239.2675018310547,
+      "reason": "model_signal_conf=1.000"
     },
     "US.SMCI": {
-      "time": 1779294351.8376892,
+      "time": 1781119350.9503427,
       "signal": "SELL",
-      "qty": 27,
-      "price": 33.3849983215332,
-      "reason": "swing_signal"
+      "qty": 232,
+      "price": 30.645000457763672,
+      "reason": "quick_take_profit_0.0100"
     },
     "US.NFLX": {
-      "time": 1779457186.8317525,
-      "signal": "SELL",
-      "qty": 28,
-      "price": 89.32499694824219,
-      "reason": "max_hold_5_bars"
+      "time": 1778772611.6800032,
+      "signal": "BUY",
+      "qty": 63,
+      "price": 87.79019927978516,
+      "reason": "swing_signal_conf=0.833"
     },
     "US.AMAT": {
-      "time": 1779462777.853575,
+      "time": 1778771383.7171228,
       "signal": "SELL",
-      "qty": 6,
-      "price": 433.7149963378906,
-      "reason": "swing_signal"
+      "qty": 79,
+      "price": 443.8299865722656,
+      "reason": "model_signal"
     },
     "US.ARM": {
-      "time": 1779111134.6542468,
+      "time": 1778778228.4355073,
       "signal": "SELL",
-      "qty": 306,
-      "price": 210.6800994873047,
-      "reason": "model_signal"
-    },
-    "HK.0700.HK": {
-      "time": 1779367531.0020547,
-      "signal": "BUY",
-      "qty": 100,
-      "price": 60.0,
-      "reason": "test"
-    },
-    "US.TSLA": {
-      "time": 1779367531.0048935,
-      "signal": "BUY",
-      "qty": 10,
-      "price": 200.0,
-      "reason": "test"
-    },
-    "US.ORCL": {
-      "time": 1779371201.2004817,
-      "signal": "SELL",
-      "qty": 262,
-      "price": 191.35000610351562,
-      "reason": "max_hold_5_bars"
-    },
-    "US.COIN": {
-      "time": 1779291213.9938512,
-      "signal": "SELL",
-      "qty": 299,
-      "price": 195.22500610351562,
-      "reason": "swing_signal"
-    },
-    "HK.3690.HK": {
-      "time": 1779374559.8111446,
-      "signal": "SELL",
-      "qty": 100,
-      "price": 83.0,
-      "reason": "model_signal"
-    },
-    "US.CRM": {
-      "time": 1779460026.5351882,
-      "signal": "BUY",
-      "qty": 4,
-      "price": 177.91000366210938,
-      "reason": "model_signal_conf=0.644"
-    },
-    "US.ADBE": {
-      "time": 1779456872.9208386,
-      "signal": "SELL",
-      "qty": 423,
-      "price": 247.2949981689453,
-      "reason": "swing_signal"
+      "qty": 2,
+      "price": 223.74000549316406,
+      "reason": "stop_loss_0.0200"
     },
     "US.IBM": {
-      "time": 1779290898.208277,
-      "signal": "SELL",
-      "qty": 631,
-      "price": 221.64999389648438,
-      "reason": "model_signal"
+      "time": 1781115976.774895,
+      "signal": "BUY",
+      "qty": 34,
+      "price": 274.7900085449219,
+      "reason": "swing_signal_conf=0.695"
     },
-    "US.ACN": {
-      "time": 1779457030.0446198,
+    "US.UNH": {
+      "time": 1780493720.6606581,
       "signal": "SELL",
-      "qty": 326,
-      "price": 179.9499969482422,
-      "reason": "max_hold_5_bars"
-    },
-    "US.UBER": {
-      "time": 1779290820.8650517,
-      "signal": "SELL",
-      "qty": 541,
-      "price": 74.67500305175781,
+      "qty": 98,
+      "price": 382.6700134277344,
       "reason": "swing_signal"
     },
-    "US.TSM": {
-      "time": 1779290898.7355928,
+    "US.ACN": {
+      "time": 1781113078.7885606,
       "signal": "SELL",
-      "qty": 88,
-      "price": 401.3699951171875,
+      "qty": 54,
+      "price": 170.8000030517578,
+      "reason": "quick_take_profit_0.0100"
+    },
+    "US.COIN": {
+      "time": 1780839119.791757,
+      "signal": "SELL",
+      "qty": 61,
+      "price": 152.5,
       "reason": "model_signal"
     },
-    "US.MA": {
-      "time": 1779290899.0127218,
+    "US.LLY": {
+      "time": 1780494116.773837,
       "signal": "SELL",
-      "qty": 36,
-      "price": 493.4800109863281,
-      "reason": "model_signal"
+      "qty": 270,
+      "price": 1070.0,
+      "reason": "max_hold_5_bars"
     },
-    "US.XOM": {
-      "time": 1779459230.3039057,
-      "signal": "BUY",
-      "qty": 65,
-      "price": 155.0,
-      "reason": "combined_signal_conf=0.686"
-    },
-    "US.CVX": {
-      "time": 1779293284.2249756,
+    "US.ABBV": {
+      "time": 1780494279.0946615,
       "signal": "SELL",
-      "qty": 1022,
-      "price": 193.5,
-      "reason": "model_signal"
+      "qty": 401,
+      "price": 216.5500030517578,
+      "reason": "max_hold_5_bars"
     },
-    "US.AAPL": {
-      "time": 1779370818.2444715,
+    "US.RTX": {
+      "time": 1780494866.9989383,
       "signal": "SELL",
       "qty": 5,
-      "price": 301.79998779296875,
+      "price": 174.61500549316406,
+      "reason": "max_hold_5_bars"
+    },
+    "US.ZS": {
+      "time": 1781098361.5583434,
+      "signal": "SELL",
+      "qty": 75,
+      "price": 123.08499908447266,
+      "reason": "quick_take_profit_0.0100"
+    },
+    "US.DASH": {
+      "time": 1781031770.8751287,
+      "signal": "SELL",
+      "qty": 87,
+      "price": 155.9600067138672,
+      "reason": "stop_loss_0.0200"
+    },
+    "US.VTI": {
+      "time": 1780495697.0565832,
+      "signal": "SELL",
+      "qty": 257,
+      "price": 372.60369873046875,
+      "reason": "max_hold_5_bars"
+    },
+    "US.PLTR": {
+      "time": 1780926549.8476655,
+      "signal": "SELL",
+      "qty": 70,
+      "price": 136.15960693359375,
+      "reason": "swing_signal"
+    },
+    "US.GE": {
+      "time": 1780497231.8160055,
+      "signal": "SELL",
+      "qty": 12,
+      "price": 314.20001220703125,
+      "reason": "max_hold_5_bars"
+    },
+    "US.SLV": {
+      "time": 1780497553.8365247,
+      "signal": "SELL",
+      "qty": 25,
+      "price": 66.6500015258789,
+      "reason": "max_hold_5_bars"
+    },
+    "US.TSLA": {
+      "time": 1781114945.5500352,
+      "signal": "BUY",
+      "qty": 23,
+      "price": 385.0400085449219,
+      "reason": "model_signal_conf=1.000"
+    },
+    "US.GOOGL": {
+      "time": 1780926294.8880725,
+      "signal": "SELL",
+      "qty": 121,
+      "price": 364.5899963378906,
+      "reason": "max_hold_5_bars"
+    },
+    "US.CRM": {
+      "time": 1781115281.8828068,
+      "signal": "BUY",
+      "qty": 55,
+      "price": 172.8249969482422,
+      "reason": "swing_signal_conf=0.745"
+    },
+    "US.ORCL": {
+      "time": 1781115894.7553065,
+      "signal": "BUY",
+      "qty": 47,
+      "price": 204.7100067138672,
+      "reason": "swing_signal_conf=0.748"
+    },
+    "US.AVGO": {
+      "time": 1781115198.0526,
+      "signal": "BUY",
+      "qty": 51,
+      "price": 379.0799865722656,
+      "reason": "model_signal_conf=0.572"
+    },
+    "HK.00960": {
+      "time": 1781107615.3739376,
+      "signal": "SELL",
+      "qty": 9000,
+      "price": 8.2,
+      "reason": "max_hold_5_bars"
+    },
+    "HK.00939": {
+      "time": 1781058902.8925614,
+      "signal": "SELL",
+      "qty": 11000,
+      "price": 8.77,
+      "reason": "retry_retry_retry_retry_retry_model_signal"
+    },
+    "HK.00175": {
+      "time": 1780636032.2225735,
+      "signal": "SELL",
+      "qty": 3000,
+      "price": 18.48,
+      "reason": "max_hold_5_bars"
+    },
+    "HK.00688": {
+      "time": 1780882386.402238,
+      "signal": "SELL",
+      "qty": 15500,
+      "price": 15.28,
       "reason": "model_signal"
     },
     "US.MSFT": {
-      "time": 1779458992.2408795,
+      "time": 1780926005.8507278,
       "signal": "SELL",
-      "qty": 117,
-      "price": 418.75,
-      "reason": "model_signal"
-    },
-    "US.AVGO": {
-      "time": 1779291369.8103166,
-      "signal": "SELL",
-      "qty": 27,
-      "price": 421.3659973144531,
-      "reason": "model_signal"
-    },
-    "US.CSCO": {
-      "time": 1779457108.9689372,
-      "signal": "SELL",
-      "qty": 13,
-      "price": 119.59500122070312,
+      "qty": 23,
+      "price": 412.4065856933594,
       "reason": "max_hold_5_bars"
     },
-    "US.COST": {
-      "time": 1779374055.6367443,
+    "US.AAPL": {
+      "time": 1781012192.1939912,
       "signal": "SELL",
-      "qty": 1,
-      "price": 1050.9599609375,
-      "reason": "model_signal"
+      "qty": 54,
+      "price": 299.30999755859375,
+      "reason": "retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_retry_model_signal"
     },
-    "US.ZS": {
-      "time": 1779460652.6736696,
+    "US.CSCO": {
+      "time": 1781115727.9480677,
       "signal": "BUY",
-      "qty": 880,
-      "price": 176.08999633789062,
-      "reason": "model_signal_conf=0.824"
+      "qty": 78,
+      "price": 119.54000091552734,
+      "reason": "model_signal_conf=0.981"
     },
-    "US.UNH": {
-      "time": 1779457892.6306665,
+    "US.MU": {
+      "time": 1780935246.651149,
       "signal": "SELL",
-      "qty": 11,
-      "price": 385.8299865722656,
-      "reason": "model_signal"
+      "qty": 10,
+      "price": 958.260009765625,
+      "reason": "swing_signal"
+    },
+    "US.NET": {
+      "time": 1781105451.079725,
+      "signal": "SELL",
+      "qty": 40,
+      "price": 223.60000610351562,
+      "reason": "quick_take_profit_0.0100"
     },
     "US.CRWD": {
-      "time": 1779459388.7041962,
+      "time": 1781100436.7125292,
       "signal": "SELL",
-      "qty": 349,
-      "price": 667.3499755859375,
-      "reason": "model_signal"
+      "qty": 14,
+      "price": 658.260009765625,
+      "reason": "retry_retry_retry_retry_quick_take_profit_0.0100"
     },
-    "US.GOOGL": {
-      "time": 1779467680.4008446,
+    "US.PANW": {
+      "time": 1780934781.8238816,
+      "signal": "SELL",
+      "qty": 70,
+      "price": 266.8299865722656,
+      "reason": "quick_take_profit_0.0100"
+    },
+    "US.TXN": {
+      "time": 1781021915.0822406,
+      "signal": "SELL",
+      "qty": 32,
+      "price": 276.5199890136719,
+      "reason": "quick_take_profit_0.0100"
+    },
+    "US.BAC": {
+      "time": 1781100638.408647,
+      "signal": "SELL",
+      "qty": 2506,
+      "price": 54.939998626708984,
+      "reason": "max_hold_5_bars"
+    },
+    "US.WMT": {
+      "time": 1781102174.2073522,
+      "signal": "SELL",
+      "qty": 184,
+      "price": 118.66999816894531,
+      "reason": "max_hold_5_bars"
+    },
+    "US.TSM": {
+      "time": 1781117230.605018,
       "signal": "SELL",
       "qty": 17,
-      "price": 385.3999938964844,
-      "reason": "model_signal"
+      "price": 411.04998779296875,
+      "reason": "quick_take_profit_0.0100"
+    },
+    "US.XOM": {
+      "time": 1781118411.4450436,
+      "signal": "SELL",
+      "qty": 2,
+      "price": 151.27499389648438,
+      "reason": "swing_signal"
     }
   },
   "positions": {
+    "US.ACN": 0,
+    "US.COIN": 0,
     "US.TIP": 212,
-    "US.HYG": 465,
-    "US.VTI": 118,
-    "US.QQQ": 282,
-    "HK.03690": 100
+    "HK.09618": 300,
+    "HK.02313": 2200,
+    "HK.09688": 58400,
+    "US.HD": 0,
+    "US.AMZN": 38,
+    "US.GOOGL": 0,
+    "US.IBM": 34,
+    "US.CRM": 55,
+    "US.QCOM": 46,
+    "US.META": 16,
+    "US.TSLA": 23,
+    "US.ORCL": 47,
+    "US.NVDA": 0,
+    "US.AVGO": 51,
+    "US.INTC": 0,
+    "US.AMD": 0,
+    "HK.00960": 0,
+    "HK.00939": 0,
+    "HK.00175": 0,
+    "HK.00688": 0,
+    "US.MSFT": 0,
+    "US.MSTR": 0,
+    "US.AAPL": 0,
+    "US.CSCO": 78,
+    "US.SMCI": 0,
+    "US.MU": 0,
+    "US.PLTR": 0,
+    "US.NET": 0,
+    "US.CRWD": 0,
+    "US.PANW": 0,
+    "US.ZS": 0,
+    "US.DASH": 0,
+    "US.TXN": 0,
+    "US.BAC": 0,
+    "US.WMT": 0,
+    "US.TSM": 0,
+    "US.XOM": 0
   },
   "total_invested": 0.0,
   "mode": "HK_lite",
   "runtime_profile": "lite",
   "last_review": "2026-03-18T19:22:00Z",
   "review_notes": "Hourly self-review 2026-03-18 19:22 UTC: System healthy. HK lite profile running with no errors. Logs show clean execution - multiple trade cycles processed. 9 trades executed this hour: mixed BUY (6) and SELL (3). Model predictions negative (-0.38% to -6.47%). Position cap at 10/10 - full. PnL: daily=$0, cumulative=-$3,219.28. Code review: syntax OK, no bare except, async/await implemented, Kelly sizer integrated, transaction cost calculator present. TA-Lib still using pandas fallback. No code changes applied this hour.",
-  "short_positions": {},
+  "short_positions": {
+    "US.COIN": 0,
+    "US.HD": 0,
+    "US.AMZN": 0,
+    "US.GOOGL": 0,
+    "US.IBM": 0,
+    "US.CRM": 0,
+    "US.QCOM": 0,
+    "US.META": 0,
+    "US.TSLA": 0,
+    "US.ORCL": 0,
+    "US.NVDA": 0,
+    "US.AVGO": 0,
+    "US.INTC": 0,
+    "US.ACN": 0,
+    "US.AMD": 0,
+    "HK.00960": 0,
+    "HK.00939": 0,
+    "HK.00175": 0,
+    "HK.00688": 0,
+    "US.MSFT": 0,
+    "US.MSTR": 0,
+    "US.AAPL": 0,
+    "US.CSCO": 0,
+    "US.SMCI": 0,
+    "US.MU": 0,
+    "US.PLTR": 0,
+    "US.NET": 0,
+    "US.CRWD": 0,
+    "US.PANW": 0,
+    "US.ZS": 0,
+    "US.DASH": 0,
+    "US.TXN": 0,
+    "US.BAC": 0,
+    "US.WMT": 0,
+    "US.TSM": 0,
+    "US.XOM": 0
+  },
   "account_routing": {
     "account_routing": {
       "HK": {
