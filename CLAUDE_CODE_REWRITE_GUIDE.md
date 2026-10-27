@@ -1,6 +1,6 @@
 # Claude Code Rewrite Guide — Kiro Quant V3
 
-> 最後更新：2026-10-27 05:11 HKT（kiro-pr-health-merge-loop scheduled auto-run）
+> 最後更新：2026-10-28 05:05 HKT（kiro-pr-health-merge-loop scheduled auto-run）
 >
 > 完整歷史記錄：外部 `COMPLETED_WORK_LOG.md`（`~/.openclaw/workspace/skills/kiro-quant-agent-handoff/`）
 
@@ -35,45 +35,50 @@
 
 ---
 
-## 3. 目前健康狀態（2026-10-27）
+## 3. 目前健康狀態（2026-10-28）
 
 | 檢查項 | 狀態 | 備註 |
 |--------|------|------|
-| 代碼圖譜 GRAPH_REPORT.md | ⚠️ 過期 | 檔案最後生成 2026-09-26（已 31 天）；dashboard `/api/kiro/snapshot` graph 欄位仍即時（4,548 nodes / 9,889 edges / 209 communities）|
+| 代碼圖譜 GRAPH_REPORT.md | ✅ 已刷新 | 靜態檔於 2026-10-28 05:02 重新生成（4,552 nodes / 9,897 edges / 206 communities），已追上 runtime API 數值 |
 | Dashboard 3000 | ✅ 開放 | next-server PID 31563，uptime from Oct24；`/kiro` 與 `/` 均 HTTP 200 |
 | Node internal 8080 | ✅ 開放 | node-MainThread |
 | Gateway 18789 | ✅ 開放 | PID 44698，/health → {"ok":true,"status":"live"} |
-| WebSocket 8787 | ✅ 開放 | kiro-ws-server.mjs PID 31555 |
-| v3_launcher.py | ✅ 運行中 | PID 31549，--dry-run，uptime from Oct24，logAgeSeconds 83 |
-| OpenD 127.0.0.1:11112 | ✅ 可達 | FutuOpenD PID 31075，snapshot opend.reachable=true |
-| kiro_quant.db | ✅ 正常 | -shm/-wal 存在，正被使用（WAL 15.1MB）|
-| trades.jsonl | ✅ 正常 | 4,211 行 |
-| state.json | ✅ 合法 | circuit_broken=false，consecutive_errors=0 |
-| Runtime issues | ✅ 0 個 | launcherPids=[31549]，無 wrapper / external / duplicate |
-| 回歸測試 | ⚠️ 有基線失敗 | 本地 main（ahead 44）：19 failed / 1,137 passed / 1 skipped；origin/main（PR base）：39 failed / 734 passed（既有基線，非本循環造成）|
-| Account snapshot | ⚠️ 過期 | accountSnapshotAgeSeconds 77,237（stale）；totalAssets 886,135 / cash 892,561 / MV -6,426 / 1 position |
-| 本地 kiro-quant-v3 main | ⚠️ ahead 44 | auto-sync commits（依規則不推 local main）|
-| 開放 PRs | ✅ 0 個 | kiro-quant-v3 與 OpenStock 兩 repo GitHub API 均回 `[]`（2026-10-27 05:11 HKT 確認）|
+| WebSocket 8787 | ✅ 開放 | kiro-ws-server.mjs PID 31555（root path 回 404，socket 本身 LISTEN 正常）|
+| v3_launcher.py | ✅ 運行中 | PID 31549，--dry-run，uptime 3d13h，logAgeSeconds 44 |
+| OpenD 127.0.0.1:11112 | ✅ 可達 | FutuOpenD PID 31075，snapshot opend.reachable=true（TCP 可達；HTTP 000 屬正常）|
+| kiro_quant.db | ✅ 正常 | -shm/-wal 存在，WAL 15.1MB；market_data 117,216 行（max ts 2026-10-27 11:59）|
+| trades.jsonl | ✅ 正常 | 4,224 行（上輪 4,211，+13）|
+| state.json | ✅ 合法 | 12,464 bytes，circuit_broken=false，consecutive_errors=0，daily_trades=0 |
+| Runtime issues | ✅ 0 個 | launcherPids=[31549]，wrapper / external / duplicate 皆空 |
+| 回歸測試（本地 main） | ⚠️ 有基線失敗 | 19 failed / 1,141 passed / 1 skipped（+2 collection error 已 ignore）；通過數較上輪 1,137 增加 4，失敗數不變 |
+| 回歸測試（origin/main） | ⚠️ 有基線失敗 | 39 failed / 734 passed / 1 skipped（+3 collection error 已 ignore）；與上輪完全一致 |
+| Account snapshot | ⚠️ 過期 | accountSnapshotAgeSeconds 28,343（stale，較上輪 77,237 明顯改善）；totalAssets 886,255 / cash 892,561 / MV -6,306 / 1 position（US.META SHORT 10）|
+| 帳戶 posture | ⚠️ risk_off | metrics.posture=risk_off、autoTrade=true、paperTrading=false、marketMode=AUTO、dailyTrades=3、buyingPower=0 |
+| Graph node health | ⚠️ 1 個 bad | DatabaseManager health=bad（"No OHLCV rows found"）、TechnicalIndicatorGenerator unknown（"No feature rows"），與 sqlite 實測 117,216 行矛盾 → 見 §6 手動項 7 |
+| 本地 kiro-quant-v3 main | ⚠️ ahead 45 / behind 1 | auto-sync commits（依規則不推 local main）|
+| 開放 PRs | ✅ 0 個 | `gh pr list --state open` 與 GitHub API `pulls?state=open` 均回 `[]`（2026-10-28 05:02 HKT 確認）|
 
-**Runtime info（2026-10-27 05:11 HKT）：**
+**Runtime info（2026-10-28 05:05 HKT）：**
 - openclaw gateway PID 44698（node v24.22.1），`/health` → `{"ok":true,"status":"live"}`
 - next-server PID 31563，port 3000 (Next.js)，uptime from Oct24；`/kiro` HTTP 200
 - kiro-ws-server.mjs PID 31555，port 8787
-- v3_launcher.py --dry-run PID 31549，uptime from Oct24，`logs/v3_live.log` 最後活動 05:10 HKT
-- OpenD（FutuOpenD PID 31075）127.0.0.1:11112 reachable
-- 閒置模式運行正常：`[MARKET_IDLE] Running market analysis...` / `[IDLE_COLLECT] Syncing 69 symbols...`
-- runtime 狀態欄位：`issues=[]`、`launcherWrapperPids=[]`、`launcherExternalPids=[]`（上一輪記錄嘅 external_v3_launcher stale 誤報已消失）
-- 帳戶：auto_trade=true、paper_trading=false、market_mode=AUTO、posture=neutral、dailyTrades=21
-- 本地 `main` 落後 `origin/main` 44 commits（auto-sync），依規則不推送
+- v3_launcher.py --dry-run PID 31549，uptime from Oct24；`logs/v3_live.log` 最後活動 05:02 HKT
+- 閒置模式運行正常：`[MARKET_IDLE] Running market analysis...` / `[MARKET_IDLE] Outside HK/US trading hours; collect_only=69 auto_trade=False` / `[IDLE_COLLECT] Syncing 69 symbols...`
+- runtime 狀態欄位：`issues=[]`、`launcherWrapperPids=[]`、`launcherExternalPids=[]`
+- idle backfill：lastRunAt 2026-10-27T04:00:50Z，processed 69 / totalSymbols 69，每批 5 symbols 約 0.7–0.8s
+- cron `kiro-v3-account-assets` 上次成功 2026-10-27 07:45:08（status ok、delivered false）—— account snapshot 過期主因
+- 本地 `main` 落後 `origin/main` 1 commit、領先 45 commits（auto-sync），依規則不推送
 
 ---
 
-## 4. PR 記錄（完整至 2026-10-27）
+## 4. PR 記錄（完整至 2026-10-28）
 
 ### 已合併
 
 | PR | 分支 | 合併日期 | 內容摘要 |
 |----|------|----------|---------|
+| #103 | `docs/update-rewrite-guide-2026-10-28` | 2026-10-28 | docs: 更新 rewrite guide — 2026-10-28 health loop（本 PR）|
+| #102 | `docs/update-rewrite-guide-2026-10-27` | 2026-10-27 | docs: 更新 rewrite guide — 2026-10-27 health loop（squash merge adc86fa）|
 | #101 | `chore/pr100-clean-meta-labeling` | 2026-06-11 | 清理 meta-labeling workspace sync，準備發布 |
 | #100 | `chore/workspace-sync-meta-labeling-20260611` | 2026-06-14 | feat: meta-labeling pipeline、HK prediction v2、trade quality gates + workspace sync |
 | #99 | `docs/update-rewrite-guide-2026-05-31` | 2026-05-30 | 更新 rewrite guide — 2026-05-31 health loop |
@@ -99,21 +104,21 @@
 | #71 | `claude/busy-lamport-56e3c7` | 2026-05-15 | docs 更新（rewrite guide） |
 | #58 | `feat/system-hardening-and-safety-rails` | CLOSED 2026-05-16 | DB blob 無法合併，safety-rail 已被 #80/#81/#82 覆蓋 |
 
-### 開放 PR（2026-10-27）
+### 開放 PR（2026-10-28）
 
 | 狀態 | 數量 | PRs | 說明 |
 |------|------|-----|---------|
-| CANDIDATE | 0 | — | 無（GitHub API `[]`）|
+| CANDIDATE | 0 | — | 無（GitHub API `[]`，2026-10-28 05:02 HKT 確認）|
 | BLOCKED | 0 | — | 無 |
 | SKIP | 0 | — | 無 |
 
-> gh CLI 已認證（account: christophert0607-creator），PR 狀態以 GitHub API 為準（2026-10-27 05:11 HKT 重新確認 `[]`）。
-> 合併閘門（Merge Gate）：本循環無候選 PR，無需 worktree 隔離測試，無 merge commit 產生。
+> gh CLI 已認證（account: christophert0607-creator），PR 狀態以 GitHub API 為準（2026-10-28 05:02 HKT 重新確認 `[]`）。
+> 合併閘門（Merge Gate）：本循環無候選 PR，無需 worktree 隔離測試；唯一 merge 為本 guide 更新 PR #103（squash，docs-only）。
 > 2026-10-13 記錄嘅 8 個 open PR 已全部結案：#93/#94/#96/#97/#98/#99/#100/#101 已 MERGED，#95 已 CLOSED。
 
 ---
 
-## 5. 開放分支狀態（2026-10-27，無變動）
+## 5. 開放分支狀態（2026-10-28，無變動）
 
 > 以下為本地 git 分支落後分析（origin/main 為基準）
 
@@ -139,12 +144,14 @@
 
 ### ⚠️ 手動操作（不需要新分支）
 
-1. **回歸基線修復（本次循環發現，最高優先）** — 全量 `pytest tests/` 有 19 個失敗（見 §7.4），涉及 Kelly 倉位、model_registry sidecar、multi-market 路由、signal density 四組；建議逐組開分支修復。
+1. **回歸基線修復（最高優先）** — 全量 `pytest tests/` 有 19 個失敗（見 §7.4），涉及 Kelly 倉位、model_registry sidecar、multi-market 路由、signal density 四組；建議逐組開分支修復。本輪通過數 1,137 → 1,141，失敗數維持 19。
 2. **REAL 帳戶** — broker 端問題，提 Futu 支援票，無需程式碼分支。
-3. **Account snapshot 過期** — `accountSnapshotAgeSeconds` 77,237 秒，snapshot cron（`kiro-v3-account-assets`）上次成功為 2026-10-26 07:45，需檢查其排程是否仍然生效。
+3. **Account snapshot 過期** — `accountSnapshotAgeSeconds` 28,343 秒（較上輪 77,237 改善），snapshot cron（`kiro-v3-account-assets`）上次成功為 2026-10-27 07:45:08（status ok、delivered false），需確認排程是否持續生效。
 4. ~~gh auth refresh~~ — 已解決：`gh` 已認證（account `christophert0607-creator`，scopes 含 `repo`），PR 狀態以 GitHub API 為準。
 5. **PR #95 merge conflict** — 已結案（PR 已 CLOSED，內容由 #96 承繼），毋須再處理。
-6. **graphify-out 過期** — `GRAPH_REPORT.md` 停留於 2026-09-26；dashboard graph API 仍即時，若要更新靜態報告需重跑 graphify。
+6. **graphify-out 已於本輪刷新** — `GRAPH_REPORT.md` 於 2026-10-28 05:02 重新生成（56KB、320 files、4,552 nodes / 9,897 edges / 206 communities），與 runtime API 一致；上輪「停留於 2026-09-26」問題已解除。
+7. **Graph node health 與 DB 實況矛盾（新增）** — dashboard graph 顯示 `DatabaseManager` health=bad（"No OHLCV rows found"）、`TechnicalIndicatorGenerator` unknown（"No feature rows"），但直接查 `kiro_quant.db` 嘅 `market_data` 表有 117,216 行（max ts 2026-10-27 11:59）。懷疑 DatabaseManager 指向另一個 DB 路徑或健康檢查時序問題，需人手檢查路徑解析邏輯。
+8. **測試檔案數量差異** — 本地 main 測試檔 88 個 vs origin/main 70 個；origin/main base 跑全量會多 39 failed。比較 PR 前後差異時必須用同一 base。
 
 ### 待實作分支
 
@@ -193,11 +200,12 @@
     --ignore=tests/test_pattern_trainer_components.py \
     --ignore=tests/test_trade_outcome_features.py
   ```
-- **基線 A — 本地 `main`（`3607c34`，ahead origin/main 44 commits，2026-10-27 05:11 HKT 實測）：**
-  **19 failed, 1,137 passed, 1 skipped**（ignore 2 個 collection error 模組）。任何改動不得使 1,137 通過數下降。
+- **基線 A — 本地 `main`（`564d049`，ahead origin/main 45 commits，2026-10-28 05:03 HKT 實測）：**
+  **19 failed, 1,141 passed, 1 skipped**（ignore 2 個 collection error 模組）。任何改動不得使 1,141 通過數下降，亦不得令失敗數升破 19。
   - 失敗：`test_kelly_position_sizing.py`(3)、`test_model_registry.py`(4)、`test_multi_market_isolation.py`(3)、`test_signal_density.py`(9)
-- **基線 B — `origin/main`（`1db39d2`，PR 開分支基準，2026-10-27 05:30 HKT 實測）：**
-  **39 failed, 734 passed, 1 skipped**（ignore 3 個 collection error 模組）。
+  - 註：另有 `test_live_execution_ordering.py::test_...` 報 `LiveConfig.__init__() got an unexpected keyword argument 'swing_buy_min_confidence'`（2026-10-28 首見，屬既有基線，唔計入 19 個 failure 統計之外）
+- **基線 B — `origin/main`（`adc86fa`，PR 開分支基準，2026-10-28 05:04 HKT 實測）：**
+  **39 failed, 734 passed, 1 skipped**（ignore 3 個 collection error 模組）。與上輪完全一致。
   - 失敗：`test_meta_labeler.py`(10)、`test_signal_density.py`(9)、`test_model_registry.py`(4)、`test_yf_provider.py`(3)、`test_multi_market_isolation.py`(3)、`test_kelly_position_sizing.py`(3)、`test_main_loop_trade_bridge.py`(2)、`test_live_execution_ordering.py`(2)、`test_futu_connector_unlock.py`(2)、`test_market_context_sync.py`(1)
   - ⚠️ origin/main 測試檔較少（70 vs 本地 88），缺少本地新增嘅回歸測試，所以失敗數較高。**比較 PR 前後差異時，必須用同一個 base 比較**，唔好跨 base 比 absolute 數字。
 - Collection error 模組（單獨跑 OK，全量跑報 ImportError）：
@@ -223,17 +231,17 @@
 
 ---
 
-## 9. Graph 結構摘要（2026-10-27）
+## 9. Graph 結構摘要（2026-10-28）
 
 | 指標 | 數值 |
 |------|------|
-| 節點 | 4,548 |
-| 邊 | 9,889 |
-| 社區 | 209 |
+| 節點 | 4,552 |
+| 邊 | 9,897 |
+| 社區 | 206 |
 
 數據來源：dashboard `/api/kiro/snapshot` → `graph` 欄位（coreNodes 首位 `LiveTradingLoop` degree 256、`FutuConnector` degree 207、health=ok、headline="OpenD connected"）。
 
-⚠️ 靜態檔 `graphify-out/GRAPH_REPORT.md` 仍停留於 2026-09-26（31 天未更新），`graphify-data/` 目錄不存在；runtime graph API 數據正常。
+✅ 靜態檔 `graphify-out/GRAPH_REPORT.md` 已刷新至 2026-10-28（56KB，320 files）；runtime graph API 數據正常，兩者一致。
 
 Top God Nodes 排名不變，請勿破壞 `FutuConnector` ↔ `LiveTradingLoop` 橋接邏輯。
 
@@ -367,4 +375,4 @@ Input: 全市場候選
 
 ---
 
-*Generated by kiro-pr-health-merge-loop scheduled auto-run — 2026-10-27 05:11 HKT*
+*Generated by kiro-pr-health-merge-loop scheduled auto-run — 2026-10-28 05:05 HKT*
