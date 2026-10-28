@@ -1,6 +1,6 @@
 # Claude Code Rewrite Guide — Kiro Quant V3
 
-> 最後更新：2026-10-29 05:05 HKT（kiro-pr-health-merge-loop scheduled auto-run）
+> 最後更新：2026-10-29 05:18 HKT（kiro-pr-health-merge-loop scheduled auto-run, Run 12）
 >
 > 完整歷史記錄：外部 `COMPLETED_WORK_LOG.md`（`~/.openclaw/workspace/skills/kiro-quant-agent-handoff/`）
 
@@ -50,15 +50,18 @@
 | trades.jsonl | ✅ 正常 | 4,237 行（上輪 4,224，+13）|
 | state.json | ✅ 合法 | 12,464 bytes，circuit_broken=false，consecutive_errors=0，daily_trades=0 |
 | Runtime issues | ✅ 0 個 | launcherPids=[31549]，wrapper / external / duplicate 皆空 |
-| 回歸測試（本地 live tree） | ⚠️ 有基線失敗 | 19 failed / 1,145 passed / 1 skipped（+2 collection error 已 ignore）；通過數較上輪 1,141 增加 4，失敗數不變 |
-| 回歸測試（origin/main 63aeadc） | ⚠️ 有基線失敗 | 39 failed / 734 passed / 1 skipped（+3 collection error 已 ignore）；與上輪完全一致 |
+| 回歸測試（dev checkout 基線） | ⚠️ 有基線失敗 | **623 passed / 4 failed**（13.11s，Run 6–12 完全一致 → 無 regression）；4 failed 全屬 `test_model_registry.py::TestModelManagerValidateCheckpointIntegration`（torch stub `TypeError`），非實盤 critical；`test_pattern_trainer_components.py` 收集期 ImportError 已 ignore |
+| 回歸測試（origin/main d8170c3，worktree 隔離） | ❌ **3 collection error** | `test_meta_labeler_integration.py`（`ImportError: cannot import name 'should_take_trade' from 'self_learn.meta_labeler'`）、`test_signal_density.py` + `test_trade_outcome_features.py`（`ModuleNotFoundError: No module named 'tests.test_live_execution_ordering'`）；再 --ignore 呢 3 檔 → **735 passed / 30 failed**（18.50s）|
 | Account snapshot | ✅ 排程正常（非故障） | accountSnapshotAgeSeconds 76,671；snapshot ts 2026-10-28 07:45:03 HKT，cron `kiro-v3-account-assets` 下次排程 2026-10-29 07:45 HKT（**每日一次**，「stale」屬預期，非排程失效）|
 | 帳戶數值 | ⚠️ buying power 為 0 | totalAssets 886,358.36 / cash 892,560.26 / MV -6,201.90 / 1 position（US.META SHORT 10，pl_val -492.18）；dailyTrades=0、buyingPower=0 |
 | 帳戶 posture | ✅ risk_on（改善） | metrics.posture=risk_on（posture_timestamp 2026-10-28 16:33:43），上輪為 risk_off；autoTrade=true、paperTrading=false、marketMode=AUTO |
 | Graph node health | ⚠️ 1 個 bad（持續未解） | DatabaseManager health=bad（headline "Market DB empty" / "No OHLCV rows found"）、TechnicalIndicatorGenerator unknown（"No feature rows"），與 sqlite 實測 117,152 行仍矛盾 → 見 §6 手動項 7 |
-| 本地 kiro-quant-v3 main | ⚠️ ahead 46 / behind 2 | auto-sync commits（依規則不推 local main）|
-| 本地 committed main 可用性 | ⚠️ 新發現：13 collection errors | 本地 committed main（`5b072a2`）嘅 `v3_pipeline/core/main_loop.py` 已 import `v3_pipeline.core.entry_gates`，但該模組係 **untracked**（連同 forest_budget / instrument_permission / rebuild_permission / rebuild_state / symbol_health / trading_agents_v3_runtime 等 9 個新模組全部未入 git）→ committed tree 跑全量 pytest 會 13 個 collection error；`origin/main`（63aeadc）反而自洽可跑。見 §6 手動項 9 |
-| 開放 PRs | ✅ 0 個 | `gh pr list --state open` 回 `[]`，GitHub API `pulls?state=open` 長度 0（2026-10-29 05:02 HKT 確認）|
+| 本地 kiro-quant-v3 main | ⚠️ ahead 46 / behind 3 | auto-sync commits（依規則不推 local main）；`git push --dry-run` → non-fast-forward（DB blob 過大，見下方 backlog）|
+| 本地 committed main 可用性 | ⚠️ 新發現：13 collection errors | 本地 committed main（`5b072a2`）嘅 `v3_pipeline/core/main_loop.py` 已 import `v3_pipeline.core.entry_gates`，但該模組係 **untracked**（連同 forest_budget / instrument_permission / rebuild_permission / rebuild_state / symbol_health / trading_agents_v3_runtime 等 9 個新模組全部未入 git）→ committed tree 跑全量 pytest 會 13 個 collection error。⚠️ Run 12 修正：`origin/main`（`d8170c3`）**並非自洽可跑** —— 隔離 worktree 實測有 3 個 collection error（見上表）。見 §6 手動項 9 + 12 |
+| 開放 PRs | ✅ 0 個 | `gh pr list --state open` 回 `[]`，GitHub API `pulls?state=open` 長度 0（2026-10-29 05:01 / 05:16 HKT 兩次確認）|
+| 🔴 同一 loop 有兩個 runner 並發 | ⚠️ 新發現 | 05:08:26 HKT 另一個 OpenClaw agent 跑同一條 PR health loop，開 `docs/update-rewrite-guide-2026-10-29` PR #104，05:08:39 HKT 合併（merge commit `d8170c3`）。我開工時 open PR = 0，結束時 origin/main 由 `63aeadc` → `d8170c3`。→ 見 §6 手動項 11 |
+| Broker 全部帳戶掛單 | ✅ 0 個 | US SIM 18526451（`US.META` SHORT 10, pl_val -415.18）、REAL 281756477844657671（`US.SPCH` LONG 10 + `US.NOK` LONG 2）、HK SIM 14239754：全部 `open_orders=0` |
+| Data health | ❌ FAIL（第 7 輪未解） | blockers `factor_snapshots_stale` / `outcome_reconciliation_not_ready`；warning `computable_indicators_not_persisted`；`signals_without_prediction` **48**（47→48 遞增）；market_data combined 664,330 行 / 69 symbols（max ts 2026-10-28 11:59）、integrity ok、duplicates 0 |
 
 **Runtime info（2026-10-29 05:05 HKT）：**
 - openclaw gateway PID 44698（node v24.22.1），`/health` → `{"ok":true,"status":"live"}`
@@ -70,7 +73,9 @@
 - idle backfill：lastRunAt 2026-10-28T04:00:03Z，lastCompleteAt 04:00:52Z，processed 69 / totalSymbols 69，每批 5 symbols 約 0.5–0.8s
 - predictions 24 個 symbols、decision trace 120 筆
 - cron `kiro-v3-account-assets` 上次成功 2026-10-28 07:45:03（status ok、delivered false），nextRunAt 2026-10-29 07:45 HKT（每日排程）
-- 本地 `main` 落後 `origin/main` 2 commit、領先 46 commits（auto-sync），依規則不推送
+- 本地 `main` 落後 `origin/main` **3** commit（`d8170c3` PR #104）、領先 46 commits（auto-sync），依規則不推送；`git push --dry-run origin main` → `non-fast-forward`（根因：`kiro_quant.db` 被 track，HEAD blob 363,835,392 bytes ≈ 347MB > GitHub 100MB 單檔限制；`.gitignore` 的 `*.db` 對已 track 檔案無效）
+- `logs/systemd/kiro-v3.err.log` 已 **181MB**（上輪 173MB），無 rotation
+- `git worktree list` 由 28 個降至 **21** 個（本輪已 `git worktree prune` 回收 9 個 prunable：kiro-local-test / kiro-test-pr93/94/95/97 / kiro-pr100 / kiro-pr101 / kiro-quant-v3-clean-pr100 / kiro-bugscan-LLQ0nq；全部確認目錄 GONE）
 
 ---
 
@@ -160,6 +165,13 @@
    `v3_pipeline/core/entry_gates.py`、`forest_budget.py`、`instrument_permission.py`、`rebuild_permission.py`、`rebuild_state.py`、`symbol_health.py`、`trading_agents_v3_runtime.py`、`v3_pipeline/data/factor_store.py`、`v3_pipeline/news_analyst.py`。
    本地 committed main（`5b072a2`）嘅 `main_loop.py` 已經 import `entry_gates`，所以 **committed tree 係壞嘅**（worktree 全量 pytest → 13 個 collection error `ModuleNotFoundError: v3_pipeline.core.entry_gates`）；live working tree 因為有實檔所以行到，屬「本機正常、repo 壞」嘅隱性風險。一旦 clone / 重建 / container 化就會 runtime crash。必須手動開 PR 把呢批模組 + 相關測試 commit 入 `origin/main`。
 10. **buyingPower = 0** — cash 892,560 但 `power` 為 0、`dailyTrades=0`，帳戶只有 1 個 US.META SHORT。SIMULATE 環境下可能係正常（無未平倉可用購買力），但若 preflight guard 依賴 `power`，會攔截所有 BUY。需要人手確認 `BuyingPowerGuard` 喺 SIMULATE + 淨現金帳戶下嘅行為。
+11. **🔴 同一 cron loop 兩個 runner 並發執行（Run 12 新發現，最高優先）** — 2026-10-29 05:08:26 HKT，另一個 OpenClaw agent 執行同一條 `kiro-pr-health-merge-loop`，自行開 `docs/update-rewrite-guide-2026-10-29` PR #104 並喺 05:08:39 合併（`d8170c3`）。兩個 runner 同時爭奪同一份 guide、同一個 git branch 空間、同一個 `result.json` 路徑 → 有重複 PR、guide 互相覆蓋、輸出覆寫風險。建議加 singleton 鎖（`flock /tmp/kiro-pr-health.lock` 或 job 層 `fire_claim`），並統一 output 檔名規則（例如 `result_<YYYYMMDD>_<HHMM>.json` 而唔係固定 `result.json`）。
+12. **🔴 `origin/main` committed tree 3 個 collection error（Run 12 實測 @ `d8170c3`）** — 用 `git worktree add --detach /tmp/kiro-origin-main-1029 origin/main` 隔離驗證：
+    - `tests/test_meta_labeler_integration.py` → `ImportError: cannot import name 'should_take_trade' from 'self_learn.meta_labeler'`
+    - `tests/test_signal_density.py`、`tests/test_trade_outcome_features.py` → `ModuleNotFoundError: No module named 'tests.test_live_execution_ordering'`
+    修法：補 `should_take_trade` 實作（或對齊 tests 期望 API）+ 加 `tests/__init__.py`（配合 §6 手動項 9 一併處理最省事）。
+13. **Futu 探測 API 簽名陷阱（修正上一輪建議）** — `OpenSecTradeContext.position_list_query()` / `order_list_query()` **唔接受 `filter_trdmarket` kwarg**（會 `TypeError: unexpected keyword argument`）；market 過濾只能經 context 建構子 `OpenSecTradeContext(filter_trdmarket=TrdMarket.US)`。另外 Run 12 用預設建構子探測時連續 5 次 `Connect fail: conn=0(1..5); msg=Timeout`，改用顯式 `host='127.0.0.1', port=11112` 即刻成功 → 探測 script 一律顯式傳 host/port 並加 retry。
+14. **REAL 帳戶持倉仍未納入 V3 管轄（連續第 2 輪）** — `281756477844657671`（REAL / MARGIN / ACTIVE）持 `US.SPCH` LONG 10（cost 14.07, pl_val -53.10）+ `US.NOK` LONG 2（cost 13.145, pl_val -8.09），既唔在 `state.json` 亦唔在 engine universe，engine 日誌完全無提及。需人手確認係真人持倉定測試殘留，再決定加入 `symbols_list` 或標記不可交易。
 
 ### 待實作分支
 
@@ -384,4 +396,4 @@ Input: 全市場候選
 
 ---
 
-*Generated by kiro-pr-health-merge-loop scheduled auto-run — 2026-10-29 05:05 HKT*
+*Generated by kiro-pr-health-merge-loop scheduled auto-run — 2026-10-29 05:18 HKT (Run 12)*
