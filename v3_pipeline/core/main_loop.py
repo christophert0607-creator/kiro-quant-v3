@@ -1744,11 +1744,61 @@ class LiveTradingLoop:
             return int(rounded)
         return int(qty)  # US stocks: lot_size=1
 
+    # Metadata columns that may ride along on a live quote row. They are not
+    # OHLCV/indicator data, and any non-numeric column left in the buffer wipes
+    # the whole feature frame at the `ffill().bfill().dropna()` stage.
+    _BUFFER_METADATA_COLUMNS = ("data_source", "symbol", "_cached_at")
+
+    @staticmethod
+    def _coerce_buffer_dates(series: pd.Series) -> pd.Series:
+        """Parse buffer timestamps without losing the newest live bar.
+
+        Primed history rows are tz-aware (exchange-local, e.g. Asia/Hong_Kong)
+        while the live quote row is tz-naive (`pd.Timestamp.now()` in
+        `FutuConnector._normalize_quote`). Plain `pd.to_datetime(...)` on that
+        mixed column coerces the tz-naive row to NaT and silently drops the
+        newest bar.
+
+        Wall clock is preserved on purpose: HK session features
+        (`hk_alpha_features`) derive `.dt.hour`/`.dt.minute` from exchange-local
+        time, so converting to UTC would shift them by the UTC offset.
+        """
+        parsed = []
+        aware_tz = None
+        for value in series:
+            try:
+                ts = pd.Timestamp(value)
+            except (TypeError, ValueError):
+                parsed.append(pd.NaT)
+                continue
+            if ts is pd.NaT or pd.isna(ts):
+                parsed.append(pd.NaT)
+                continue
+            if ts.tzinfo is not None and aware_tz is None:
+                aware_tz = ts.tz
+            parsed.append(ts)
+
+        if aware_tz is not None:
+            normalized = []
+            for ts in parsed:
+                if not isinstance(ts, pd.Timestamp) or pd.isna(ts):
+                    normalized.append(pd.NaT)
+                elif ts.tzinfo is None:
+                    # Localize (not convert) so exchange-local wall clock is kept.
+                    normalized.append(ts.tz_localize(aware_tz))
+                elif ts.tz != aware_tz:
+                    normalized.append(ts.tz_convert(aware_tz))
+                else:
+                    normalized.append(ts)
+            return pd.Series(normalized, index=series.index)
+
+        return pd.to_datetime(series, errors="coerce")
+
     def _normalize_market_buffer(self, df: pd.DataFrame) -> pd.DataFrame:
         out = df.copy()
-        out["Date"] = pd.to_datetime(out["Date"], errors="coerce")
-        # Remove non-OHLCV/non-indicator columns (data_source, etc.)
-        for col in ["data_source"]:
+        out["Date"] = self._coerce_buffer_dates(out["Date"])
+        # Remove non-OHLCV/non-indicator columns (data_source, symbol, _cached_at, etc.)
+        for col in self._BUFFER_METADATA_COLUMNS:
             if col in out.columns:
                 out.drop(columns=[col], inplace=True)
         return (
