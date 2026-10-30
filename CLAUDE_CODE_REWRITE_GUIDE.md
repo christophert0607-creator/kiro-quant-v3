@@ -1,6 +1,6 @@
 # Claude Code Rewrite Guide — Kiro Quant V3
 
-> 最後更新：2026-10-29 05:18 HKT（kiro-pr-health-merge-loop scheduled auto-run, Run 12）
+> 最後更新：2026-10-30 11:55 HKT（kiro-pr-health-merge-loop scheduled auto-run, Run 13）
 >
 > 完整歷史記錄：外部 `COMPLETED_WORK_LOG.md`（`~/.openclaw/workspace/skills/kiro-quant-agent-handoff/`）
 
@@ -35,47 +35,42 @@
 
 ---
 
-## 3. 目前健康狀態（2026-10-29）
+## 3. 目前健康狀態（2026-10-30）
 
 | 檢查項 | 狀態 | 備註 |
 |--------|------|------|
-| 代碼圖譜 GRAPH_REPORT.md | ✅ 已刷新 | 靜態檔於 2026-10-29 05:01 重新生成（4,582 nodes / 9,933 edges / 213 communities，328 files），與 runtime API 完全一致 |
-| Dashboard 3000 | ✅ 開放 | next-server PID 31563，uptime from Oct24；`/kiro` 與 `/` 均 HTTP 200 |
-| Node internal 8080 | ✅ 開放 | node-MainThread PID 31200 |
-| Gateway 18789 | ✅ 開放 | PID 44698，`/health` → `{"ok":true,"status":"live"}` |
-| WebSocket 8787 | ✅ 開放 | kiro-ws-server.mjs PID 31555 LISTEN 正常 |
-| v3_launcher.py | ✅ 運行中 | PID 31549，--dry-run，uptime from Oct24，logAgeSeconds 33 |
-| OpenD 127.0.0.1:11112 | ✅ 可達 | FutuOpenD PID 31075，snapshot `opend.reachable=true`（TCP 可達；HTTP 000 屬正常）|
-| kiro_quant.db | ✅ 正常 | 363,835,392 bytes（347MB），mtime 2026-10-29 03:59；market_data 117,152 行（max ts 2026-10-28 11:59）|
-| trades.jsonl | ✅ 正常 | 4,237 行（上輪 4,224，+13）|
-| state.json | ✅ 合法 | 12,464 bytes，circuit_broken=false，consecutive_errors=0，daily_trades=0 |
-| Runtime issues | ✅ 0 個 | launcherPids=[31549]，wrapper / external / duplicate 皆空 |
-| 回歸測試（dev checkout 基線） | ⚠️ 有基線失敗 | **623 passed / 4 failed**（13.11s，Run 6–12 完全一致 → 無 regression）；4 failed 全屬 `test_model_registry.py::TestModelManagerValidateCheckpointIntegration`（torch stub `TypeError`），非實盤 critical；`test_pattern_trainer_components.py` 收集期 ImportError 已 ignore |
-| 回歸測試（origin/main d8170c3，worktree 隔離） | ❌ **3 collection error** | `test_meta_labeler_integration.py`（`ImportError: cannot import name 'should_take_trade' from 'self_learn.meta_labeler'`）、`test_signal_density.py` + `test_trade_outcome_features.py`（`ModuleNotFoundError: No module named 'tests.test_live_execution_ordering'`）；再 --ignore 呢 3 檔 → **735 passed / 30 failed**（18.50s）|
-| Account snapshot | ✅ 排程正常（非故障） | accountSnapshotAgeSeconds 76,671；snapshot ts 2026-10-28 07:45:03 HKT，cron `kiro-v3-account-assets` 下次排程 2026-10-29 07:45 HKT（**每日一次**，「stale」屬預期，非排程失效）|
-| 帳戶數值 | ⚠️ buying power 為 0 | totalAssets 886,358.36 / cash 892,560.26 / MV -6,201.90 / 1 position（US.META SHORT 10，pl_val -492.18）；dailyTrades=0、buyingPower=0 |
-| 帳戶 posture | ✅ risk_on（改善） | metrics.posture=risk_on（posture_timestamp 2026-10-28 16:33:43），上輪為 risk_off；autoTrade=true、paperTrading=false、marketMode=AUTO |
-| Graph node health | ⚠️ 1 個 bad（持續未解） | DatabaseManager health=bad（headline "Market DB empty" / "No OHLCV rows found"）、TechnicalIndicatorGenerator unknown（"No feature rows"），與 sqlite 實測 117,152 行仍矛盾 → 見 §6 手動項 7 |
-| 本地 kiro-quant-v3 main | ⚠️ ahead 46 / behind 3 | auto-sync commits（依規則不推 local main）；`git push --dry-run` → non-fast-forward（DB blob 過大，見下方 backlog）|
-| 本地 committed main 可用性 | ⚠️ 新發現：13 collection errors | 本地 committed main（`5b072a2`）嘅 `v3_pipeline/core/main_loop.py` 已 import `v3_pipeline.core.entry_gates`，但該模組係 **untracked**（連同 forest_budget / instrument_permission / rebuild_permission / rebuild_state / symbol_health / trading_agents_v3_runtime 等 9 個新模組全部未入 git）→ committed tree 跑全量 pytest 會 13 個 collection error。⚠️ Run 12 修正：`origin/main`（`d8170c3`）**並非自洽可跑** —— 隔離 worktree 實測有 3 個 collection error（見上表）。見 §6 手動項 9 + 12 |
-| 開放 PRs | ✅ 0 個 | `gh pr list --state open` 回 `[]`，GitHub API `pulls?state=open` 長度 0（2026-10-29 05:01 / 05:16 HKT 兩次確認）|
-| 🔴 同一 loop 有兩個 runner 並發 | ⚠️ 新發現 | 05:08:26 HKT 另一個 OpenClaw agent 跑同一條 PR health loop，開 `docs/update-rewrite-guide-2026-10-29` PR #104，05:08:39 HKT 合併（merge commit `d8170c3`）。我開工時 open PR = 0，結束時 origin/main 由 `63aeadc` → `d8170c3`。→ 見 §6 手動項 11 |
-| Broker 全部帳戶掛單 | ✅ 0 個 | US SIM 18526451（`US.META` SHORT 10, pl_val -415.18）、REAL 281756477844657671（`US.SPCH` LONG 10 + `US.NOK` LONG 2）、HK SIM 14239754：全部 `open_orders=0` |
-| Data health | ❌ FAIL（第 7 輪未解） | blockers `factor_snapshots_stale` / `outcome_reconciliation_not_ready`；warning `computable_indicators_not_persisted`；`signals_without_prediction` **48**（47→48 遞增）；market_data combined 664,330 行 / 69 symbols（max ts 2026-10-28 11:59）、integrity ok、duplicates 0 |
+| 代碼圖譜 GRAPH_REPORT.md | ✅ 已刷新 | 靜態檔於 2026-10-30 11:48 重新生成（4,613 nodes / 9,974 edges / 218 communities，334 files），與 runtime API 完全一致 |
+| Dashboard 3000 | ✅ 開放 | next-server PID 2152356，uptime from Oct30 11:43 |
+| Node internal 8080 | ✅ 開放 | node-MainThread PID 2151993 |
+| WebSocket 8787 | ✅ 開放 | kiro-ws-server.mjs PID 2152353 LISTEN 正常 |
+| v3_launcher.py | ✅ 運行中 | PID 2152347，--dry-run，uptime from Oct30 11:43，logAgeSeconds 2 |
+| OpenD 127.0.0.1:11112 | ✅ 可達 | FutuOpenD PID 2151880，snapshot `opend.reachable=true`（TCP 可達）|
+| kiro_quant.db | ✅ 正常 | 366,563,328 bytes（349MB），mtime 2026-10-30 11:51；market_data 122,541 行 / 69 symbols（max ts 2026-10-30 11:43:47）|
+| trades.jsonl | ✅ 正常 | 4,237 行（與上輪相同，本輪無新成交）|
+| state.json | ✅ 合法 | circuit_broken=false，consecutive_errors=0，daily_trades=0 |
+| Runtime issues | ✅ 0 個 | launcherPids=[2152347]，wrapper / external / duplicate 皆空 |
+| 回歸測試（dev checkout 基線） | ⚠️ 有基線失敗 | **622 passed / 4 failed / 1 skipped**（33.91s）；4 failed 全屬 `test_model_registry.py::TestModelManagerValidateCheckpointIntegration`（torch stub `TypeError`），非實盤 critical。Run 12 為 623 passed / 4 failed → 通過數少 1，疑似 flaky，需人手確認 |
+| 回歸測試（origin/main `dd5e165`，worktree 隔離） | ❌ **3 collection error** | `test_meta_labeler_integration.py`（`ImportError: cannot import name 'should_take_trade'`）、`test_pattern_trainer_components.py`（`ImportError: StockPatternModel`）、`test_trade_outcome_features.py`（`ModuleNotFoundError: No module named 'tests.test_live_execution_ordering'`）；再 --ignore 呢 3 檔 → **734 passed / 39 failed / 1 skipped**（28.00s），與 Run 12 基線 B 完全一致 → 無 regression |
+| Account snapshot | ⚠️ **排程漏跑（Run 13 新發現）** | 最後成功快照 ts 2026-10-29 07:45:06 HKT（cron `kiro-v3-account-assets`），nextRunAt 原定 2026-10-30 07:45:06 HKT，但 `~/.openclaw/cron/runs/kiro-v3-account-assets.jsonl` **無 10-30 記錄** → 本輪 age 101,248s 屬真正漏跑（上輪誤判為「每日排程正常」，本輪修正，見 §6 手動項 15）|
+| 帳戶數值 | ⚠️ buying power 為 0 | totalAssets 886,434.86 / cash 892,559.76 / MV -6,124.90 / 1 position（US.META SHORT 10，pl_val -415.18）；dailyTrades=0、buyingPower=0 |
+| 帳戶 posture | ⚠️ risk_off（轉弱） | metrics.posture=risk_off（上輪 risk_on）；autoTrade=true、paperTrading=false、marketMode=AUTO |
+| Graph node health | ⚠️ 1 個 bad（持續未解） | DatabaseManager health=bad（headline "Market DB empty"）、TechnicalIndicatorGenerator unknown（"No feature rows"），與 sqlite 實測 122,541 行仍矛盾 → 見 §6 手動項 7 |
+| 本地 kiro-quant-v3 | ⚠️ ahead 10 / behind 5 | 當前 checkout 為分支 `fix/clean-runtime-state-positions`（落後 origin/main 10 / 領先 5）；依規則不推 local main |
+| 開放 PRs | ✅ 0 個 | `gh pr list --state open` → `[]`，GitHub API `pulls?state=open` 長度 0（2026-10-30 11:49 HKT 確認）|
+| 🔴 同一 loop 兩個 runner 並發 | ⚠️ 仍未解決 | 上輪（2026-10-29）另一 runner 同時開 PR #104；本輪只見單一 runner 痕跡，但 singleton lock 仍未安裝 → 見 §6 手動項 11 |
+| Broker 全部帳戶掛單 | ✅ 0 個 | US SIM 18526451（`US.META` SHORT 10，pl_val -415.18）、HK SIM 14239754（無持倉，snapshot ts 2026-06-30 00:15:32）、REAL 281756477844657671：全部 `open_orders=0` |
+| Data health | ❌ FAIL（持續） | blockers `factor_snapshots_stale` / `outcome_reconciliation_not_ready`；warning `computable_indicators_not_persisted`；`signals_without_prediction` 48（與上輪持平）|
 
-**Runtime info（2026-10-29 05:05 HKT）：**
-- openclaw gateway PID 44698（node v24.22.1），`/health` → `{"ok":true,"status":"live"}`
-- next-server PID 31563，port 3000 (Next.js)，uptime from Oct24；`/kiro` HTTP 200
-- kiro-ws-server.mjs PID 31555，port 8787
-- v3_launcher.py --dry-run PID 31549，uptime from Oct24；`logs/v3_live.log` 最後活動 05:02 HKT
-- 閒置模式運行正常：`[MARKET_IDLE] Running market analysis...` / `[MARKET_IDLE] Outside HK/US trading hours; collect_only=69 auto_trade=False` / `[IDLE_COLLECT] Syncing 69 symbols...`
+**Runtime info（2026-10-30 11:53 HKT）：**
+- next-server PID 2152356，port 3000 (Next.js)，uptime from Oct30 11:43
+- kiro-ws-server.mjs PID 2152353，port 8787
+- v3_launcher.py --dry-run PID 2152347；`logs/v3_live.log` 最後活動 11:49 HKT
+- FutuOpenD PID 2151880 + FTWebSocket PID 2152727，port 11112
 - runtime 狀態欄位：`issues=[]`、`launcherWrapperPids=[]`、`launcherExternalPids=[]`
-- idle backfill：lastRunAt 2026-10-28T04:00:03Z，lastCompleteAt 04:00:52Z，processed 69 / totalSymbols 69，每批 5 symbols 約 0.5–0.8s
-- predictions 24 個 symbols、decision trace 120 筆
-- cron `kiro-v3-account-assets` 上次成功 2026-10-28 07:45:03（status ok、delivered false），nextRunAt 2026-10-29 07:45 HKT（每日排程）
-- 本地 `main` 落後 `origin/main` **3** commit（`d8170c3` PR #104）、領先 46 commits（auto-sync），依規則不推送；`git push --dry-run origin main` → `non-fast-forward`（根因：`kiro_quant.db` 被 track，HEAD blob 363,835,392 bytes ≈ 347MB > GitHub 100MB 單檔限制；`.gitignore` 的 `*.db` 對已 track 檔案無效）
-- `logs/systemd/kiro-v3.err.log` 已 **181MB**（上輪 173MB），無 rotation
-- `git worktree list` 由 28 個降至 **21** 個（本輪已 `git worktree prune` 回收 9 個 prunable：kiro-local-test / kiro-test-pr93/94/95/97 / kiro-pr100 / kiro-pr101 / kiro-quant-v3-clean-pr100 / kiro-bugscan-LLQ0nq；全部確認目錄 GONE）
+- 交易循環正常：`[CYCLE_START] symbol=META buffer_len=1950 lookback=60`、`[QUOTE_CACHE][META] hit ... src=YF_LIVE`
+- `logs/systemd/kiro-v3.err.log` 已 **184MB**（上輪 181MB），無 rotation
+- `git worktree list` = 2（本輪新增 `kiro-v3-pr-health` 隔離測試 worktree，測試後清理）
+- 本地 `CLAUDE_CODE_REWRITE_GUIDE.md`（branch `fix/clean-runtime-state-positions`）仍停留喺 2026-10-10 版本，屬 stale 髒檔，**唔好**由該分支開 PR（見 §6 手動項 16）
 
 ---
 
@@ -85,6 +80,7 @@
 
 | PR | 分支 | 合併日期 | 內容摘要 |
 |----|------|----------|---------|
+| #105 | `docs/update-rewrite-guide-2026-10-29-run12` | 2026-10-29 | docs: 更新 rewrite guide — 2026-10-29 05:00 health loop (Run 12)（squash merge dd5e165）|
 | #104 | `docs/update-rewrite-guide-2026-10-29` | 2026-10-29 | docs: 更新 rewrite guide — 2026-10-29 health loop（本 PR）|
 | #103 | `docs/update-rewrite-guide-2026-10-28` | 2026-10-28 | docs: 更新 rewrite guide — 2026-10-28 health loop（本 PR）|
 | #102 | `docs/update-rewrite-guide-2026-10-27` | 2026-10-27 | docs: 更新 rewrite guide — 2026-10-27 health loop（squash merge adc86fa）|
@@ -113,16 +109,16 @@
 | #71 | `claude/busy-lamport-56e3c7` | 2026-05-15 | docs 更新（rewrite guide） |
 | #58 | `feat/system-hardening-and-safety-rails` | CLOSED 2026-05-16 | DB blob 無法合併，safety-rail 已被 #80/#81/#82 覆蓋 |
 
-### 開放 PR（2026-10-29）
+### 開放 PR（2026-10-30）
 
 | 狀態 | 數量 | PRs | 說明 |
 |------|------|-----|---------|
-| CANDIDATE | 0 | — | 無（`gh pr list --state open` → `[]`，GitHub API 長度 0，2026-10-29 05:02 HKT 確認）|
+| CANDIDATE | 0 | — | 無（`gh pr list --state open` → `[]`，GitHub API `pulls?state=open` 長度 0，2026-10-30 11:49 HKT 確認）|
 | BLOCKED | 0 | — | 無 |
 | SKIP | 0 | — | 無 |
 
-> gh CLI 已認證（account: christophert0607-creator，scopes 含 `repo`），PR 狀態以 GitHub API 為準（2026-10-29 05:02 HKT 重新確認 `[]`）。
-> 合併閘門（Merge Gate）：本循環無候選 PR，無需 worktree 隔離測試；唯一 merge 為本 guide 更新 PR #104（squash，docs-only）。
+> gh CLI 已認證（account: christophert0607-creator，scopes 含 `repo`），PR 狀態以 GitHub API 為準（2026-10-30 11:49 HKT 確認 `[]`）。
+> 合併閘門（Merge Gate）：本循環無候選 PR，**無需 worktree 隔離測試候選 PR**；隔離 worktree 只用嚟跑 `origin/main` 測試基線（見 §3 回歸測試行）。本輪唯一 merge 為本 guide 更新 PR（docs-only）。
 > 2026-10-13 記錄嘅 8 個 open PR 已全部結案：#93/#94/#96/#97/#98/#99/#100/#101 已 MERGED，#95 已 CLOSED。
 
 ---
@@ -173,6 +169,10 @@
 13. **Futu 探測 API 簽名陷阱（修正上一輪建議）** — `OpenSecTradeContext.position_list_query()` / `order_list_query()` **唔接受 `filter_trdmarket` kwarg**（會 `TypeError: unexpected keyword argument`）；market 過濾只能經 context 建構子 `OpenSecTradeContext(filter_trdmarket=TrdMarket.US)`。另外 Run 12 用預設建構子探測時連續 5 次 `Connect fail: conn=0(1..5); msg=Timeout`，改用顯式 `host='127.0.0.1', port=11112` 即刻成功 → 探測 script 一律顯式傳 host/port 並加 retry。
 14. **REAL 帳戶持倉仍未納入 V3 管轄（連續第 2 輪）** — `281756477844657671`（REAL / MARGIN / ACTIVE）持 `US.SPCH` LONG 10（cost 14.07, pl_val -53.10）+ `US.NOK` LONG 2（cost 13.145, pl_val -8.09），既唔在 `state.json` 亦唔在 engine universe，engine 日誌完全無提及。需人手確認係真人持倉定測試殘留，再決定加入 `symbols_list` 或標記不可交易。
 
+15. **🔴 `kiro-v3-account-assets` cron 今日漏跑（Run 13 新發現）** — cron runs jsonl 最後成功記錄係 2026-10-29 07:45:06（status ok），`nextRunAt` 原定 2026-10-30 07:45:06 HKT，但 **10-30 無任何 run 記錄**；結果 `accountSnapshotAgeSeconds` = 101,248（約 28 小時）。上輪（Run 12）把同一現象判為「每日排程正常」，Run 13 修正為真正漏跑。需人手檢查該 job 嘅 scheduler（systemd timer vs OpenClaw automation）並補跑。留意 `automations list` 目前只見 `kiro-pr-health-merge-loop` 一條，`kiro-v3-account-assets` 似乎唔由 OpenClaw automations 排程。
+16. **⚠️ 本地 checkout 嘅 rewrite guide 係 stale 髒檔** — branch `fix/clean-runtime-state-positions` 上嘅 `CLAUDE_CODE_REWRITE_GUIDE.md` 停留喺 2026-10-10 版本（比 origin/main 舊咗 4 輪、內容少 334 行）。若由該分支開 PR 會**覆蓋掉** origin/main 較新內容。處理方法：先 `git checkout origin/main -- CLAUDE_CODE_REWRITE_GUIDE.md` 或直接由 `origin/main` 開新分支；長期應把該 stale branch 標記為可 prune。
+17. **dev checkout 通過數 -1（疑似 flaky）** — Run 12 同一 dev checkout 為 623 passed / 4 failed，Run 13 為 622 passed / 4 failed（失敗集合相同）。差異只喺通過數，需人手重跑一次確認是否 flaky test。
+
 ### 待實作分支
 
 #### `dashboard-warning-triage`
@@ -220,12 +220,15 @@
     --ignore=tests/test_pattern_trainer_components.py \
     --ignore=tests/test_trade_outcome_features.py
   ```
-- **基線 A — 本地 live tree（`workspace-quant/kiro-quant-v3`，HEAD `5b072a2` + 未追蹤 runtime 模組，2026-10-29 05:03 HKT 實測，於 rsync 隔離副本跑）：**
-  **19 failed, 1,145 passed, 1 skipped**（ignore 2 個 collection error 模組）。任何改動不得使 1,145 通過數下降，亦不得令失敗數升破 19。
+- **基線 A — 本地 live tree（`workspace-quant/kiro-quant-v3`，2026-10-30 11:52 HKT 實測，於 dev checkout 直接跑）：**
+  **622 passed / 4 failed / 1 skipped**（ignore 3 個 collection error 模組：test_meta_labeler_integration / test_pattern_trainer_components / test_trade_outcome_features；33.91s）。
+  4 failed 全屬 `test_model_registry.py::TestModelManagerValidateCheckpointIntegration`。
+  ⚠️ Run 12 同 base 記錄為 623 passed / 4 failed → 本輪少 1 個 passed（疑似 flaky test，建人手確認）。
+  ⚠️ Run 12 記載嘅「19 failed / 1,145 passed」係另一次唔同 ignore 集合嘅數字，唔好直接跨輪比較；Run 13 起以本行為準。
   - 失敗：`test_kelly_position_sizing.py`(3)、`test_model_registry.py`(4)、`test_multi_market_isolation.py`(3)、`test_signal_density.py`(9)
   - 註：另有 `test_live_execution_ordering.py::test_...` 報 `LiveConfig.__init__() got an unexpected keyword argument 'swing_buy_min_confidence'`（既有基線，唔計入 19 個 failure 統計之外）
-- **基線 B — `origin/main`（`63aeadc`，PR 開分支基準，2026-10-29 05:04 HKT 實測，於 git worktree `/tmp/kiro-main-test` 跑）：**
-  **39 failed, 734 passed, 1 skipped**（ignore 3 個 collection error 模組）。與上輪完全一致。
+- **基線 B — `origin/main`（`dd5e165` = PR #105 merge，PR 開分支基準，2026-10-30 11:51 HKT 實測，於 git worktree `~/.openclaw/worktrees/kiro-v3-pr-health` 跑）：**
+  **734 passed / 39 failed / 1 skipped**（ignore 3 個 collection error 模組；28.00s）。與 Run 12 基線 B（39 failed / 734 passed）完全一致 → 無 regression。
   - 失敗：`test_meta_labeler.py`(10)、`test_signal_density.py`(9)、`test_model_registry.py`(4)、`test_yf_provider.py`(3)、`test_multi_market_isolation.py`(3)、`test_kelly_position_sizing.py`(3)、`test_main_loop_trade_bridge.py`(2)、`test_live_execution_ordering.py`(2)、`test_futu_connector_unlock.py`(2)、`test_market_context_sync.py`(1)
   - ⚠️ origin/main 測試檔較少（70 vs 本地 88），缺少本地新增嘅回歸測試，所以失敗數較高。**比較 PR 前後差異時，必須用同一個 base 比較**，唔好跨 base 比 absolute 數字。
   - ⚠️ `origin/main` 嘅 `main_loop.py` 自帶 `_entry_gates_allow()` 方法（內嵌），**唔依賴** `v3_pipeline/core/entry_gates.py`，所以 origin/main 可獨立跑測試；本地 committed main 反而因為 import 咗未追蹤模組而壞（見 §6 手動項 9）。
@@ -396,4 +399,4 @@ Input: 全市場候選
 
 ---
 
-*Generated by kiro-pr-health-merge-loop scheduled auto-run — 2026-10-29 05:18 HKT (Run 12)*
+*Generated by kiro-pr-health-merge-loop scheduled auto-run — 2026-10-30 11:55 HKT (Run 13)*
